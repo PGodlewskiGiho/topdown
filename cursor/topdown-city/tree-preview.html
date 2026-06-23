@@ -113,7 +113,7 @@ function drawTrunk(t) {
   const tr = t.trunk, [vx, vy] = treeLean(t);
   const hw = tr.tw * 0.5, thw = hw * 0.74;
   const bx = t.x, by = t.y, tx = t.x + vx * tr.frac, ty = t.y + vy * tr.frac;
-  const palMul = mode === "night" ? 0.45 : 1;
+  const palMul = mode === "night" ? 0.65 : 1;
   const tp = { l: tintPal({ spec: TRUNK.l }, palMul).spec, m: tintPal({ spec: TRUNK.m }, palMul).spec, d: tintPal({ spec: TRUNK.d }, palMul).spec };
 
   ctx.fillStyle = mode === "night" ? "rgba(0,0,0,.35)" : "rgba(0,0,0,.22)";
