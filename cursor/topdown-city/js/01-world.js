@@ -1161,7 +1161,7 @@ function pickForestTreeMetres(r){
 function genForestTrees(lot,r,ci,cj){
   const left=lot.x, top=lot.y, lw=lot.w, lh=lot.h, placed=[];
   const pad=14;
-  const spacing=(s)=>Math.max(34, s*0.20);
+  const spacing=(s)=>Math.max(30, s*0.17);
   const fits=(x,y,s)=>{
     if(x<left+pad||x>left+lw-pad||y<top+pad||y>top+lh-pad) return false;
     for(const p of placed){
@@ -1171,16 +1171,16 @@ function genForestTrees(lot,r,ci,cj){
     return true;
   };
   const pushTree=(x,y,s,kind)=>{
-    lot.prop.push(makeTree(x,y,s,r,kind,{fi:ci,fj:cj}));
+    lot.props.push(makeTree(x,y,s,r,kind,{fi:ci,fj:cj}));
     placed.push({x,y,s});
   };
-  const target=Math.min(52, Math.max(16, Math.floor(lw*lh/28000)));
-  let tries=0, maxTries=target*14;
+  const target=Math.min(64, Math.max(22, Math.floor(lw*lh/22000)));
+  let tries=0, maxTries=target*18;
   while(placed.length<target && tries++<maxTries){
     const x=left+pad+r()*(lw-pad*2), y=top+pad+r()*(lh-pad*2);
     const roll=r();
-    if(roll<0.18){
-      const s=forestTreeS(3.5+r()*2.5);
+    if(roll<0.16){
+      const s=forestTreeS(5+r()*3);
       if(!fits(x,y,s)) continue;
       pushTree(x,y,s,r()<0.45?"bush":"birch");
       continue;
@@ -1188,9 +1188,9 @@ function genForestTrees(lot,r,ci,cj){
     const s=forestTreeS(pickForestTreeMetres(r));
     if(!fits(x,y,s)) continue;
     pushTree(x,y,s,null);
-    if(r()<0.42){
-      const ux=x+(r()-0.5)*spacing(s)*1.6, uy=y+(r()-0.5)*spacing(s)*1.3;
-      const us=forestTreeS(4+r()*4);
+    if(r()<0.48){
+      const ux=x+(r()-0.5)*spacing(s)*1.5, uy=y+(r()-0.5)*spacing(s)*1.2;
+      const us=forestTreeS(5+r()*5);
       if(fits(ux,uy,us)) pushTree(ux,uy,us,r()<0.4?"bush":"birch");
     }
   }
@@ -1249,7 +1249,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=17;
+const LOT_CACHE_VER=18;
 function getLot(i,j){
   const key=i+","+j+","+LOT_CACHE_VER; let lot=lotCache.get(key); if(lot) return lot;
   const biome=biomeOf(i,j), B=BIOMES[biome], r=lotRng(i,j), m=16, SW=(biome==="city"?6:28);
@@ -1294,7 +1294,7 @@ function getLot(i,j){
     lot.empty=true; lot.zone="forest"; lot.forestType=forestType(i,j);
     lot.B.ground=FOREST_GROUND[lot.forestType]||lot.B.ground;
     genForestTrees(lot,r,i,j);
-    lotProps.sort((u,v)=>u.y-v.y);
+    lot.props.sort((u,v)=>u.y-v.y);
     if(r()<0.04) placeBuildings(lot,"outer",r,biome);
   }
   else {
