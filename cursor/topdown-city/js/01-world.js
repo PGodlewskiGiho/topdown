@@ -1148,6 +1148,60 @@ function makeTree(x,y,s,r,forceKind,opts){
   t.hitR=Math.max(t.trunk.tw*0.55+3, city?5:9);
   return t;
 }
+// Forest tree sizes in metres (car ~3.6 m ≈ 80u). H ≈ s·0.88 → s = m · U_PER_M / 0.88.
+function forestTreeS(metres){ return metres*U_PER_M/0.88; }
+function pickForestTreeMetres(r){
+  const roll=r();
+  if(roll<0.30) return 5+r()*3;          // 5–8 m   saplings / young
+  if(roll<0.62) return 8+r()*10;         // 8–18 m  common
+  if(roll<0.84) return 18+r()*12;        // 18–30 m mature
+  if(roll<0.96) return 30+r()*10;        // 30–40 m large
+  return 40+r()*10;                      // 40–50 m rare giants
+}
+function genForestTrees(lot,r,ci,cj){
+  const left=lot.x, top=lot.y, lw=lot.w, lh=lot.h, placed=[];
+  const pad=14;
+  const spacing=(s)=>Math.max(34, s*0.20);
+  const fits=(x,y,s)=>{
+    if(x<left+pad||x>left+lw-pad||y<top+pad||y>top+lh-pad) return false;
+    for(const p of placed){
+      const md=spacing(Math.min(s, p.s));
+      if((x-p.x)**2+(y-p.y)**2<md*md) return false;
+    }
+    return true;
+  };
+  const pushTree=(x,y,s,kind)=>{
+    lot.prop.push(makeTree(x,y,s,r,kind,{fi:ci,fj:cj}));
+    placed.push({x,y,s});
+  };
+  const target=Math.min(52, Math.max(16, Math.floor(lw*lh/28000)));
+  let tries=0, maxTries=target*14;
+  while(placed.length<target && tries++<maxTries){
+    const x=left+pad+r()*(lw-pad*2), y=top+pad+r()*(lh-pad*2);
+    const roll=r();
+    if(roll<0.18){
+      const s=forestTreeS(3.5+r()*2.5);
+      if(!fits(x,y,s)) continue;
+      pushTree(x,y,s,r()<0.45?"bush":"birch");
+      continue;
+    }
+    const s=forestTreeS(pickForestTreeMetres(r));
+    if(!fits(x,y,s)) continue;
+    pushTree(x,y,s,null);
+    if(r()<0.42){
+      const ux=x+(r()-0.5)*spacing(s)*1.6, uy=y+(r()-0.5)*spacing(s)*1.3;
+      const us=forestTreeS(4+r()*4);
+      if(fits(ux,uy,us)) pushTree(ux,uy,us,r()<0.4?"bush":"birch");
+    }
+  }
+  for(let k=0;k<1+(r()*2|0);k++){
+    const s=forestTreeS(38+r()*12);
+    const edge=r()<0.55;
+    const x=edge?(left+(r()<0.5?pad:lw-pad)):(left+pad+r()*(lw-pad*2));
+    const y=edge?(top+pad+r()*(lh-pad*2)):(top+(r()<0.5?pad:lh-pad));
+    if(fits(x,y,s)) pushTree(x,y,s,null);
+  }
+}
 /* ===== plazas (open pedestrian squares) ===== */
 function isPlaza(i,j){
   if(biomeOf(i,j)!=="city"||isRoundabout(i,j)) return false;
@@ -1195,7 +1249,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=16;
+const LOT_CACHE_VER=17;
 function getLot(i,j){
   const key=i+","+j+","+LOT_CACHE_VER; let lot=lotCache.get(key); if(lot) return lot;
   const biome=biomeOf(i,j), B=BIOMES[biome], r=lotRng(i,j), m=16, SW=(biome==="city"?6:28);
@@ -1239,31 +1293,8 @@ function getLot(i,j){
   else if(biome==="forest"){
     lot.empty=true; lot.zone="forest"; lot.forestType=forestType(i,j);
     lot.B.ground=FOREST_GROUND[lot.forestType]||lot.B.ground;
-    // Dense understory: many medium trees (not a few giants — avoids blocky PNG upscale)
-    const cellW=58, cellH=58;
-    const cols=Math.max(4,Math.floor(lw/cellW)), rows=Math.max(4,Math.floor(lh/cellH));
-    const cw=lw/cols, ch=lh/rows;
-    for(let a=0;a<cols;a++) for(let b2=0;b2<rows;b2++){
-      if(r()<0.03) continue;
-      const tx=left+(a+0.02+r()*0.96)*cw, ty=top+(b2+0.02+r()*0.96)*ch;
-      const scale=40+r()*48;
-      lot.props.push(makeTree(tx,ty,scale,r,null,{fi:i,fj:j}));
-      if(r()<0.58){
-        const ux=tx+(r()-0.5)*52, uy=ty+(r()-0.5)*42;
-        lot.props.push(makeTree(ux,uy,18+r()*24,r,r()<0.35?"bush":"birch",{fi:i,fj:j}));
-      }
-      if(r()<0.32){
-        lot.props.push(makeTree(tx+(r()-0.5)*34,ty+(r()-0.5)*28,28+r()*20,r,r()<0.55?"deciduous":"oak",{fi:i,fj:j}));
-      }
-    }
-    // occasional canopy giants at lot edges
-    for(let k=0;k<3+(r()*4|0);k++){
-      const edge=r()<0.5;
-      const tx=edge?(left+(r()<0.5?8:lw-8)):(left+r()*lw);
-      const ty=edge?(top+r()*lh):(top+(r()<0.5?8:lh-8));
-      lot.props.push(makeTree(tx,ty,72+r()*32,r,null,{fi:i,fj:j}));
-    }
-    lot.props.sort((u,v)=>u.y-v.y);
+    genForestTrees(lot,r,i,j);
+    lotProps.sort((u,v)=>u.y-v.y);
     if(r()<0.04) placeBuildings(lot,"outer",r,biome);
   }
   else {
