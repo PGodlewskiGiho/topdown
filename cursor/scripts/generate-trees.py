@@ -16,9 +16,11 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent / "topdown-city"
 
-W, H = 96, 128
+OUT_W, OUT_H = 96, 128
+SS = 2
+W, H = OUT_W * SS, OUT_H * SS
 CX = W // 2
-SPLIT_Y = 86
+SPLIT_Y = round(86 / 128 * H)
 
 
 def rng_for(name: str, variant: int = 0) -> random.Random:
@@ -79,8 +81,8 @@ def draw_cluster_foliage(
     stroke_count: int,
 ):
     """Build one leafy mass: dark base → dense interior strokes → mid body → lit cap with more strokes."""
-    # 1 — structural under-mass (no flat empty fill)
-    pts = blob_points(cx, cy, rx * 1.04, ry * 1.02, r, wobble=0.11)
+    # 1 — structural under-mass (jagged outer wobble)
+    pts = blob_points(cx, cy, rx * 1.05, ry * 1.03, r, wobble=0.22)
     draw.polygon(pts, fill=palette["dk"])
 
     # 2 — interior texture strokes (radial + tangential, clipped to ellipse)
@@ -136,17 +138,26 @@ def draw_cluster_foliage(
             y2 = y + math.sin(tangent) * length * 0.75
             draw.line([(x, y), (x2, y2)], fill=col, width=1)
 
-    # 6 — silhouette edge: tiny inward strokes (define rim, never float outside)
-    for _ in range(max(14, int(rx * 1.0))):
+    # 6 — jagged outer fringe: mostly outward leaf/twig strokes on the silhouette
+    n_fr = max(28, int(rx * 2.4))
+    for _ in range(n_fr):
         a = r.uniform(0, 6.283)
-        x = cx + math.cos(a) * rx * 0.96
-        y = cy + math.sin(a) * ry * 0.96
-        inward = a + math.pi + (r.random() - 0.5) * 0.35
-        length = r.uniform(1.0, 2.8)
-        col = palette["dk"] if r.random() < 0.55 else palette["d"]
-        x2 = x + math.cos(inward) * length
-        y2 = y + math.sin(inward) * length * 0.75
-        draw.line([(x, y), (x2, y2)], fill=col, width=1)
+        edge = r.uniform(0.88, 1.06)
+        x = cx + math.cos(a) * rx * edge
+        y = cy + math.sin(a) * ry * edge
+        if r.random() < 0.72:
+            outward = a + r.uniform(-0.65, 0.65)
+            length = r.uniform(2.5, 7.0) * SS
+            col = palette["m"] if r.random() < 0.45 else palette["d"]
+            if r.random() < 0.22:
+                col = palette["l"]
+        else:
+            outward = a + math.pi + r.uniform(-0.35, 0.35)
+            length = r.uniform(1.5, 3.5) * SS
+            col = palette["dk"] if r.random() < 0.6 else palette["d"]
+        x2 = x + math.cos(outward) * length
+        y2 = y + math.sin(outward) * length * 0.76
+        draw.line([(x, y), (x2, y2)], fill=col, width=max(1, SS - 1))
 
 
 def draw_trunk_join(
@@ -450,17 +461,19 @@ def main():
 
     out.mkdir(parents=True, exist_ok=True)
     meta = {
-        "width": W,
-        "height": H,
-        "splitY": SPLIT_Y,
-        "anchorX": CX,
-        "anchorY": H - 1,
+        "width": OUT_W,
+        "height": OUT_H,
+        "splitY": round(86 / 128 * OUT_H),
+        "anchorX": OUT_W // 2,
+        "anchorY": OUT_H - 1,
         "crownR": 36,
         "kinds": {},
     }
     for kind, fn in GENERATORS.items():
         path = out / f"{kind}.png"
         img = fn(0)
+        if SS > 1:
+            img = img.resize((OUT_W, OUT_H), Image.Resampling.LANCZOS)
         img.save(path, "PNG")
         meta["kinds"][kind] = {"file": f"{kind}.png"}
         print("wrote", path)

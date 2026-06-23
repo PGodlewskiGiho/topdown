@@ -1076,7 +1076,7 @@ function makeTree(x,y,s,r,forceKind,opts){
   opts=opts||{};
   const city=!!opts.city;
   const kind=forceKind||(city?(s<16?"bush":"deciduous"):pickForestKind(opts.fi??0,opts.fj??0,r));
-  const t={x,y,s,t:"tree",kind};
+  const t={x,y,s,t:"tree",kind,forest:!city};
   if(kind==="bush"){
     t.H=s*0.34; t.crownR=s*0.30; t.trunk={tw:s*0.10,frac:0.12};
     t.outline=leafyOutline(r,0.74,6+(r()*3|0),0.20);
@@ -1090,7 +1090,7 @@ function makeTree(x,y,s,r,forceKind,opts){
   const env={deciduous:{cr:0.40,ry:0.80,lobes:8,h:0.84},
              oak:{cr:0.46,ry:0.74,lobes:7,h:0.80},
              birch:{cr:0.30,ry:1.04,lobes:9,h:0.94}}[kind]||{cr:0.40,ry:0.80,lobes:8,h:0.84};
-  t.H=s*(city?env.h*0.66:env.h);
+  t.H=s*(city?env.h*0.66:env.h*1.10);
   t.crownR=s*(city?env.cr*0.84:env.cr);
   t.trunk={tw:s*(kind==="oak"?0.10:kind==="birch"?0.07:0.085),frac:0.62};
   t.outline=leafyOutline(r,env.ry,env.lobes,0.15);

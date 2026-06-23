@@ -19,7 +19,7 @@ function updateWeather(dt){
   windT += dt * (0.75 + weatherI * 1.55);
   if(Math.random() < dt * 0.14) windGust = rand(0.15, 1.0);
   windGust *= Math.pow(0.965, dt * 60);
-  windAmp = 0.16 + weatherI * 0.58 + windGust * 0.42;
+  windAmp = 0.06 + weatherI * 0.20 + windGust * 0.12;
   if(weatherI>0.15) wetness += (1-wetness)*Math.min(1,0.25*dt);
   else              wetness -= Math.min(wetness,0.06*dt);     // slow dry-out
   wetness=clamp(wetness,0,1);
