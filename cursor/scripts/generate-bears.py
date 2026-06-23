@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Generate top-down bear sprite sheets — compact, wide, heavy (not worm-shaped).
-
-Each variant: 4 walk + 1 attack. Bears face +X; game rotates by heading.
-"""
+"""Top-down bear sprites — single unified silhouette (not stacked circles)."""
 from __future__ import annotations
 
 import json
@@ -15,13 +12,11 @@ from PIL import Image, ImageDraw
 ROOT = Path(__file__).resolve().parent.parent / "topdown-city"
 OUT = ROOT / "assets" / "bears"
 
-# Square frame → round heavy silhouette (width ≈ length)
 FW, FH = 88, 88
 SS = 4
 W, H = FW * SS, FH * SS
 N_WALK = 4
-N_ATTACK = 1
-N_FRAMES = N_WALK + N_ATTACK
+N_FRAMES = N_WALK + 1
 ANCHOR_X = W // 2
 ANCHOR_Y = H - SS * 3
 
@@ -35,149 +30,185 @@ def hex_rgb(h: str) -> tuple[int, int, int]:
     return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
 
 
-def fur_strokes(draw, cx, cy, rx, ry, r, palette, count: int):
+def inset_poly(pts: list[tuple[float, float]], cx: float, cy: float, k: float):
+    return [(cx + (x - cx) * k, cy + (y - cy) * k) for x, y in pts]
+
+
+def bear_outline(cx: float, cy: float, *, attack: bool = False, walk_t: float = 0.0) -> list[tuple[float, float]]:
+    """One closed rug-silhouette: head, barrel chest, haunches — not separate blobs."""
+    step = math.sin(walk_t * math.pi * 2) * 0.06
+    nose_x = 34 if attack else 30
+    nose_y = 0
+    spread = 1.12 if attack else 1.0
+
+    def p(x, y):
+        return (cx + s(x * spread), cy + s(y * spread + y * step * 0.15))
+
+    # clockwise from nose — continuous bear pelt shape
+    return [
+        p(nose_x, nose_y),           # snout tip
+        p(nose_x - 4, -5),           # upper jaw
+        p(22, -14),                  # shoulder / neck right
+        p(6, -18),                   # rib cage right
+        p(-10, -16),                 # flank right
+        p(-20, -10 - step * 8),      # haunch right (walk shift)
+        p(-24, -2),                  # rear top
+        p(-26, 5),                   # rump
+        p(-24, 12),                  # rear bottom
+        p(-20, 16 + step * 8),       # haunch left
+        p(-10, 18),                  # flank left
+        p(6, 20),                    # rib left
+        p(22, 16),                   # shoulder left
+        p(nose_x - 3, 7),            # lower jaw
+    ]
+
+
+def leg_quads(cx: float, cy: float, *, attack: bool = False, walk_t: float = 0.0) -> list[list[tuple[float, float]]]:
+    """Four legs as small trapezoids attached to body, not circles."""
+    ph = walk_t * math.pi * 2
+    fwd = [math.sin(ph), math.sin(ph + math.pi), math.sin(ph + math.pi), math.sin(ph)]
+    legs = []
+    bases = [
+        (14, 13, 1.0 if attack else 0.55),
+        (14, -13, 1.0 if attack else 0.55),
+        (-14, 14, 0.35),
+        (-14, -14, 0.35),
+    ]
+    for i, (bx, by, reach) in enumerate(bases):
+        fx = fwd[i] * (10 if attack else 6)
+        lx, ly = cx + s(bx + fx * reach), cy + s(by)
+        hw, hl = s(5.5), s(7.5)
+        sign = 1 if by > 0 else -1
+        legs.append([
+            (lx - hw, ly - hl * 0.3),
+            (lx + hw, ly - hl * 0.3),
+            (lx + hw * 0.7 + s(fx * 0.4), ly + hl * sign),
+            (lx - hw * 0.7 + s(fx * 0.4), ly + hl * sign),
+        ])
+    return legs
+
+
+def fur_strokes_in_shape(draw, pts, r, palette, count: int):
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    cx, cy = sum(xs) / len(xs), sum(ys) / len(ys)
+    rx = (max(xs) - min(xs)) * 0.38
+    ry = (max(ys) - min(ys)) * 0.38
     for _ in range(count):
         a = r.random() * 6.283
-        rad = math.sqrt(r.random()) * 0.88
+        rad = math.sqrt(r.random()) * 0.82
         x = cx + math.cos(a) * rx * rad
         y = cy + math.sin(a) * ry * rad
-        lit = -0.45 * ((x - cx) / rx) - 0.5 * ((y - cy) / ry)
-        if lit > 0.12:
-            col = palette["hi"] if r.random() < 0.35 else palette["h"]
-        elif lit > -0.08:
-            col = palette["l"] if r.random() < 0.4 else palette["m"]
-        else:
-            col = palette["d"] if r.random() < 0.5 else palette["dk"]
-        tangent = a + math.pi / 2 + (r.random() - 0.5) * 0.45
-        ln = r.uniform(s(1.2), s(3.5))
-        draw.line(
-            [(x, y), (x + math.cos(tangent) * ln, y + math.sin(tangent) * ln * 0.8)],
-            fill=col,
-            width=max(1, SS // 2),
-        )
+        lit = -0.42 * ((x - cx) / rx) - 0.48 * ((y - cy) / ry)
+        col = palette["l" if lit > 0.05 else "d" if lit > -0.15 else "dk"]
+        if lit > 0.18 and r.random() < 0.35:
+            col = palette["h"]
+        tangent = a + math.pi / 2 + (r.random() - 0.5) * 0.4
+        ln = r.uniform(s(1.0), s(2.8))
+        x2 = x + math.cos(tangent) * ln
+        y2 = y + math.sin(tangent) * ln * 0.75
+        draw.line([(x, y), (x2, y2)], fill=col, width=max(1, SS // 2))
 
 
-def draw_claw_paw(draw, x, y, palette, *, forward: float = 0, spread: float = 0, attack: bool = False):
-    """Chunky paw — wide stance, visible claws."""
-    x += forward
-    y += spread
-    hw, hh = s(7.5), s(6.5)
-    draw.ellipse([x - hw, y - hh, x + hw, y + hh], fill=palette["dk"])
-    draw.ellipse([x - hw * 0.82, y - hh * 0.72, x + hw * 0.82, y + hh * 0.68], fill=palette["m"])
-    claw_len = s(4.5 if attack else 3.2)
-    for i in range(4):
-        fx = x + (i - 1.5) * s(3.6)
-        fy = y + hh * 0.55
-        tx = fx + s(1.5 if attack else 0.8)
-        ty = fy + claw_len
-        draw.line([(fx, fy), (tx, ty)], fill=(35, 28, 22), width=max(2, SS // 2))
+def fringe_strokes(draw, pts, palette, r, n: int = 48):
+    m = len(pts)
+    for i in range(n):
+        t = (i + r.random() * 0.3) / n
+        idx = int(t * m) % m
+        x0, y0 = pts[idx]
+        x1, y1 = pts[(idx + 1) % m]
+        u = r.random()
+        x, y = x0 + (x1 - x0) * u, y0 + (y1 - y0) * u
+        nx, ny = x1 - x0, y1 - y0
+        ln = math.hypot(nx, ny) or 1
+        ox, oy = -ny / ln, nx / ln
+        outward = r.uniform(-1, 1)
+        x2 = x + ox * outward * s(r.uniform(2.5, 6))
+        y2 = y + oy * outward * s(r.uniform(2.5, 6))
+        col = palette["m"] if r.random() < 0.5 else palette["d"]
+        draw.line([(x, y), (x2, y2)], fill=col, width=max(1, SS // 2))
 
 
-def draw_bear_frame(
-    draw: ImageDraw.ImageDraw,
-    r: random.Random,
-    palette: dict,
-    *,
-    walk_i: int = 0,
-    attack: bool = False,
-):
-    """Wide, tanky bear mass — head + shoulders + haunches, not a segmented worm."""
-    cx, cy = W * 0.50, H * 0.52
+def draw_claws(draw, quad, palette):
+    bx = sum(p[0] for p in quad) / 4
+    by = sum(p[1] for p in quad) / 4
+    for i in range(-1, 3):
+        fx = bx + i * s(2.8)
+        fy = by + s(5)
+        draw.line([(fx, fy), (fx + s(0.8), fy + s(3.8))], fill=(30, 24, 18), width=max(2, SS // 2))
 
-    ph = 0 if attack else (walk_i / N_WALK) * math.pi * 2
-    # Walk: paws step forward/back along facing axis only (no lateral worm wiggle)
-    step = s(4.5)
-    fl_f = math.sin(ph) * step
-    fr_f = math.sin(ph + math.pi) * step
-    bl_f = math.sin(ph + math.pi) * step * 0.85
-    br_f = math.sin(ph) * step * 0.85
 
-    if attack:
-        fl_f, fr_f, bl_f, br_f = s(10), s(10), s(-2), s(-2)
-        spread_f, spread_b = s(20), s(14)
-    else:
-        spread_f, spread_b = s(15), s(15)
+def draw_bear_frame(draw, r, palette, *, walk_i: int = 0, attack: bool = False):
+    cx, cy = W * 0.48, H * 0.50
+    walk_t = 0 if attack else walk_i / N_WALK
 
-    # Ground shadow — wide oval
-    draw.ellipse([cx - s(26), cy + s(16), cx + s(26), cy + s(24)], fill=(0, 0, 0, 60))
+    draw.ellipse([cx - s(24), cy + s(15), cx + s(24), cy + s(22)], fill=(0, 0, 0, 55))
 
-    # === REAR HAUNCHES (wide, not a tail segment) ===
-    rx, ry = cx - s(10), cy
-    draw.ellipse([rx - s(18), ry - s(17), rx + s(6), ry + s(17)], fill=palette["dk"])
-    draw.ellipse([rx - s(15), ry - s(14), rx + s(3), ry + s(14)], fill=palette["d"])
+    outline = bear_outline(cx, cy, attack=attack, walk_t=walk_t)
+    mid = inset_poly(outline, cx, cy, 0.82)
+    inner = inset_poly(outline, cx, cy, 0.58)
 
-    # === MAIN BODY — almost as wide as long ===
-    bx, by = cx - s(2), cy - s(2)
-    draw.ellipse([bx - s(20), by - s(19), bx + s(18), by + s(19)], fill=palette["dk"])
-    draw.ellipse([bx - s(18), by - s(17), bx + s(16), by + s(17)], fill=palette["m"])
-    draw.ellipse([bx - s(10), by - s(12), bx + s(8), by + s(4)], fill=palette["l"])
-    fur_strokes(draw, bx, by, s(17), s(15), r, palette, int(42 * SS))
+    # single body mass
+    draw.polygon(outline, fill=palette["dk"])
+    draw.polygon(mid, fill=palette["m"])
+    draw.polygon(inner, fill=palette["l"])
+    fur_strokes_in_shape(draw, mid, r, palette, int(38 * SS))
+    fringe_strokes(draw, outline, palette, r, int(36 * SS))
 
-    # Shoulder humps (side bulk — makes bear look massive from above)
-    draw.ellipse([cx + s(2), cy - s(20), cx + s(16), cy - s(8)], fill=palette["h"])
-    draw.ellipse([cx + s(2), cy + s(8), cx + s(16), cy + s(20)], fill=palette["d"])
+    # legs — trapezoids, darker
+    for quad in leg_quads(cx, cy, attack=attack, walk_t=walk_t):
+        draw.polygon(quad, fill=palette["d"])
+        draw_claws(draw, quad, palette)
 
-    # Back legs — wide stance
-    draw_claw_paw(draw, cx - s(14) + bl_f, cy + spread_b, palette, forward=bl_f * 0.2)
-    draw_claw_paw(draw, cx - s(14) + br_f, cy - spread_b, palette, forward=br_f * 0.2)
-
-    # Front legs — thick, forward
-    fx = cx + s(12)
-    draw_claw_paw(draw, fx + fl_f, cy + spread_f, palette, forward=fl_f * 0.35, attack=attack)
-    draw_claw_paw(draw, fx + fr_f, cy - spread_f, palette, forward=fr_f * 0.35, attack=attack)
-
-    # === HEAD — big, merged with chest (not a ball on a stick) ===
-    hx, hy = cx + s(18), cy - s(1)
-    if attack:
-        hx += s(6)
-        hy -= s(2)
-    draw.ellipse([hx - s(16), hy - s(15), hx + s(14), hy + s(15)], fill=palette["d"])
-    draw.ellipse([hx - s(13), hy - s(13), hx + s(11), hy + s(11)], fill=palette["m"])
-    fur_strokes(draw, hx, hy, s(12), s(11), r, palette, int(20 * SS))
-
-    # Ears — small vs massive head
-    for ex, ey in [(hx - s(9), hy - s(12)), (hx + s(5), hy - s(13))]:
-        draw.ellipse([ex - s(3.5), ey - s(3), ex + s(3.5), ey + s(3)], fill=palette["dk"])
-
-    # Snout / muzzle block
-    sx, sy = hx + s(12), hy + s(2)
-    if attack:
-        sx += s(6)
-    draw.ellipse([sx - s(8), sy - s(6), sx + s(8), sy + s(7)], fill=palette["snout"])
-    draw.ellipse([sx - s(5), sy - s(4), sx + s(3), sy + s(3)], fill=palette["snout_l"])
-    draw.ellipse([sx + s(2), sy + s(1), sx + s(5), sy + s(4)], fill=(22, 16, 12))
+    # muzzle wedge on front of same mass (not a circle)
+    mx = cx + s(26 if attack else 24)
+    my = cy
+    muzzle = [
+        (mx, my - s(5)),
+        (mx + s(8 if attack else 6), my - s(2)),
+        (mx + s(9 if attack else 7), my + s(3)),
+        (mx + s(4), my + s(6)),
+        (mx - s(2), my + s(4)),
+    ]
+    draw.polygon(muzzle, fill=palette["snout"])
+    draw.ellipse([mx + s(3), my + s(1), mx + s(6), my + s(4)], fill=(20, 14, 10))
 
     if attack:
-        # Roaring maw
         draw.polygon(
-            [(sx - s(3), sy + s(1)), (sx + s(10), sy + s(4)), (sx + s(4), sy + s(11)), (sx - s(6), sy + s(7))],
-            fill=(130, 28, 22),
+            [
+                (mx + s(2), my + s(2)),
+                (mx + s(10), my + s(3)),
+                (mx + s(7), my + s(9)),
+                (mx + s(1), my + s(7)),
+            ],
+            fill=(110, 35, 28),
         )
-        for tx in [sx + s(2), sx + s(5), sx + s(8)]:
-            draw.line([(tx, sy + s(3)), (tx + s(1), sy + s(7))], fill=(240, 235, 220), width=max(1, SS // 2))
-        # Angry eyes
-        for ex, ey in [(hx - s(4), hy - s(5)), (hx + s(6), hy - s(5))]:
-            draw.ellipse([ex - s(2.5), ey - s(2), ex + s(2.5), ey + s(2)], fill=(180, 30, 25))
-    else:
-        draw.ellipse([hx + s(3), hy - s(4), hx + s(6.5), hy - s(1.5)], fill=(28, 20, 16))
+        draw.line([(mx + s(4), my + s(3)), (mx + s(8), my + s(5))], fill=(230, 220, 200), width=max(1, SS // 2))
+
+    # small ear bumps on silhouette — part of outline feel, not circles
+    for ex, ey in [(cx + s(16), cy - s(13)), (cx + s(16), cy + s(13))]:
+        draw.polygon(
+            [(ex, ey - s(3)), (ex + s(4), ey), (ex, ey + s(3)), (ex - s(3), ey)],
+            fill=palette["d"],
+        )
 
 
 VARIANTS = {
     "brown": {
-        "dk": "#221408", "d": "#3a2418", "m": "#583820", "l": "#785030", "h": "#986848", "hi": "#b88858",
-        "snout": "#483020", "snout_l": "#685040",
+        "dk": "#1e1208", "d": "#362018", "m": "#523020", "l": "#704028", "h": "#905838",
+        "snout": "#403020", "snout_l": "#604838",
     },
     "dark": {
-        "dk": "#0c0a08", "d": "#1c1814", "m": "#2c2820", "l": "#403830", "h": "#585048", "hi": "#706860",
-        "snout": "#282018", "snout_l": "#403830",
+        "dk": "#0a0806", "d": "#181410", "m": "#282018", "l": "#383028", "h": "#504840",
+        "snout": "#242018", "snout_l": "#383028",
     },
     "cinnamon": {
-        "dk": "#301008", "d": "#502818", "m": "#703820", "l": "#905030", "h": "#b06838", "hi": "#d08048",
-        "snout": "#603020", "snout_l": "#805040",
+        "dk": "#2a0c06", "d": "#482018", "m": "#683020", "l": "#884028", "h": "#a85030",
+        "snout": "#582818", "snout_l": "#784030",
     },
     "grizzly": {
-        "dk": "#281808", "d": "#443020", "m": "#604830", "l": "#806040", "h": "#a08058", "hi": "#c0a070",
-        "snout": "#584028", "snout_l": "#786048",
+        "dk": "#221408", "d": "#3c2818", "m": "#583820", "l": "#785030", "h": "#986840",
+        "snout": "#503820", "snout_l": "#705040",
     },
 }
 
@@ -214,9 +245,7 @@ def main():
         img.save(path, "PNG")
         meta["variants"][name] = {"file": path.name}
         print("wrote", path, img.size)
-    meta_path = OUT / "meta.json"
-    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
-    print("wrote", meta_path)
+    (OUT / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":
