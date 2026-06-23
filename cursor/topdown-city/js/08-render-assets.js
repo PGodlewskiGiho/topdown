@@ -1325,6 +1325,7 @@ function drawTreeCanopy(cx,cy,t,lod){
   if(!t||!t.outline) return;
   if(TREE_SPRITE.ready&&drawTreeCanopySprite(t)) return;
   const pal=TREE_PAL[t.kind]||TREE_PAL.deciduous, out=t.outline, R=t.crownR;
+  const [vx,vy]=treeLean(t);
   let map;
   if(t.conifer){
     // Layered fir: overlapping drooping boughs, each with a sawtooth (needle) bottom edge. Drawn
@@ -1351,7 +1352,7 @@ function drawTreeCanopy(cx,cy,t,lod){
       ctx.fillStyle=ti<=1?pal.hi:pal.h; bough(b.uT,uMid,b.hwB*0.58,0); ctx.fill(); }
     return;
   }
-  const [vx,vy]=treeLean(t), [ww,wh]=treeWindAt(t,1), ax=t.x+vx+ww, ay=t.y+vy+wh;
+  const [ww,wh]=treeWindAt(t,1), ax=t.x+vx+ww, ay=t.y+vy+wh;
   map=(ox,oy,sx,ddx,ddy)=>[ax+ox*R*sx+(ddx||0), ay+oy*R*sx+(ddy||0)];
   const path=(sx,ddx,ddy)=>{ ctx.beginPath();
     for(let k=0;k<out.length;k++){ const p=out[k], q=map(p[0],p[1],sx,ddx,ddy); k?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]); }
