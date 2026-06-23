@@ -14,11 +14,17 @@ function spawnOptionsForBiome(biome){
   return Array.from({length:n}, (_,variant)=>({variant, label:(BIOMES[biome]?.name||biome)+" · trasa "+(variant+1)}));
 }
 function refreshSpawnPreview(){
-  const sp=getSpawnPoint(menuState.biome, menuState.variant);
-  menuState.preview=sp;
-  focusX=sp.x; focusY=sp.y; cam.x=sp.x; cam.y=sp.y;
-  const el=document.getElementById("spawn-preview");
-  if(el) el.textContent=sp.label+" · komórka "+sp.i+","+sp.j+" · "+sp.district;
+  try{
+    const sp=getSpawnPoint(menuState.biome, menuState.variant);
+    menuState.preview=sp;
+    focusX=sp.x; focusY=sp.y; cam.x=sp.x; cam.y=sp.y;
+    const el=document.getElementById("spawn-preview");
+    if(el) el.textContent=sp.label+" · komórka "+sp.i+","+sp.j+" · "+sp.district;
+  }catch(e){
+    console.error("spawn preview", e);
+    const el=document.getElementById("spawn-preview");
+    if(el) el.textContent="Podgląd niedostępny — wybierz biom i start";
+  }
 }
 function renderSpawnChoices(){
   const box=document.getElementById("spawn-choices");
@@ -50,6 +56,7 @@ function dismissMenu(){
   const m=document.getElementById("menu");
   if(!m) return;
   m.classList.add("hidden");
+  document.body.classList.remove("in-menu");
   gamePhase="playing";
   initAudio();
   if(actx && actx.state==="suspended") actx.resume();
@@ -69,13 +76,20 @@ function startNewGame(){
 }
 function initStartMenu(){
   const menu=document.getElementById("menu");
+  if(!menu){
+    console.error("Brak #menu w index.html — zaktualizuj pliki gry (21-menu.js)");
+    gamePhase="playing";
+    return;
+  }
+  menu.classList.remove("hidden");
+  document.body.classList.add("in-menu");
+  gamePhase="menu";
   const btnNew=document.getElementById("btn-new");
   const btnLoad=document.getElementById("btn-load");
   const btnBack=document.getElementById("btn-back");
   const btnStart=document.getElementById("btn-start");
   const biomeBox=document.getElementById("biome-choices");
   const hint=document.getElementById("menu-save-hint");
-  if(!menu) return;
   const saved=hasSaveGame();
   if(btnLoad){
     btnLoad.disabled=!saved;
