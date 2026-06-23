@@ -17,7 +17,7 @@ from PIL import Image, ImageDraw
 ROOT = Path(__file__).resolve().parent.parent / "topdown-city"
 
 OUT_W, OUT_H = 96, 128
-SS = 2
+SS = 1
 W, H = OUT_W * SS, OUT_H * SS
 CX = W // 2
 SPLIT_Y = round(86 / 128 * H)

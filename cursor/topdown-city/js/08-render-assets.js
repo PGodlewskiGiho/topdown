@@ -1101,8 +1101,8 @@ function drawCactus(p){
   ctx.lineJoin="miter"; ctx.lineCap="butt";
 }
 function treeSortKey(p){
-  const [vx,vy]=treeLean(p,true);
-  return p.y + vy * 0.12 + p.x * 0.0001;                            // south + tall crowns paint on top
+  const [vx,vy]=treeLean(p);
+  return p.y + vy * 0.05 + p.x * 0.0001;
 }
 function forEachVisibleTree(ox,oy,fn){
   const cl=cam.x-VW/2-48, cr=cam.x+VW/2+48, ct=cam.y-VH/2-48, cb=cam.y+VH/2+48;
@@ -1135,14 +1135,12 @@ const TRUNK_PAL={
 // Trees lean with the EXACT same camera-relative math as buildings (leanVec): a constant upward
 // tilt (perceived height) plus a small, bounded horizontal parallax. This is what makes the
 // canopy sit on top of the trunk and "behave like a block" as you drive past.
-function treeLean(t,forCanopy){
-  let H=t.H||t.s*0.6;
-  if(forCanopy&&t.forest) H*=1.20;                                   // forest crowns sit higher (less flat)
-  const offx=t.x-cam.x;
-  const vyBase=-H*0.96;
+function treeLean(t){
+  const H=t.H||t.s*0.6, offx=t.x-cam.x;
+  const vyBase=-H*0.94;
   const par=Math.tanh(offx/900)*H*0.22;
   let vx=par, vy=vyBase-H*0.06*Math.tanh((t.y-cam.y)/1100);
-  const vl=Math.hypot(vx,vy), vm=H*2.05; if(vl>vm){ vx*=vm/vl; vy*=vm/vl; }
+  const vl=Math.hypot(vx,vy), vm=H*1.95; if(vl>vm){ vx*=vm/vl; vy*=vm/vl; }
   return [vx,vy];
 }
 // Screen AABB including the leaning canopy — culling on base (x,y) alone makes crowns vanish
@@ -1159,7 +1157,7 @@ function treeWindAt(t,u){
   return [wx,wy];
 }
 function treeScreenBox(t){
-  const [vx,vy]=treeLean(t,true), [ww,wh]=treeWindAt(t,1), R=t.crownR||t.s*0.35;
+  const [vx,vy]=treeLean(t), [ww,wh]=treeWindAt(t,1), R=t.crownR||t.s*0.35;
   if(t.conifer){
     const hw=R*0.82+Math.abs(vx+ww)*0.45, topY=t.y+vy*1.06+wh-R*0.12;
     return {minX:t.x-hw, maxX:t.x+hw, minY:topY, maxY:t.y+28};
@@ -1185,27 +1183,25 @@ window.TREE_SPRITE=TREE_SPRITE;
   }).catch(()=>{});
 })();
 function treeSpriteScale(t){
-  const ref=TREE_SPRITE.meta.crownR||36;
-  return (t.crownR||t.s*0.35)/ref;
+  const m=TREE_SPRITE.meta||{width:96,height:128,crownR:36};
+  const H=t.H||t.s*0.6;
+  const byCrown=(t.crownR||t.s*0.35)/(m.crownR||36);
+  const byHeight=(H*0.96)/(m.height||128);
+  const boost=t.city?1.38:1.22;
+  return Math.max(byCrown, byHeight*0.92)*boost;
 }
-// Draw a horizontal strip of the sprite on a leaning billboard quad (same parallelogram
-// model as buildings: base at anchor, top shifted by treeLean).
-function drawLeaningTreeStrip(p,sy0,sy1,forCanopy){
+function drawLeaningTreeStrip(p,sy0,sy1){
   const m=TREE_SPRITE.meta, img=TREE_SPRITE.img[p.kind]||TREE_SPRITE.img.deciduous;
   if(!img||!img.complete||!img.naturalWidth) return false;
-  const sc=treeSpriteScale(p), [vx,vy]=treeLean(p,!!forCanopy);
+  const sc=treeSpriteScale(p), [vx,vy]=treeLean(p);
   const W=m.width*sc, hw=W*0.5, sh=sy1-sy0;
   const ub=(m.height-sy1)/m.height, ut=(m.height-sy0)/m.height;
   const [wxt,wyt]=treeWindAt(p,ut), [wxb,wyb]=treeWindAt(p,ub);
   const tlx=p.x-hw+vx*ut+wxt, tly=p.y+vy*ut+wyt, trx=p.x+hw+vx*ut+wxt;
   const blx=p.x-hw+vx*ub+wxb, bly=p.y+vy*ub+wyb, brx=p.x+hw+vx*ub+wxb;
   ctx.save();
-  const sm=ctx.imageSmoothingEnabled;
-  ctx.imageSmoothingEnabled=true;
-  if(ctx.imageSmoothingQuality) ctx.imageSmoothingQuality="medium";
   ctx.transform((trx-tlx)/m.width,(tly-tly)/m.width,(blx-tlx)/sh,(bly-tly)/sh,tlx,tly);
   ctx.drawImage(img,0,sy0,m.width,sh,0,0,m.width,sh);
-  ctx.imageSmoothingEnabled=sm;
   ctx.restore();
   return true;
 }
@@ -1214,10 +1210,11 @@ function drawTreeTrunkSprite(p){
   if(tr.frac<0.18) return true;
   const hw=tr.tw*0.72, bx=p.x, by=p.y;
   ctx.fillStyle="rgba(0,0,0,.24)"; ctx.beginPath(); ctx.ellipse(bx+2,by+3,Math.max(hw*1.8,(p.crownR||hw)*0.34),Math.max(hw*0.62,(p.crownR||hw)*0.12),0,0,7); ctx.fill();
-  return drawLeaningTreeStrip(p,TREE_SPRITE.meta.splitY,TREE_SPRITE.meta.height,false);
+  return drawLeaningTreeStrip(p,TREE_SPRITE.meta.splitY,TREE_SPRITE.meta.height);
 }
 function drawTreeCanopySprite(p){
-  return drawLeaningTreeStrip(p,0,TREE_SPRITE.meta.splitY,true);
+  const m=TREE_SPRITE.meta, split=Math.min(m.height, m.splitY + 6);
+  return drawLeaningTreeStrip(p, 0, split);
 }
 // Deterministic per-tree RNG (stable across frames) so leaf/bark detail never shimmers.
 function treeRand(t){
@@ -1333,7 +1330,7 @@ function drawTreeCanopy(cx,cy,t,lod){
     // Layered fir: overlapping drooping boughs, each with a sawtooth (needle) bottom edge. Drawn
     // bottom-up; a dark serrated pass shows as a prickly needle fringe beneath each lit bough.
     const top=-1.30, bottom=0.92, span=bottom-top, halfB=0.66, tiers=5;
-    map=(ox,oy)=>{ const hf=(0.92-oy)/span, [ww,wh]=treeWindAt(t,hf), [vx,vy]=treeLean(t,true); return [t.x+ox*R+vx*hf+ww, t.y+vy*hf+wh]; };
+    map=(ox,oy)=>{ const hf=(0.92-oy)/span, [ww,wh]=treeWindAt(t,hf); return [t.x+ox*R+vx*hf+ww, t.y+vy*hf+wh]; };
     const T=[];
     for(let ti=0;ti<tiers;ti++){ const uT=(ti/tiers)*0.92, uB=((ti+1)/tiers)*0.92+0.08, hwB=halfB*(0.18+0.90*((ti+1)/tiers)); T.push({uT,uB,hwB}); }
     const bough=(uT,uB,hwB,dip)=>{
@@ -1354,7 +1351,7 @@ function drawTreeCanopy(cx,cy,t,lod){
       ctx.fillStyle=ti<=1?pal.hi:pal.h; bough(b.uT,uMid,b.hwB*0.58,0); ctx.fill(); }
     return;
   }
-  const [ww,wh]=treeWindAt(t,1), [vx,vy]=treeLean(t,true), ax=t.x+vx+ww, ay=t.y+vy+wh;
+  const [vx,vy]=treeLean(t), [ww,wh]=treeWindAt(t,1), ax=t.x+vx+ww, ay=t.y+vy+wh;
   map=(ox,oy,sx,ddx,ddy)=>[ax+ox*R*sx+(ddx||0), ay+oy*R*sx+(ddy||0)];
   const path=(sx,ddx,ddy)=>{ ctx.beginPath();
     for(let k=0;k<out.length;k++){ const p=out[k], q=map(p[0],p[1],sx,ddx,ddy); k?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]); }

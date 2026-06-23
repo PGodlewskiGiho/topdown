@@ -1076,22 +1076,22 @@ function makeTree(x,y,s,r,forceKind,opts){
   opts=opts||{};
   const city=!!opts.city;
   const kind=forceKind||(city?(s<16?"bush":"deciduous"):pickForestKind(opts.fi??0,opts.fj??0,r));
-  const t={x,y,s,t:"tree",kind,forest:!city};
+  const t={x,y,s,t:"tree",kind,forest:!city,city:city};
   if(kind==="bush"){
     t.H=s*0.34; t.crownR=s*0.30; t.trunk={tw:s*0.10,frac:0.12};
     t.outline=leafyOutline(r,0.74,6+(r()*3|0),0.20);
     t.lobes=canopyLobes(r,"bush"); t.hitR=Math.max(s*0.16,5); return t;
   }
   if(kind==="pine"){
-    t.H=s*(city?0.62:0.86); t.crownR=s*(city?0.22:0.30); t.trunk={tw:s*0.08,frac:0.14};
+    t.H=s*(city?0.78:0.96); t.crownR=s*(city?0.28:0.30); t.trunk={tw:s*0.08,frac:0.14};
     t.outline=coniferOutline(r); t.conifer=true; t.lobes=[];
     t.hitR=Math.max(t.trunk.tw*0.55,city?4:9); return t;
   }
   const env={deciduous:{cr:0.40,ry:0.80,lobes:8,h:0.84},
              oak:{cr:0.46,ry:0.74,lobes:7,h:0.80},
              birch:{cr:0.30,ry:1.04,lobes:9,h:0.94}}[kind]||{cr:0.40,ry:0.80,lobes:8,h:0.84};
-  t.H=s*(city?env.h*0.66:env.h*1.10);
-  t.crownR=s*(city?env.cr*0.84:env.cr);
+  t.H=s*(city?env.h*0.88:env.h*1.10);
+  t.crownR=s*(city?env.cr*1.05:env.cr);
   t.trunk={tw:s*(kind==="oak"?0.10:kind==="birch"?0.07:0.085),frac:0.62};
   t.outline=leafyOutline(r,env.ry,env.lobes,0.15);
   t.lobes=canopyLobes(r,kind);
@@ -1212,13 +1212,13 @@ function getLot(i,j){
       // downtown / midrise core: only the big landmark (mega) buildings exist here.
       // cells not covered by a landmark stay as open plaza/greens (no small towers).
       lot.empty=true; const n=2+(r()*3|0);
-      for(let k=0;k<n;k++){ const px=left+24+r()*Math.max(2,lw-48), py=top+24+r()*Math.max(2,lh-48), s=64+r()*48;
+      for(let k=0;k<n;k++){ const px=left+24+r()*Math.max(2,lw-48), py=top+24+r()*Math.max(2,lh-48), s=82+r()*52;
         lot.props.push(makeTree(px,py,s,r,r()<0.7?"deciduous":"oak",{city:true})); }
     }
     else {
       const builtChance = biome==="city" ? (zone==="suburb"?0.92:0.96) : B.density;
       if(r() < builtChance) placeBuildings(lot, zone, r, biome);
-      if(!lot.buildings.length){ lot.empty=true; const n=2+(r()*4|0); for(let k=0;k<n;k++){ const px=left+20+r()*(lw-40), py=top+20+r()*(lh-40), s=B.prop==="tree"?(56+r()*46):(16+r()*12);
+      if(!lot.buildings.length){ lot.empty=true; const n=2+(r()*4|0); for(let k=0;k<n;k++){ const px=left+20+r()*(lw-40), py=top+20+r()*(lh-40), s=B.prop==="tree"?(72+r()*54):(16+r()*12);
         lot.props.push(B.prop==="tree"?makeTree(px,py,s,r,null,{city:biome==="city"}):{x:px,y:py,s,t:B.prop}); } }
     }
   }
