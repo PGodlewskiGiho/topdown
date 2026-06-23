@@ -4,6 +4,7 @@ const MAXRAIN=440;
 const rain=[];
 for(let i=0;i<MAXRAIN;i++) rain.push({x:Math.random()*2000, y:Math.random()*1300, l:8+Math.random()*9, s:720+Math.random()*420});
 let weatherI=0, weatherTarget=0, weatherTimer=10, wetness=0, flash=0;
+let windT=0, windAmp=0.22, windGust=0;   // tree sway clock + strength (Witcher-style gusts)
 const WPRESET=[0,0.5,0.85,1]; let wIdx=0;
 function cycleWeather(){ wIdx=(wIdx+1)%WPRESET.length; weatherTarget=WPRESET[wIdx]; weatherTimer=60; }
 function updateWeather(dt){
@@ -14,6 +15,11 @@ function updateWeather(dt){
     weatherTimer = rand(26,56);
   }
   weatherI += (weatherTarget-weatherI)*Math.min(1,0.4*dt);
+  // wind: gentle idle sway, stronger in rain/storm; occasional gusts
+  windT += dt * (0.75 + weatherI * 1.55);
+  if(Math.random() < dt * 0.14) windGust = rand(0.15, 1.0);
+  windGust *= Math.pow(0.965, dt * 60);
+  windAmp = 0.16 + weatherI * 0.58 + windGust * 0.42;
   if(weatherI>0.15) wetness += (1-wetness)*Math.min(1,0.25*dt);
   else              wetness -= Math.min(wetness,0.06*dt);     // slow dry-out
   wetness=clamp(wetness,0,1);
