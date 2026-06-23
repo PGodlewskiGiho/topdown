@@ -1154,6 +1154,19 @@ function drawCanopies(ox,oy){
   const lod=VW>1500;
   forEachVisibleTree(ox,oy,p=>drawTreeCanopy(p.x,p.y,p,lod));
 }
+// ALTTP-style forest canopy shade: dark pool on the ground under the elevated crown mass.
+function drawTreeCanopyShade(t){
+  if(!t.forest||t.kind==="bush") return;
+  const R=t.crownR||t.s*0.35, [vx,vy]=treeLean(t);
+  const u=0.80;
+  const sx=t.x+vx*u, sy=t.y+vy*u*0.10+R*0.05;
+  ctx.fillStyle="rgba(4,14,6,0.20)"; ctx.beginPath(); ctx.ellipse(sx,sy,R*1.32,R*0.66,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(6,20,8,0.34)"; ctx.beginPath(); ctx.ellipse(sx,sy,R*1.06,R*0.54,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(8,26,10,0.48)"; ctx.beginPath(); ctx.ellipse(sx,sy,R*0.86,R*0.44,0,0,7); ctx.fill();
+}
+function drawCanopyShades(ox,oy){
+  forEachVisibleTree(ox,oy, drawTreeCanopyShade);
+}
 const TREE_PAL={
   deciduous:{d:"#0c2810",m:"#287830",l:"#409848",h:"#60b050",hi:"#88d068",rim:"#061808"},
   oak:      {d:"#0a2010",m:"#245828",l:"#387038",h:"#509048",hi:"#70b058",rim:"#040c06"},
@@ -1168,13 +1181,15 @@ const TRUNK_PAL={
   birch:    {m:"#e9e9d4",d:"#c9c3b6",l:"#f6f3ec"},
   bush:     {m:"#5a4030",d:"#382616",l:"#6a5038"},
 };
+const TREE_LEAN_DEPTH=0.80;
+function treeDepthK(t){ return t.city?1.38:1.0; }
 // Trees lean with the EXACT same camera-relative math as buildings (leanVec): a constant upward
 // tilt (perceived height) plus a small, bounded horizontal parallax. This is what makes the
 // canopy sit on top of the trunk and "behave like a block" as you drive past.
 function treeLean(t){
-  const H=t.H||t.s*0.6, offx=t.x-cam.x;
-  const vyBase=-H*0.94;
-  const par=Math.tanh(offx/900)*H*0.22;
+  const H=t.H||t.s*0.6, offx=t.x-cam.x, dk=treeDepthK(t);
+  const vyBase=-H*TREE_LEAN_DEPTH*dk;
+  const par=Math.tanh(offx/900)*H*0.22*dk;
   let vx=par, vy=vyBase-H*0.06*Math.tanh((t.y-cam.y)/1100);
   const vl=Math.hypot(vx,vy), vm=H*1.95; if(vl>vm){ vx*=vm/vl; vy*=vm/vl; }
   return [vx,vy];
@@ -1219,19 +1234,12 @@ window.TREE_SPRITE=TREE_SPRITE;
   }).catch(()=>{});
 })();
 function treeSpriteScale(t){
-  const m=TREE_SPRITE.meta||{width:96,height:128,crownR:36};
+  const m=TREE_SPRITE.meta||{width:96,height:128};
   const H=t.H||t.s*0.6;
-  const byCrown=(t.crownR||t.s*0.35)/(m.crownR||36);
-  const byHeight=(H*0.96)/(m.height||128);
-  // City: punch above geometry so street trees read near car scale. Forest: cap upscale so PNG
-  // texels stay ~2 world units (same chunky pixel feel as vehicles at PX=2).
-  const boost=t.city?2.12:1.02;
-  let sc=Math.max(byCrown, byHeight*0.92)*boost;
-  if(t.city) sc=Math.max(sc, 2.4);
-  else sc=Math.min(sc, 2.85);
-  const texel=2;                                              // world units per sprite pixel
-  sc=Math.round(sc/texel)*texel;
-  return Math.max(texel, sc);
+  // Lock scale to lean height so PNG keeps native aspect — never squash to match crownR width.
+  let sc=(H*TREE_LEAN_DEPTH*treeDepthK(t))/(m.height||128);
+  sc=Math.round(sc*4)/4;
+  return Math.max(0.35, sc);
 }
 function drawLeaningTreeStrip(p,sy0,sy1){
   const m=TREE_SPRITE.meta, img=TREE_SPRITE.img[p.kind]||TREE_SPRITE.img.deciduous;
@@ -1243,7 +1251,7 @@ function drawLeaningTreeStrip(p,sy0,sy1){
   const tlx=p.x-hw+vx*ut+wxt, tly=p.y+vy*ut+wyt, trx=p.x+hw+vx*ut+wxt;
   const blx=p.x-hw+vx*ub+wxb, bly=p.y+vy*ub+wyb, brx=p.x+hw+vx*ub+wxb;
   ctx.save();
-  ctx.transform((trx-tlx)/m.width,(tly-tly)/m.width,(blx-tlx)/sh,(bly-tly)/sh,tlx,tly);
+  ctx.transform((trx-tlx)/m.width,0,(blx-tlx)/sh,(bly-tly)/sh,tlx,tly);
   ctx.drawImage(img,0,sy0,m.width,sh,0,0,m.width,sh);
   ctx.restore();
   return true;

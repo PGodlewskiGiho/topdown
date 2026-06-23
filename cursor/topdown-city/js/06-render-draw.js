@@ -41,6 +41,7 @@ function draw(){
 
   drawWet(ox,oy);          // wet asphalt + puddles (under traffic)
   drawShadows(ox,oy);      // directional sun shadows on the ground (day)
+  drawCanopyShades(ox,oy); // ALTTP forest canopy pools (ambient, under elevated crowns)
   drawBlockGrounds(ox,oy); // courtyards, paths, gardens & estate parks around bloks
 
   // buildings (second pass so shadows sit over neighbouring ground)
