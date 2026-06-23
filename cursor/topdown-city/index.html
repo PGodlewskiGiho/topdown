@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>TOPDOWN CITY</title>
+<link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud">
+  <div class="tag">TOPDOWN CITY · <span class="v">modular</span></div>
+  <div id="clock">08:00 · DZIEŃ</div>
+  <svg class="gauge" id="gauge" viewBox="0 0 148 148"></svg>
+  <div class="readout" id="ro">GEAR D · 0 KM/H</div>
+  <canvas class="minimap" id="mini" width="196" height="196"></canvas>
+  <div id="district"><span class="eyebrow">wjeżdżasz do</span><span class="dn">—</span></div>
+  <div id="wanted"></div>
+  <div id="bigmsg"></div>
+  <div id="money">$0</div>
+  <div id="stats"></div>
+  <div id="mission"><div class="mt"></div><div class="mo"></div><div class="mtime"></div></div>
+  <div id="health"><i id="healthfill"></i></div>
+  <div id="weapon"></div>
+  <div id="prompt"></div>
+  <div id="gunshop"></div>
+  <div class="keys">
+    <b>W / ↑</b> gaz &nbsp; <b>S / ↓</b> hamulec/wsteczny<br>
+    <b>A D / ← →</b> skręt &nbsp; <b>SPACJA</b> ręczny (drift)<br>
+    <b>F</b> wsiądź / wejdź / wysiądź (auto, łódź lub budynek) &nbsp; <b>SHIFT</b> bieg (pieszo)<br>
+    <b>T</b> przewiń czas (dzień/noc) &nbsp; <b>R</b> zmień pogodę<br>
+    <b>MYSZ / SPACJA</b> strzał (pieszo) &nbsp; <b>B</b> kup auto (w salonie) &nbsp; <b>M</b> dźwięk<br>
+    <b>1–0 / Q E / kółko</b> wybór broni &nbsp; <b>sklep z bronią:</b> wejdź i kup klawiszami 2–0
+  </div>
+</div>
+<div id="boot"><div>
+  <h1>TOPDOWN <span>CITY</span></h1>
+  <p>Naciśnij dowolny klawisz, żeby ruszyć</p>
+</div></div>
+  <script src="js/00-core.js"></script>
+  <script src="js/01-world.js"></script>
+  <script src="js/02-player.js"></script>
+  <script src="js/03-traffic.js"></script>
+  <script src="js/04-collisions.js"></script>
+  <script src="js/05-movement.js"></script>
+  <script src="js/06-render-draw.js"></script>
+  <script src="js/07-boats.js"></script>
+  <script src="js/08-render-assets.js"></script>
+  <script src="js/09-gauge.js"></script>
+  <script src="js/10-time.js"></script>
+  <script src="js/11-minimap.js"></script>
+  <script src="js/12-weather.js"></script>
+  <script src="js/13-police.js"></script>
+  <script src="js/14-missions.js"></script>
+  <script src="js/15-combat.js"></script>
+  <script src="js/16-shop.js"></script>
+  <script src="js/17-effects.js"></script>
+  <script src="js/18-audio.js"></script>
+  <script src="js/19-save.js"></script>
+  <script src="js/20-main.js"></script>
+</body>
+</html>
