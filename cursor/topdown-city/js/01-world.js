@@ -384,19 +384,22 @@ const BIOMES={
   forest: {name:"LAS",      ground:"#2f5a32", walk:"#4a6b46", build:["#6a5a44","#5a6a4a","#7a6a50","#695a3e"],                  density:0.40, prop:"tree"},
   sea:    {name:"WYBRZEŻE", ground:"#caa86a", walk:"#c8b88a", build:["#7a8a96","#6a7a86","#8a9aa6"],                             density:0.34, prop:"palm"},
 };
-const FOREST_NAMES={pine:"BÓR SOSNOWY",deciduous:"LAS LIŚCIASTY",birch:"GĄSZCZ BRZOZOWY",oak:"DĄBROWA"};
-const FOREST_GROUND={pine:"#284a2a",deciduous:"#2f5a32",birch:"#345a30",oak:"#2a4e28"};
+const FOREST_NAMES={pine:"BÓR SOSNOWY",spruce:"BÓR ŚWIERKOWY",deciduous:"LAS LIŚCIASTY",maple:"Klonowy gaj",birch:"GĄSZCZ BRZOZOWY",willow:"Wierzbowy brzeg",oak:"DĄBROWA"};
+const FOREST_GROUND={pine:"#284a2a",spruce:"#243e28",deciduous:"#2f5a32",maple:"#325630",birch:"#345a30",willow:"#2e5230",oak:"#2a4e28"};
 function forestType(i,j){
   const t=hsh(Math.floor(i/4),Math.floor(j/4),331);
-  if(t<0.30) return "pine";
-  if(t<0.55) return "deciduous";
-  if(t<0.78) return "birch";
+  if(t<0.18) return "pine";
+  if(t<0.32) return "spruce";
+  if(t<0.46) return "deciduous";
+  if(t<0.58) return "maple";
+  if(t<0.70) return "birch";
+  if(t<0.82) return "willow";
   return "oak";
 }
 function pickForestKind(i,j,r){
   const dom=forestType(i,j);
-  if(r()<0.72) return dom;
-  const alt=["pine","deciduous","birch","oak"].filter(k=>k!==dom);
+  if(r()<0.68) return dom;
+  const alt=["pine","spruce","deciduous","maple","birch","willow","oak"].filter(k=>k!==dom);
   return alt[(r()*alt.length)|0];
 }
 const CITY_SPACING=48;                                 // cells between city centres
@@ -1119,7 +1122,9 @@ function canopyLobes(r,kind){
   if(kind==="bush") return [{ox:j(0),oy:j(0),lr:0.56},{ox:j(-0.22),oy:j(0.12),lr:0.38},{ox:j(0.20),oy:j(0.10),lr:0.34}];
   if(kind==="birch") return [{ox:j(0),oy:j(-0.22),lr:0.42},{ox:j(0),oy:j(0.10),lr:0.36},{ox:j(-0.12),oy:j(-0.04),lr:0.28}];
   if(kind==="oak") return [{ox:j(-0.04),oy:j(-0.06),lr:0.52},{ox:j(0.32),oy:j(0.08),lr:0.44},{ox:j(-0.30),oy:j(0.12),lr:0.40},{ox:j(0.06),oy:j(-0.24),lr:0.36}];
-  if(kind==="pine") return [];
+  if(kind==="maple") return [{ox:j(-0.02),oy:j(-0.10),lr:0.54},{ox:j(0.28),oy:j(0.06),lr:0.46},{ox:j(-0.28),oy:j(0.10),lr:0.42},{ox:j(0.04),oy:j(-0.22),lr:0.38}];
+  if(kind==="willow") return [{ox:j(0),oy:j(0.14),lr:0.58},{ox:j(-0.32),oy:j(0.18),lr:0.48},{ox:j(0.30),oy:j(0.16),lr:0.44},{ox:j(0),oy:j(-0.08),lr:0.32}];
+  if(kind==="pine"||kind==="spruce") return [];
   return [{ox:j(0),oy:j(-0.12),lr:0.50},{ox:j(-0.26),oy:j(0.08),lr:0.42},{ox:j(0.24),oy:j(0.06),lr:0.40}];
 }
 function makeTree(x,y,s,r,forceKind,opts){
@@ -1132,17 +1137,22 @@ function makeTree(x,y,s,r,forceKind,opts){
     t.outline=leafyOutline(r,0.74,6+(r()*3|0),0.20);
     t.lobes=canopyLobes(r,"bush"); t.hitR=Math.max(s*0.16,5); return t;
   }
-  if(kind==="pine"){
-    t.H=s*(city?0.98:0.96); t.crownR=s*(city?0.40:0.30); t.trunk={tw:s*0.08,frac:0.14};
+  if(kind==="pine"||kind==="spruce"){
+    const spr=kind==="spruce";
+    t.H=s*(city?(spr?1.0:0.98):(spr?0.98:0.96));
+    t.crownR=s*(city?(spr?0.34:0.40):(spr?0.26:0.30));
+    t.trunk={tw:s*(spr?0.07:0.08),frac:0.14};
     t.outline=coniferOutline(r); t.conifer=true; t.lobes=[];
     t.hitR=Math.max(t.trunk.tw*0.55,city?4:9); return t;
   }
   const env={deciduous:{cr:0.40,ry:0.80,lobes:8,h:0.84},
              oak:{cr:0.46,ry:0.74,lobes:7,h:0.80},
-             birch:{cr:0.30,ry:1.04,lobes:9,h:0.94}}[kind]||{cr:0.40,ry:0.80,lobes:8,h:0.84};
+             birch:{cr:0.30,ry:1.04,lobes:9,h:0.94},
+             maple:{cr:0.44,ry:0.86,lobes:8,h:0.86},
+             willow:{cr:0.50,ry:0.62,lobes:7,h:0.88}}[kind]||{cr:0.40,ry:0.80,lobes:8,h:0.84};
   t.H=s*(city?env.h*1.08:env.h*1.05);
   t.crownR=s*(city?env.cr*1.38:env.cr);
-  t.trunk={tw:s*(kind==="oak"?0.10:kind==="birch"?0.07:0.085),frac:0.62};
+  t.trunk={tw:s*(kind==="oak"?0.10:kind==="birch"||kind==="willow"?0.07:0.085),frac:0.62};
   t.outline=leafyOutline(r,env.ry,env.lobes,0.15);
   t.lobes=canopyLobes(r,kind);
   t.hitR=Math.max(t.trunk.tw*0.55+3, city?5:9);
@@ -1191,7 +1201,7 @@ function genForestTrees(lot,r,ci,cj){
     if(r()<0.48){
       const ux=x+(r()-0.5)*spacing(s)*1.5, uy=y+(r()-0.5)*spacing(s)*1.2;
       const us=forestTreeS(5+r()*5);
-      if(fits(ux,uy,us)) pushTree(ux,uy,us,r()<0.4?"bush":"birch");
+      if(fits(ux,uy,us)) pushTree(ux,uy,us,r()<0.35?"bush":(r()<0.5?"birch":"willow"));
     }
   }
   for(let k=0;k<1+(r()*2|0);k++){

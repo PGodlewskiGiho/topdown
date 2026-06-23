@@ -1207,14 +1207,20 @@ const TREE_PAL={
   deciduous:{d:"#0c2810",m:"#287830",l:"#409848",h:"#60b050",hi:"#88d068",rim:"#061808"},
   oak:      {d:"#0a2010",m:"#245828",l:"#387038",h:"#509048",hi:"#70b058",rim:"#040c06"},
   pine:     {d:"#0a2410",m:"#205828",l:"#307038",h:"#489048",hi:"#68a858",rim:"#041008"},
+  spruce:   {d:"#081810",m:"#183028",l:"#244838",h:"#306048",hi:"#487868",rim:"#040810"},
   birch:    {d:"#143820",m:"#306830",l:"#488840",h:"#68a858",hi:"#90c870",rim:"#081810"},
+  maple:    {d:"#201810",m:"#385028",l:"#507038",h:"#789048",hi:"#b07838",rim:"#0c0806"},
+  willow:   {d:"#182818",m:"#305830",l:"#487848",h:"#689858",hi:"#88b868",rim:"#0c1810"},
   bush:     {d:"#0c2810",m:"#287830",l:"#409848",h:"#58a850",hi:"#78c868",rim:"#061808"},
 };
 const TRUNK_PAL={
   deciduous:{m:"#6a5030",d:"#46331f",l:"#8a6848"},
   oak:      {m:"#5a4030",d:"#382616",l:"#7c6248"},
   pine:     {m:"#4a3424",d:"#332113",l:"#6a5038"},
+  spruce:   {m:"#443028",d:"#2e2018",l:"#624838"},
   birch:    {m:"#e9e9d4",d:"#c9c3b6",l:"#f6f3ec"},
+  maple:    {m:"#5a4030",d:"#382616",l:"#7a5840"},
+  willow:   {m:"#5a4830",d:"#3a2818",l:"#786040"},
   bush:     {m:"#5a4030",d:"#382616",l:"#6a5038"},
 };
 const TREE_LEAN_DEPTH=0.80;
@@ -1236,7 +1242,7 @@ function treeLean(t){
 function treeWindAt(t,u){
   const H=t.H||t.s*0.6, ph=((t.x*0.019+t.y*0.013)%6.283), ph2=ph*1.618+t.s*0.011;
   const h=u*u, kind=t.kind||"deciduous";
-  const k=kind==="pine"?0.88:kind==="bush"?0.52:kind==="birch"?1.08:1.0;
+  const k=kind==="pine"||kind==="spruce"?0.86:kind==="bush"?0.52:kind==="birch"?1.08:kind==="willow"?0.96:kind==="maple"?1.02:1.0;
   const amp=H*(typeof windAmp!=="undefined"?windAmp:0.12)*h*k*0.55;
   const wt=typeof windT!=="undefined"?windT:0;
   const wx=Math.sin(wt*1.42+ph)*amp+Math.sin(wt*2.38+ph2)*amp*0.22;
