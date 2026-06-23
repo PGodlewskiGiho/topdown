@@ -339,6 +339,31 @@ function buildingOccludesActor(b){
   for(const p of peds){ if(Math.abs(p.x-x)>w+260||Math.abs(p.y-y)>h+260) continue; if(test(p.x,p.y)) return true; }
   return false;
 }
+// Same ghost logic as buildings: if an actor sits under the leaning crown silhouette
+// (inside the extruded hull but not at the trunk footprint), fade the tree canopy.
+function treeOccludesActor(t){
+  const [vx,vy]=treeLean(t);
+  if(vy>-38) return false;
+  const R=(t.crownR||t.s*0.35)*1.06;
+  const tw=(t.trunk||{}).tw||t.s*0.08;
+  const bw=Math.max(tw*1.5, R*0.13, 7);
+  const x=t.x, y=t.y, cx=t.x+vx, cy=t.y+vy;
+  const base=[[x-bw,y],[x+bw,y],[x+bw,y+bw*0.42],[x-bw,y+bw*0.42]];
+  const roof=[];
+  for(let k=0;k<12;k++){
+    const a=-0.35+k/12*Math.PI*1.55;
+    roof.push([cx+Math.cos(a)*R, cy+Math.sin(a)*R*0.80]);
+  }
+  const sil=convexHull(base.concat(roof));
+  const covered=(ax,ay)=>ptInPoly(ax,ay,sil)&&!ptInPoly(ax,ay,base);
+  const mx=Math.max(R, bw)+120;
+  if(mode==="foot"){ if(Math.abs(ped.x-x)<mx&&Math.abs(ped.y-y)<mx&&covered(ped.x, ped.y)) return true; }
+  else if(!car.dead){ if(Math.abs(car.x-x)<mx&&Math.abs(car.y-y)<mx&&covered(car.x, car.y)) return true; }
+  for(const c of traffic){ if(Math.abs(c.x-x)>mx||Math.abs(c.y-y)>mx) continue; if(covered(c.x,c.y)) return true; }
+  for(const c of cops){ if(Math.abs(c.x-x)>mx||Math.abs(c.y-y)>mx) continue; if(covered(c.x,c.y)) return true; }
+  for(const p of peds){ if(Math.abs(p.x-x)>mx||Math.abs(p.y-y)>mx) continue; if(covered(p.x, p.y)) return true; }
+  return false;
+}
 
 function leanVec(b){ const H=b.H, cx=b.x+b.w/2, cy=b.y+b.h/2;
   // Stable 2.5D tilt: the vertical component is constant (independent of the camera) so
@@ -1141,7 +1166,7 @@ function treeSortKey(p){
   return p.y + vy * 0.05 + p.x * 0.0001;
 }
 function forEachVisibleTree(ox,oy,fn){
-  const cl=cam.x-VW/2-48, cr=cam.x+VW/2+48, ct=cam.y-VH/2-48, cb=cam.y+VH/2+48;
+  const cl=cam.x-VW/2-96, cr=cam.x+VW/2+96, ct=cam.y-VH/2-96, cb=cam.y+VH/2+96;
   const i0=Math.floor((ox-NODE_VAR)/GAP)-2, i1=Math.floor((ox+VW+NODE_VAR)/GAP)+2;
   const j0=Math.floor((oy-NODE_VAR)/GAP)-2, j1=Math.floor((oy+VH+NODE_VAR)/GAP)+2;
   const trees=[];
@@ -1152,7 +1177,13 @@ function forEachVisibleTree(ox,oy,fn){
 }
 function drawCanopies(ox,oy){
   const lod=VW>1500;
-  forEachVisibleTree(ox,oy,p=>drawTreeCanopy(p.x,p.y,p,lod));
+  forEachVisibleTree(ox,oy, p=>{
+    const want=treeOccludesActor(p) ? 0.34 : 1;
+    if(p._tga===undefined) p._tga=1;
+    p._tga+=(want-p._tga)*0.18;
+    if(p._tga<0.999){ ctx.globalAlpha=p._tga; drawTreeCanopy(p.x,p.y,p,lod); ctx.globalAlpha=1; }
+    else drawTreeCanopy(p.x,p.y,p,lod);
+  });
 }
 // ALTTP-style forest canopy shade: dark pool on the ground under the elevated crown mass.
 function drawTreeCanopyShade(t){
@@ -1213,8 +1244,8 @@ function treeScreenBox(t){
     const hw=R*0.82+Math.abs(vx+ww)*0.45, topY=t.y+vy*1.06+wh-R*0.12;
     return {minX:t.x-hw, maxX:t.x+hw, minY:topY, maxY:t.y+28};
   }
-  const cx=t.x+vx+ww, cy=t.y+vy+wh, r=R*1.10;
-  return {minX:Math.min(t.x,t.x+vx+ww)-r-6, maxX:Math.max(t.x,t.x+vx+ww)+r+6, minY:cy-r-36, maxY:t.y+28};
+  const cx=t.x+vx+ww, cy=t.y+vy+wh, r=R*1.12;
+  return {minX:Math.min(t.x,t.x+vx+ww)-r-10, maxX:Math.max(t.x,t.x+vx+ww)+r+10, minY:cy-r-58, maxY:t.y+36};
 }
 function treeVisible(p,cl,cr,ct,cb){ const b=treeScreenBox(p); return b.maxX>=cl&&b.minX<=cr&&b.maxY>=ct&&b.minY<=cb; }
 // ── PNG tree sprites (Pillow-generated, assets/trees/*.png) ──────────────
@@ -1241,18 +1272,28 @@ function treeSpriteScale(t){
   sc=Math.round(sc*4)/4;
   return Math.max(0.35, sc);
 }
+const TREE_SPRITE_PAD=4;                                       // bleed so split strips / wind never clip PNG
+const TREE_SOFT=1.10;                                          // slight upscale + smoothing = softer pixels
 function drawLeaningTreeStrip(p,sy0,sy1){
   const m=TREE_SPRITE.meta, img=TREE_SPRITE.img[p.kind]||TREE_SPRITE.img.deciduous;
   if(!img||!img.complete||!img.naturalWidth) return false;
   const sc=treeSpriteScale(p), [vx,vy]=treeLean(p);
-  const W=m.width*sc, hw=W*0.5, sh=sy1-sy0;
+  const sy0p=Math.max(0, sy0-TREE_SPRITE_PAD), sy1p=Math.min(m.height, sy1+TREE_SPRITE_PAD);
+  const sh=sy1p-sy0p, shDraw=sy1-sy0;
+  const W=m.width*sc*TREE_SOFT, hw=W*0.5;
   const ub=(m.height-sy1)/m.height, ut=(m.height-sy0)/m.height;
   const [wxt,wyt]=treeWindAt(p,ut), [wxb,wyb]=treeWindAt(p,ub);
   const tlx=p.x-hw+vx*ut+wxt, tly=p.y+vy*ut+wyt, trx=p.x+hw+vx*ut+wxt;
   const blx=p.x-hw+vx*ub+wxb, bly=p.y+vy*ub+wyb, brx=p.x+hw+vx*ub+wxb;
+  const bry=bly;
   ctx.save();
-  ctx.transform((trx-tlx)/m.width,0,(blx-tlx)/sh,(bly-tly)/sh,tlx,tly);
-  ctx.drawImage(img,0,sy0,m.width,sh,0,0,m.width,sh);
+  const sm=ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled=true;
+  try{ ctx.imageSmoothingQuality="high"; }catch(e){}
+  // full quad (uses br corner) — avoids wind-shear clipping on the wide side
+  ctx.transform((trx-tlx)/m.width,(tly-tly)/m.width,(blx-tlx)/shDraw,(bly-tly)/shDraw,tlx,tly);
+  ctx.drawImage(img,0,sy0p,m.width,sh,0,0,m.width,shDraw);
+  ctx.imageSmoothingEnabled=sm;
   ctx.restore();
   return true;
 }
@@ -1261,10 +1302,11 @@ function drawTreeTrunkSprite(p){
   if(tr.frac<0.18) return true;
   const hw=tr.tw*0.72, bx=p.x, by=p.y;
   ctx.fillStyle="rgba(0,0,0,.24)"; ctx.beginPath(); ctx.ellipse(bx+2,by+3,Math.max(hw*1.8,(p.crownR||hw)*0.34),Math.max(hw*0.62,(p.crownR||hw)*0.12),0,0,7); ctx.fill();
-  return drawLeaningTreeStrip(p,TREE_SPRITE.meta.splitY,TREE_SPRITE.meta.height);
+  const m=TREE_SPRITE.meta;
+  return drawLeaningTreeStrip(p, Math.max(0, m.splitY-2), m.height);
 }
 function drawTreeCanopySprite(p){
-  const m=TREE_SPRITE.meta, split=Math.min(m.height, m.splitY + 6);
+  const m=TREE_SPRITE.meta, split=Math.min(m.height-1, m.splitY+14);
   return drawLeaningTreeStrip(p, 0, split);
 }
 // Deterministic per-tree RNG (stable across frames) so leaf/bark detail never shimmers.
