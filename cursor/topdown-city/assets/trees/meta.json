@@ -1,0 +1,25 @@
+{
+  "width": 96,
+  "height": 128,
+  "splitY": 86,
+  "anchorX": 48,
+  "anchorY": 127,
+  "crownR": 36,
+  "kinds": {
+    "deciduous": {
+      "file": "deciduous.png"
+    },
+    "oak": {
+      "file": "oak.png"
+    },
+    "birch": {
+      "file": "birch.png"
+    },
+    "pine": {
+      "file": "pine.png"
+    },
+    "bush": {
+      "file": "bush.png"
+    }
+  }
+}

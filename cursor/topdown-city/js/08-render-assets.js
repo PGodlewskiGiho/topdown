@@ -339,6 +339,31 @@ function buildingOccludesActor(b){
   for(const p of peds){ if(Math.abs(p.x-x)>w+260||Math.abs(p.y-y)>h+260) continue; if(test(p.x,p.y)) return true; }
   return false;
 }
+// Same ghost logic as buildings: if an actor sits under the leaning crown silhouette
+// (inside the extruded hull but not at the trunk footprint), fade the tree canopy.
+function treeOccludesActor(t){
+  const [vx,vy]=treeLean(t);
+  if(vy>-38) return false;
+  const R=(t.crownR||t.s*0.35)*1.06;
+  const tw=(t.trunk||{}).tw||t.s*0.08;
+  const bw=Math.max(tw*1.5, R*0.13, 7);
+  const x=t.x, y=t.y, cx=t.x+vx, cy=t.y+vy;
+  const base=[[x-bw,y],[x+bw,y],[x+bw,y+bw*0.42],[x-bw,y+bw*0.42]];
+  const roof=[];
+  for(let k=0;k<12;k++){
+    const a=-0.35+k/12*Math.PI*1.55;
+    roof.push([cx+Math.cos(a)*R, cy+Math.sin(a)*R*0.80]);
+  }
+  const sil=convexHull(base.concat(roof));
+  const covered=(ax,ay)=>ptInPoly(ax,ay,sil)&&!ptInPoly(ax,ay,base);
+  const mx=Math.max(R, bw)+120;
+  if(mode==="foot"){ if(Math.abs(ped.x-x)<mx&&Math.abs(ped.y-y)<mx&&covered(ped.x, ped.y)) return true; }
+  else if(!car.dead){ if(Math.abs(car.x-x)<mx&&Math.abs(car.y-y)<mx&&covered(car.x, car.y)) return true; }
+  for(const c of traffic){ if(Math.abs(c.x-x)>mx||Math.abs(c.y-y)>mx) continue; if(covered(c.x,c.y)) return true; }
+  for(const c of cops){ if(Math.abs(c.x-x)>mx||Math.abs(c.y-y)>mx) continue; if(covered(c.x,c.y)) return true; }
+  for(const p of peds){ if(Math.abs(p.x-x)>mx||Math.abs(p.y-y)>mx) continue; if(covered(p.x, p.y)) return true; }
+  return false;
+}
 
 function leanVec(b){ const H=b.H, cx=b.x+b.w/2, cy=b.y+b.h/2;
   // Stable 2.5D tilt: the vertical component is constant (independent of the camera) so
@@ -1047,6 +1072,42 @@ function drawGrassDetail(L){
   for(const t of L.tufts){ if(t.x<cl||t.x>cr||t.y<ct||t.y>cb) continue; drawClump(t.x,t.y,t.s); }
   for(const f of L.flowers){ ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(f.x,f.y,1.7,0,7); ctx.fill(); ctx.fillStyle="rgba(255,255,255,.5)"; ctx.fillRect(f.x-0.4,f.y-0.4,0.9,0.9); }
 }
+function drawForestFloor(L){
+  if(!L.forestFloor||!L.forestFloor.length||VW>1700) return;
+  const cl=cam.x-VW/2-24, cr=cam.x+VW/2+24, ct=cam.y-VH/2-24, cb=cam.y+VH/2+24;
+  for(const d of L.forestFloor){
+    if(d.x<cl||d.x>cr||d.y<ct||d.y>cb) continue;
+    const s=d.s, r=d.rot||0, x=d.x, y=d.y;
+    ctx.save(); ctx.translate(x,y); ctx.rotate(r);
+    if(d.kind==="leaf"){
+      const c=["#5a4020","#6a5028","#3a5828","#7a6020","#4a4820"][(s*3|0)%5];
+      ctx.fillStyle=c; ctx.beginPath(); ctx.ellipse(0,0,s*0.9,s*0.55,s*0.4,0,7); ctx.fill();
+      ctx.fillStyle="rgba(255,255,220,.18)"; ctx.beginPath(); ctx.ellipse(-s*0.15,-s*0.1,s*0.35,s*0.2,s*0.3,0,7); ctx.fill();
+    } else if(d.kind==="fern"){
+      ctx.fillStyle="#1a4820"; for(let k=-2;k<=2;k++){ ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(k*s*0.22,-s*0.55,k*s*0.38,-s*0.95); ctx.lineWidth=1.4; ctx.strokeStyle="#286830"; ctx.stroke(); }
+      ctx.fillStyle="#347838"; ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(s*0.12,-s*0.5,s*0.22,-s*0.88); ctx.stroke();
+    } else if(d.kind==="moss"){
+      ctx.fillStyle="rgba(28,58,28,.55)"; ctx.beginPath(); ctx.ellipse(0,0,s*1.1,s*0.72,0,0,7); ctx.fill();
+      ctx.fillStyle="rgba(52,88,48,.42)"; ctx.beginPath(); ctx.ellipse(-s*0.2,-s*0.15,s*0.55,s*0.38,0,0,7); ctx.fill();
+    } else if(d.kind==="twig"){
+      ctx.strokeStyle="#4a3828"; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(-s*0.4,s*0.2); ctx.lineTo(s*0.5,-s*0.35); ctx.stroke();
+      ctx.strokeStyle="#6a5038"; ctx.lineWidth=0.8; ctx.beginPath(); ctx.moveTo(s*0.1,-s*0.05); ctx.lineTo(s*0.35,-s*0.28); ctx.stroke();
+    } else if(d.kind==="shroom"){
+      ctx.fillStyle="#e8e0d0"; ctx.fillRect(-0.8,s*0.05,1.6,s*0.35);
+      ctx.fillStyle=s>7?"#a83828":"#8a6838"; ctx.beginPath(); ctx.ellipse(0,-s*0.08,s*0.55,s*0.38,0,0,7); ctx.fill();
+      ctx.fillStyle="rgba(255,255,255,.25)"; ctx.beginPath(); ctx.ellipse(-s*0.12,-s*0.14,s*0.14,s*0.1,0,0,7); ctx.fill();
+    } else if(d.kind==="needle"){
+      ctx.strokeStyle="#2a5828"; ctx.lineWidth=1; for(let k=0;k<4;k++){ const a=k*1.2-0.6; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*s*0.5,-Math.sin(a)*s*0.5-0.2); ctx.stroke(); }
+    } else if(d.kind==="log"){
+      ctx.fillStyle="#3a2818"; ctx.beginPath(); ctx.ellipse(0,s*0.08,s*1.05,s*0.38,0,0,7); ctx.fill();
+      ctx.fillStyle="#5a4030"; ctx.beginPath(); ctx.ellipse(-s*0.15,0,s*0.75,s*0.28,0,0,7); ctx.fill();
+      ctx.fillStyle="#2a1810"; ctx.beginPath(); ctx.ellipse(s*0.95,0,s*0.12,s*0.22,0,0,7); ctx.fill();
+    } else { // blade
+      ctx.strokeStyle="#2a5828"; ctx.lineWidth=1.1; for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(k*2,s*0.15); ctx.quadraticCurveTo(k*2.5,-s*0.35,k*1.2,-s*0.75); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
+}
 function drawSandDetail(L){
   if(L.biome==="desert"||L.biome==="sea"){                                   // soft rolling dunes
     for(let k=0;k<4;k++){ const dx=L.x+hsh(L.i,L.j,500+k)*L.w, dy=L.y+hsh(L.i,L.j,520+k)*L.h, rw=L.w*(0.22+hsh(L.i,L.j,540+k)*0.26);
@@ -1100,14 +1161,47 @@ function drawCactus(p){
   for(let i=1;i<paths.length;i++){ if(h(20+i)<0.4){ const tip=paths[i][paths[i].length-1]; ctx.fillStyle=FLOW[(h(21+i)*3)|0]; ctx.beginPath(); ctx.arc(tip[0],tip[1],1.8,0,7); ctx.fill(); } }
   ctx.lineJoin="miter"; ctx.lineCap="butt";
 }
-function drawCanopies(ox,oy){
-  const cl=cam.x-VW/2-48, cr=cam.x+VW/2+48, ct=cam.y-VH/2-48, cb=cam.y+VH/2+48, lod=VW>1500;
+function treeSortKey(p){
+  const [vx,vy]=treeLean(p);
+  return p.y + vy * 0.05 + p.x * 0.0001;
+}
+function forEachVisibleTree(ox,oy,fn){
+  const cl=cam.x-VW/2-96, cr=cam.x+VW/2+96, ct=cam.y-VH/2-96, cb=cam.y+VH/2+96;
   const i0=Math.floor((ox-NODE_VAR)/GAP)-2, i1=Math.floor((ox+VW+NODE_VAR)/GAP)+2;
   const j0=Math.floor((oy-NODE_VAR)/GAP)-2, j1=Math.floor((oy+VH+NODE_VAR)/GAP)+2;
+  const trees=[];
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ const L=getLot(i,j); if(!L.props.length) continue;
-    for(const p of L.props){ if(p.t!=="tree"||!p.outline) continue; if(!treeVisible(p,cl,cr,ct,cb)) continue;
-      drawTreeCanopy(p.x,p.y,p,lod); }
-  }
+    for(const p of L.props){ if(p.t!=="tree"||!p.outline) continue; if(!treeVisible(p,cl,cr,ct,cb)) continue; trees.push(p); } }
+  trees.sort((a,b)=>treeSortKey(a)-treeSortKey(b));
+  for(const p of trees) fn(p);
+}
+function updateTreeGhostAlpha(p){
+  const want=treeOccludesActor(p) ? 0.34 : 1;
+  if(p._tga===undefined) p._tga=1;
+  p._tga+=(want-p._tga)*0.18;
+  return p._tga;
+}
+function drawTreeGhosted(p, fn){
+  const ga=p._tga!==undefined ? p._tga : 1;
+  if(ga<0.999){ ctx.globalAlpha=ga; fn(p); ctx.globalAlpha=1; }
+  else fn(p);
+}
+function drawCanopies(ox,oy){
+  const lod=VW>1500;
+  forEachVisibleTree(ox,oy, p=>drawTreeGhosted(p, tp=>drawTreeCanopy(tp.x,tp.y,tp,lod)));
+}
+// ALTTP-style forest canopy shade: dark pool on the ground under the elevated crown mass.
+function drawTreeCanopyShade(t){
+  if(!t.forest||t.kind==="bush") return;
+  const R=t.crownR||t.s*0.35, [vx,vy]=treeLean(t);
+  const u=0.80;
+  const sx=t.x+vx*u, sy=t.y+vy*u*0.10+R*0.05;
+  ctx.fillStyle="rgba(4,14,6,0.20)"; ctx.beginPath(); ctx.ellipse(sx,sy,R*1.32,R*0.66,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(6,20,8,0.34)"; ctx.beginPath(); ctx.ellipse(sx,sy,R*1.06,R*0.54,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(8,26,10,0.48)"; ctx.beginPath(); ctx.ellipse(sx,sy,R*0.86,R*0.44,0,0,7); ctx.fill();
+}
+function drawCanopyShades(ox,oy){
+  forEachVisibleTree(ox,oy, drawTreeCanopyShade);
 }
 const TREE_PAL={
   deciduous:{d:"#0c2810",m:"#287830",l:"#409848",h:"#60b050",hi:"#88d068",rim:"#061808"},
@@ -1123,82 +1217,248 @@ const TRUNK_PAL={
   birch:    {m:"#e9e9d4",d:"#c9c3b6",l:"#f6f3ec"},
   bush:     {m:"#5a4030",d:"#382616",l:"#6a5038"},
 };
+const TREE_LEAN_DEPTH=0.80;
+function treeDepthK(t){ return t.city?1.38:1.0; }
 // Trees lean with the EXACT same camera-relative math as buildings (leanVec): a constant upward
 // tilt (perceived height) plus a small, bounded horizontal parallax. This is what makes the
 // canopy sit on top of the trunk and "behave like a block" as you drive past.
 function treeLean(t){
-  const H=t.H||t.s*0.6, offx=t.x-cam.x;
-  const vyBase=-H*0.92;
-  const par=Math.tanh(offx/900)*H*0.22;
+  const H=t.H||t.s*0.6, offx=t.x-cam.x, dk=treeDepthK(t);
+  const vyBase=-H*TREE_LEAN_DEPTH*dk;
+  const par=Math.tanh(offx/900)*H*0.22*dk;
   let vx=par, vy=vyBase-H*0.06*Math.tanh((t.y-cam.y)/1100);
-  const vl=Math.hypot(vx,vy), vm=H*1.9; if(vl>vm){ vx*=vm/vl; vy*=vm/vl; }
+  const vl=Math.hypot(vx,vy), vm=H*1.95; if(vl>vm){ vx*=vm/vl; vy*=vm/vl; }
   return [vx,vy];
 }
 // Screen AABB including the leaning canopy — culling on base (x,y) alone makes crowns vanish
 // while the trunk footprint is still near the viewport edge (canopy sits ~H px above base).
+// Wind sway (Witcher 3–style): slow primary oscillation + faster harmonic; amplitude ∝ height².
+function treeWindAt(t,u){
+  const H=t.H||t.s*0.6, ph=((t.x*0.019+t.y*0.013)%6.283), ph2=ph*1.618+t.s*0.011;
+  const h=u*u, kind=t.kind||"deciduous";
+  const k=kind==="pine"?0.88:kind==="bush"?0.52:kind==="birch"?1.08:1.0;
+  const amp=H*(typeof windAmp!=="undefined"?windAmp:0.12)*h*k*0.55;
+  const wt=typeof windT!=="undefined"?windT:0;
+  const wx=Math.sin(wt*1.42+ph)*amp+Math.sin(wt*2.38+ph2)*amp*0.22;
+  const wy=Math.sin(wt*1.05+ph*0.65)*amp*0.06;
+  return [wx,wy];
+}
 function treeScreenBox(t){
-  const [vx,vy]=treeLean(t), R=t.crownR||t.s*0.35;
+  const [vx,vy]=treeLean(t), [ww,wh]=treeWindAt(t,1), R=t.crownR||t.s*0.35;
   if(t.conifer){
-    const hw=R*0.82+Math.abs(vx)*0.45, topY=t.y+vy*1.06-R*0.12;
+    const hw=R*0.82+Math.abs(vx+ww)*0.45, topY=t.y+vy*1.06+wh-R*0.12;
     return {minX:t.x-hw, maxX:t.x+hw, minY:topY, maxY:t.y+28};
   }
-  const cx=t.x+vx, cy=t.y+vy, r=R*1.10;
-  return {minX:Math.min(t.x,t.x+vx)-r-6, maxX:Math.max(t.x,t.x+vx)+r+6, minY:cy-r-36, maxY:t.y+28};
+  const cx=t.x+vx+ww, cy=t.y+vy+wh, r=R*1.12;
+  return {minX:Math.min(t.x,t.x+vx+ww)-r-10, maxX:Math.max(t.x,t.x+vx+ww)+r+10, minY:cy-r-58, maxY:t.y+36};
 }
 function treeVisible(p,cl,cr,ct,cb){ const b=treeScreenBox(p); return b.maxX>=cl&&b.minX<=cr&&b.maxY>=ct&&b.minY<=cb; }
+// ── PNG tree sprites (Pillow-generated, assets/trees/*.png) ──────────────
+const TREE_SPRITE={ready:false,meta:null,img:{}};
+window.TREE_SPRITE=TREE_SPRITE;
+(function loadTreeSprites(){
+  fetch("assets/trees/meta.json").then(r=>r.json()).then(meta=>{
+    TREE_SPRITE.meta=meta;
+    const kinds=Object.keys(meta.kinds); let left=kinds.length||0;
+    if(!left){ TREE_SPRITE.ready=true; return; }
+    for(const k of kinds){
+      const im=new Image();
+      im.onload=im.onerror=()=>{ if(--left<=0) TREE_SPRITE.ready=true; };
+      im.src="assets/trees/"+meta.kinds[k].file;
+      TREE_SPRITE.img[k]=im;
+    }
+  }).catch(()=>{});
+})();
+function treeSpriteScale(t){
+  const m=TREE_SPRITE.meta||{width:96,height:128};
+  const H=t.H||t.s*0.6;
+  // Lock scale to lean height so PNG keeps native aspect — never squash to match crownR width.
+  let sc=(H*TREE_LEAN_DEPTH*treeDepthK(t))/(m.height||128);
+  sc=Math.round(sc*4)/4;
+  return Math.max(0.35, sc);
+}
+const TREE_SPRITE_PAD=4;                                       // bleed so split strips / wind never clip PNG
+const TREE_SOFT=1.10;                                          // slight upscale + smoothing = softer pixels
+function drawLeaningTreeStrip(p,sy0,sy1){
+  const m=TREE_SPRITE.meta, img=TREE_SPRITE.img[p.kind]||TREE_SPRITE.img.deciduous;
+  if(!img||!img.complete||!img.naturalWidth) return false;
+  const sc=treeSpriteScale(p), [vx,vy]=treeLean(p);
+  const sy0p=Math.max(0, sy0-TREE_SPRITE_PAD), sy1p=Math.min(m.height, sy1+TREE_SPRITE_PAD);
+  const sh=sy1p-sy0p, shDraw=sy1-sy0;
+  const W=m.width*sc*TREE_SOFT, hw=W*0.5;
+  const ub=(m.height-sy1)/m.height, ut=(m.height-sy0)/m.height;
+  const [wxt,wyt]=treeWindAt(p,ut), [wxb,wyb]=treeWindAt(p,ub);
+  const tlx=p.x-hw+vx*ut+wxt, tly=p.y+vy*ut+wyt, trx=p.x+hw+vx*ut+wxt;
+  const blx=p.x-hw+vx*ub+wxb, bly=p.y+vy*ub+wyb, brx=p.x+hw+vx*ub+wxb;
+  const bry=bly;
+  ctx.save();
+  const sm=ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled=true;
+  try{ ctx.imageSmoothingQuality="high"; }catch(e){}
+  // full quad (uses br corner) — avoids wind-shear clipping on the wide side
+  ctx.transform((trx-tlx)/m.width,(tly-tly)/m.width,(blx-tlx)/shDraw,(bly-tly)/shDraw,tlx,tly);
+  ctx.drawImage(img,0,sy0p,m.width,sh,0,0,m.width,shDraw);
+  ctx.imageSmoothingEnabled=sm;
+  ctx.restore();
+  return true;
+}
+function drawTreeTrunkSprite(p){
+  const tr=p.trunk||{tw:p.s*0.1,frac:0.5};
+  if(tr.frac<0.18) return true;
+  const hw=tr.tw*0.72, bx=p.x, by=p.y;
+  ctx.fillStyle="rgba(0,0,0,.24)"; ctx.beginPath(); ctx.ellipse(bx+2,by+3,Math.max(hw*1.8,(p.crownR||hw)*0.34),Math.max(hw*0.62,(p.crownR||hw)*0.12),0,0,7); ctx.fill();
+  const m=TREE_SPRITE.meta;
+  return drawLeaningTreeStrip(p, Math.max(0, m.splitY-2), m.height);
+}
+function drawTreeCanopySprite(p){
+  const m=TREE_SPRITE.meta, split=Math.min(m.height-1, m.splitY+14);
+  return drawLeaningTreeStrip(p, 0, split);
+}
+// Deterministic per-tree RNG (stable across frames) so leaf/bark detail never shimmers.
+function treeRand(t){
+  let s=((t.x*73856093)^(t.y*19349663))>>>0;
+  return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
+}
 // Chrono Trigger sphere-clump: shadow blob (SE offset) → mid fill → NW highlight cap.
 function drawCTLobe(map,R,pal,ox,oy,lr){
   const q=map(ox,oy,1,0,0), rr=lr*R;
-  ctx.fillStyle=pal.d;
-  ctx.beginPath(); ctx.ellipse(q[0]+rr*0.12,q[1]+rr*0.14,rr*1.04,rr*0.76,0,0,7); ctx.fill();
   const lit=-ox*0.68-oy*0.52;
-  ctx.fillStyle=lit>0.10?pal.l:(lit>-0.15?pal.m:pal.d);
+  ctx.fillStyle=pal.m;                                              // subtle underside (leaf clusters add the real shading)
+  ctx.beginPath(); ctx.ellipse(q[0]+rr*0.08,q[1]+rr*0.10,rr*0.92,rr*0.62,0,0,7); ctx.fill();
+  ctx.fillStyle=lit>0.10?pal.l:pal.m;                               // body never goes full-dark (avoids black holes)
   ctx.beginPath(); ctx.ellipse(q[0],q[1],rr,rr*0.70,0,0,7); ctx.fill();
-  ctx.fillStyle=lit>0.05?pal.hi:pal.h;
-  ctx.beginPath(); ctx.ellipse(q[0]-rr*0.26,q[1]-rr*0.24,rr*0.38,rr*0.28,0,0,7); ctx.fill();
+  ctx.fillStyle=lit>0.05?pal.h:pal.l;                               // gentle form light (stipple adds the sparkle)
+  ctx.beginPath(); ctx.ellipse(q[0]-rr*0.24,q[1]-rr*0.22,rr*0.34,rr*0.24,0,0,7); ctx.fill();
 }
-// Ground layer (drawn under the player): contact shadow + the leaning, rounded trunk "pole".
+// Chrono Trigger foliage: a dense stipple of small flat-toned leaf specks across the crown. Tone is
+// picked by NW light + a per-speck roll, so lit areas read bright and shaded areas dark WITHOUT the
+// "shiny bubble" look of capped spheres. Many overlapping specks = a leafy thicket, not balloons.
+function drawFoliageStipple(map,R,pal,t){
+  const rnd=treeRand(t);
+  const dk=mixHex(pal.m,pal.d,0.55);                                 // dark green (shaded leaves, not black holes)
+  const n=Math.max(60,Math.min(200,Math.round(R*4.0)));
+  for(let i=0;i<n;i++){
+    const a=rnd()*6.283, rr=Math.sqrt(rnd())*0.94;
+    const ox=Math.cos(a)*rr, oy=Math.sin(a)*rr*0.82-0.05;
+    const q=map(ox,oy,1,0,0);
+    const lit=-ox*0.50-oy*0.70+(rnd()-0.5)*0.26;                     // NW light + jitter
+    const roll=rnd();
+    let tone;
+    if(lit>0.34)      tone = roll<0.45?pal.hi : roll<0.80?pal.h : pal.l;
+    else if(lit>0.10) tone = roll<0.40?pal.h  : roll<0.80?pal.l : pal.m;
+    else if(lit>-0.18)tone = roll<0.42?pal.l  : roll<0.82?pal.m : dk;
+    else              tone = roll<0.60?pal.m  : (roll<0.92?dk : pal.d);
+    const bl=R*(0.035+rnd()*0.038);                                  // fine specks → texture, not blobs
+    ctx.fillStyle=tone;
+    ctx.beginPath(); ctx.ellipse(q[0],q[1],bl,bl*0.84,0,0,7); ctx.fill();
+  }
+  // sparse sun-glint specks on the lit shoulder (tiny, not domes)
+  const g=Math.max(4,(R*0.4)|0);
+  for(let i=0;i<g;i++){
+    const a=(-0.4-rnd()*1.5), rr=0.30+rnd()*0.55;
+    const ox=Math.cos(a)*rr, oy=Math.sin(a)*rr*0.82-0.10, q=map(ox,oy,1,0,0);
+    ctx.fillStyle=pal.hi; const bl=R*(0.03+rnd()*0.03);
+    ctx.beginPath(); ctx.ellipse(q[0],q[1],bl,bl*0.8,0,0,7); ctx.fill();
+  }
+}
+// Mix two #rrggbb colours (t=0 → a, t=1 → b) for extra bark tones between the 3 palette steps.
+function mixHex(a,b,t){
+  const ar=parseInt(a.slice(1,3),16),ag=parseInt(a.slice(3,5),16),ab=parseInt(a.slice(5,7),16);
+  const br=parseInt(b.slice(1,3),16),bg=parseInt(b.slice(3,5),16),bb=parseInt(b.slice(5,7),16);
+  const h=v=>('0'+Math.max(0,Math.min(255,v|0)).toString(16)).slice(-2);
+  return "#"+h(ar+(br-ar)*t)+h(ag+(bg-ag)*t)+h(ab+(bb-ab)*t);
+}
+// Bark texture: vertical ridges & grooves running the full (leaning) trunk axis, alternating
+// light ridges / dark grooves, plus a knot — so the pole reads as carved wood, not a flat strip.
+function drawBark(bx,by,tx,ty,hw,thw,tp,rnd){
+  const groove=mixHex(tp.d,"#000000",0.25), ridge=mixHex(tp.l,"#ffffff",0.12);
+  const lines=Math.max(4,Math.round(hw*1.4));
+  for(let k=0;k<lines;k++){
+    const f=(k+0.5)/lines*2-1;                                       // -1..1 across the width
+    const wob=(rnd()-0.5)*0.10;                                      // slight sideways wobble
+    const x0=bx+f*hw*0.92, x1=tx+(f+wob)*thw*0.92;
+    const lit=f*0.5+0.15;                                            // right side lighter
+    ctx.strokeStyle = (k%2===0)?groove : (lit>0?ridge:tp.m);
+    ctx.lineWidth=hw*(k%2===0?0.30:0.24); ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(x0,by-1); ctx.lineTo(x1,ty); ctx.stroke();
+  }
+  ctx.lineCap="butt";
+  if(rnd()<0.55){                                                    // a knot / scar on the bark
+    const u=0.35+rnd()*0.35, kx=bx+(tx-bx)*u+(rnd()-0.5)*hw*0.6, ky=by+(ty-by)*u, kr=hw*(0.34+rnd()*0.18);
+    ctx.fillStyle=groove; ctx.beginPath(); ctx.ellipse(kx,ky,kr,kr*1.3,0,0,7); ctx.fill();
+    ctx.fillStyle=ridge;  ctx.beginPath(); ctx.ellipse(kx-kr*0.2,ky-kr*0.2,kr*0.45,kr*0.6,0,0,7); ctx.fill();
+  }
+}
+// Ground layer (drawn under the player): contact shadow + a chunky, textured trunk with a root
+// flare at the base and carved bark — reads as solid wood instead of a flat 3-band strip.
 function drawTreeTrunk(p){
-  const tr=p.trunk||{tw:p.s*0.1,frac:0.5}, [vx,vy]=treeLean(p);
-  const hw=tr.tw*0.5, thw=hw*0.74, bx=p.x, by=p.y, tx=p.x+vx*tr.frac, ty=p.y+vy*tr.frac;
+  if(TREE_SPRITE.ready&&drawTreeTrunkSprite(p)) return;
+  const tr=p.trunk||{tw:p.s*0.1,frac:0.5}, [vx,vy]=treeLean(p), [ww,wh]=treeWindAt(p,tr.frac);
+  const hw=tr.tw*0.72, thw=hw*0.78, bx=p.x, by=p.y, tx=p.x+vx*tr.frac+ww, ty=p.y+vy*tr.frac+wh;  // chunkier visual trunk
   ctx.fillStyle="rgba(0,0,0,.24)"; ctx.beginPath(); ctx.ellipse(bx+2,by+3,Math.max(hw*1.8,(p.crownR||hw)*0.34),Math.max(hw*0.62,(p.crownR||hw)*0.12),0,0,7); ctx.fill();
   if(tr.frac<0.18) return;                                            // bush / conifer: no visible pole
-  const tp=TRUNK_PAL[p.kind]||TRUNK_PAL.deciduous;
+  const tp=TRUNK_PAL[p.kind]||TRUNK_PAL.deciduous, rnd=treeRand(p);
+  // root flare — buttress wedges spreading from the base, drawn under the trunk body
+  const rw=hw*2.0, rh=hw*1.6;
+  ctx.fillStyle=tp.d;
+  fillPoly([[bx-rw,by+2],[bx-hw*0.55,by-rh*0.45],[bx-hw*0.15,by+1.5]]);
+  fillPoly([[bx+rw,by+2],[bx+hw*0.55,by-rh*0.45],[bx+hw*0.15,by+1.5]]);
+  fillPoly([[bx-hw*1.4,by+2],[bx,by-rh*0.55],[bx+hw*0.35,by+1.5]]);
+  ctx.fillStyle=tp.m; fillPoly([[bx-rw,by+2],[bx-hw*0.7,by-1],[bx-hw*0.5,by+1]]);   // lit cap on left root
+  // trunk body
   ctx.fillStyle=tp.m; fillPoly([[bx-hw,by],[bx+hw,by],[tx+thw,ty],[tx-thw,ty]]);
-  ctx.fillStyle=tp.d; fillPoly([[bx-hw,by],[tx-thw,ty],[tx-thw+tr.tw*0.28,ty],[bx-hw+tr.tw*0.30,by]]);
-  ctx.fillStyle=tp.l; fillPoly([[bx+hw,by],[tx+thw,ty],[tx+thw-tr.tw*0.22,ty],[bx+hw-tr.tw*0.24,by]]);
-  if(p.kind==="birch"){ ctx.fillStyle="#34302a"; for(let k=0;k<4;k++){ const u=0.18+k*0.20, mx=bx+(tx-bx)*u; ctx.fillRect(mx-hw*0.38,by+(ty-by)*u,hw*0.48,1.4); } }
+  if(p.kind==="birch"){
+    ctx.fillStyle=tp.d; fillPoly([[bx-hw,by],[tx-thw,ty],[tx-thw+tr.tw*0.3,ty],[bx-hw+tr.tw*0.32,by]]);
+    ctx.fillStyle="#34302a"; for(let k=0;k<6;k++){ const u=0.10+k*0.15, mx=bx+(tx-bx)*u, w=hw*(0.4+rnd()*0.5);
+      ctx.fillRect(mx-w*0.5,by+(ty-by)*u,w,1.6); }
+  } else {
+    // cylinder shading (dark left, light right) then carved bark over it
+    ctx.fillStyle=tp.d; fillPoly([[bx-hw,by],[tx-thw,ty],[tx-thw+tr.tw*0.34,ty],[bx-hw+tr.tw*0.36,by]]);
+    ctx.fillStyle=tp.l; fillPoly([[bx+hw,by],[tx+thw,ty],[tx+thw-tr.tw*0.30,ty],[bx+hw-tr.tw*0.32,by]]);
+    drawBark(bx,by,tx,ty,hw,thw,tp,rnd);
+  }
 }
 // Crown: Chrono Trigger cel-shading — overlapping sphere-clumps + hard-edged silhouette bands.
 function drawTreeCanopy(cx,cy,t,lod){
   if(!t||!t.outline) return;
-  const [vx,vy]=treeLean(t);
+  if(TREE_SPRITE.ready&&drawTreeCanopySprite(t)) return;
   const pal=TREE_PAL[t.kind]||TREE_PAL.deciduous, out=t.outline, R=t.crownR;
+  const [vx,vy]=treeLean(t);
   let map;
   if(t.conifer){
-    const bx=t.x, by=t.y, top=-1.30, span=0.92-top;
-    map=(ox,oy,sx,ddx,ddy,bias)=>{ let hf=(0.92-oy)/span; hf+=(bias||0)*(1-hf);
-      return [bx+ox*R*sx+vx*hf+(ddx||0), by+vy*hf+(ddy||0)]; };
-    const path=(sx,ddx,ddy,bias)=>{ ctx.beginPath();
-      for(let k=0;k<out.length;k++){ const p=out[k], q=map(p[0],p[1],sx,ddx,ddy,bias); k?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]); }
-      ctx.closePath(); };
-    ctx.fillStyle=pal.d; path(1.06,R*0.04,R*0.10); ctx.fill();
-    ctx.fillStyle=pal.m; path(1.0,0,0); ctx.fill();
-    for(let n=1;n<=4;n++){ const u=n/4, oy=top+span*u*0.88, hw=0.66*u*0.72, q=map(0,oy,1,0,0,0), tr=hw*R;
-      ctx.fillStyle=n>=3?pal.hi:(n>=2?pal.h:pal.l);
-      ctx.beginPath(); ctx.ellipse(q[0]-tr*0.06,q[1]-tr*0.04,tr*0.82,tr*0.18,0,0,7); ctx.fill(); }
-    if(!lod){ ctx.strokeStyle=pal.rim; ctx.lineWidth=2; path(1.0,0,0); ctx.stroke(); }
+    // Layered fir: overlapping drooping boughs, each with a sawtooth (needle) bottom edge. Drawn
+    // bottom-up; a dark serrated pass shows as a prickly needle fringe beneath each lit bough.
+    const top=-1.30, bottom=0.92, span=bottom-top, halfB=0.66, tiers=5;
+    map=(ox,oy)=>{ const hf=(0.92-oy)/span, [ww,wh]=treeWindAt(t,hf); return [t.x+ox*R+vx*hf+ww, t.y+vy*hf+wh]; };
+    const T=[];
+    for(let ti=0;ti<tiers;ti++){ const uT=(ti/tiers)*0.92, uB=((ti+1)/tiers)*0.92+0.08, hwB=halfB*(0.18+0.90*((ti+1)/tiers)); T.push({uT,uB,hwB}); }
+    const bough=(uT,uB,hwB,dip)=>{
+      const yT=top+span*uT, yB=top+span*uB;
+      const teeth=Math.max(5,Math.min(18,Math.round(hwB*R*0.55)));
+      ctx.beginPath();
+      let q=map(0,yT); ctx.moveTo(q[0],q[1]);
+      q=map(hwB,yB); ctx.lineTo(q[0],q[1]);
+      for(let k=teeth;k>=0;k--){ const x=((k/teeth)*2-1)*hwB, dn=(k%2===0)?dip:0; q=map(x,yB+dn); ctx.lineTo(q[0],q[1]); }
+      ctx.closePath();
+    };
+    ctx.fillStyle=pal.d;                                              // dark serrated silhouette = needle tips
+    for(let ti=tiers-1;ti>=0;ti--){ const b=T[ti]; bough(b.uT,b.uB,b.hwB,span*0.05); ctx.fill(); }
+    for(let ti=tiers-1;ti>=0;ti--){ const b=T[ti];                    // mid body, flat bottom → dark needle fringe peeks below
+      ctx.fillStyle=ti<=1?pal.l:pal.m; bough(b.uT,b.uB-0.05,b.hwB*0.84,0); ctx.fill(); }
+    for(let ti=tiers-1;ti>=0;ti--){ const b=T[ti];                    // sunlit upper cap of each bough (top-lit cel band)
+      const uMid=b.uT+(b.uB-b.uT)*0.55;
+      ctx.fillStyle=ti<=1?pal.hi:pal.h; bough(b.uT,uMid,b.hwB*0.58,0); ctx.fill(); }
     return;
   }
-  const ax=t.x+vx, ay=t.y+vy;
+  const [ww,wh]=treeWindAt(t,1), ax=t.x+vx+ww, ay=t.y+vy+wh;
   map=(ox,oy,sx,ddx,ddy)=>[ax+ox*R*sx+(ddx||0), ay+oy*R*sx+(ddy||0)];
   const path=(sx,ddx,ddy)=>{ ctx.beginPath();
     for(let k=0;k<out.length;k++){ const p=out[k], q=map(p[0],p[1],sx,ddx,ddy); k?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]); }
     ctx.closePath(); };
-  ctx.fillStyle=pal.m; path(1.0,0,0); ctx.fill();
+  ctx.fillStyle=pal.d; path(1.05,R*0.02,R*0.10); ctx.fill();          // shaded underside (expanded, sits behind = soft edge, no hard outline)
+  ctx.fillStyle=pal.m; path(1.0,0,0); ctx.fill();                     // mid body
   if(t.lobes){ const lb=t.lobes.slice().sort((a,b)=>b.oy-a.oy); for(const L of lb) drawCTLobe(map,R,pal,L.ox,L.oy,L.lr); }
-  ctx.fillStyle=pal.d; path(1.03,R*0.03,R*0.12); ctx.fill();
-  if(!lod){ ctx.strokeStyle=pal.rim; ctx.lineWidth=2.2; path(1.0,0,0); ctx.stroke(); }
+  if(!lod) drawFoliageStipple(map,R,pal,t);                           // dense leaf-speck thicket (no outline)
 }
 function drawProps(L){
   const cl=cam.x-VW/2-34, cr=cam.x+VW/2+34, ct=cam.y-VH/2-34, cb=cam.y+VH/2+34, lod=VW>1500;
@@ -1221,12 +1481,10 @@ function drawProps(L){
 // — whose ground pass never calls drawProps — still render their pole, and trunks never hide
 // behind a neighbouring building. Canopies are drawn later still, over actors.
 function drawTrunks(ox,oy){
-  const cl=cam.x-VW/2-48, cr=cam.x+VW/2+48, ct=cam.y-VH/2-48, cb=cam.y+VH/2+48;
-  const i0=Math.floor((ox-NODE_VAR)/GAP)-2, i1=Math.floor((ox+VW+NODE_VAR)/GAP)+2;
-  const j0=Math.floor((oy-NODE_VAR)/GAP)-2, j1=Math.floor((oy+VH+NODE_VAR)/GAP)+2;
-  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ const L=getLot(i,j); if(!L.props.length) continue;
-    for(const p of L.props){ if(p.t!=="tree"||!p.outline) continue; if(!treeVisible(p,cl,cr,ct,cb)) continue; drawTreeTrunk(p); }
-  }
+  forEachVisibleTree(ox,oy, p=>{
+    updateTreeGhostAlpha(p);
+    drawTreeGhosted(p, drawTreeTrunk);
+  });
 }
 function drawPlazas(ox,oy){
   const i0=Math.floor((ox-NODE_VAR)/GAP)-1, i1=Math.floor((ox+VW+NODE_VAR)/GAP)+1;

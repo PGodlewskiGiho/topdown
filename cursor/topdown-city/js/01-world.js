@@ -422,6 +422,56 @@ function biomeOf(i,j){
   const B=5, ci=Math.floor(i/B), cj=Math.floor(j/B), r=hsh(ci,cj,177);   // countryside between cities
   return r<0.5?"forest": r<0.8?"desert":"sea";
 }
+// Road junction at grid cell (i,j) — used by start menu / spawn picker.
+function roadJunctionAtCell(i,j){
+  return {x:nX(i,j)+ROAD/2, y:nY(i,j)+ROAD/2, i, j, biome:biomeOf(i,j)};
+}
+const CITY_SPAWN_PRESETS=[
+  {i:0, j:0, label:"Vesper City — skrzyżowanie startowe"},
+  {i:1, j:2, label:"Salon samochodowy"},
+  {i:2, j:1, label:"Sklep z bronią"},
+  {i:8, j:6, label:"Peryferie Vesper City"},
+  {i:2, j:2, label:"Dealer motocykli"},
+];
+function findBiomeSpawn(biome, variant=0){
+  if(biome==="city"){
+    const p=CITY_SPAWN_PRESETS[((variant%CITY_SPAWN_PRESETS.length)+CITY_SPAWN_PRESETS.length)%CITY_SPAWN_PRESETS.length];
+    const pt=roadJunctionAtCell(p.i, p.j);
+    return Object.assign(pt, {label:p.label, biome:"city"});
+  }
+  const found=[];
+  for(let ring=4; ring<100; ring++){
+    for(let i=-ring;i<=ring;i++) for(let j=-ring;j<=ring;j++){
+      if(Math.max(Math.abs(i),Math.abs(j))!==ring) continue;
+      if(biomeOf(i,j)!==biome) continue;
+      if(isMountain(i,j)) continue;
+      const pt=roadJunctionAtCell(i,j);
+      if(inWater(pt.x, pt.y)) continue;
+      let score=0;
+      if(biome==="sea"){
+        for(const d of [[90,0],[-90,0],[0,90],[0,-90]]) if(inWater(pt.x+d[0], pt.y+d[1])) score+=1;
+      }
+      found.push(Object.assign({score, ring}, pt));
+    }
+    if(found.length>=4) break;
+  }
+  if(!found.length){
+    const fb=roadJunctionAtCell(0,0);
+    return Object.assign(fb, {label:"Domyślny start", biome:biomeOf(0,0)});
+  }
+  found.sort((a,b)=>(b.score-a.score)||(a.ring-b.ring));
+  const pick=found[(variant*7+3)%found.length];
+  const names={forest:"Las", desert:"Pustynia", sea:"Wybrzeże"};
+  return Object.assign({}, pick, {label:(names[biome]||biome)+" · trasa "+(variant+1), biome});
+}
+function getSpawnPoint(biome, variant){
+  const sp=findBiomeSpawn(biome, variant|0);
+  const nc=nearestCity(sp.i, sp.j);
+  let district=BIOMES[sp.biome]?.name||sp.biome;
+  if(sp.biome==="city") district=nc.name;
+  else if(sp.biome==="forest") district=FOREST_NAMES[forestType(sp.i, sp.j)]||district;
+  return Object.assign({}, sp, {district, cityName:nc.name});
+}
 const lotCache=new Map();
 let pruneT=0;
 function pruneCaches(){
@@ -796,7 +846,7 @@ function genCemetery(lot, r){
       const x=L0+(a+0.5)*(gw/cols), y=T0+(b+0.72)*(gh/rows), ty=r();
       if(x>cl&&x<cr&&y>ct&&y<cb) continue;                             // keep clear around the chapel
       lot.graves.push({x, y, type: ty<0.6?"slab":(ty<0.86?"cross":"obelisk")}); } }
-  const nt=2+(r()*3|0); for(let k=0;k<nt;k++){ if(r()<0.5) lot.props.push(makeTree(lot.x+10+r()*(lot.w-20), lot.y+10+r()*(lot.h-20), 18+r()*12, r, null, {city:true})); }
+  const nt=2+(r()*3|0); for(let k=0;k<nt;k++){ if(r()<0.5) lot.props.push(makeTree(lot.x+10+r()*(lot.w-20), lot.y+10+r()*(lot.h-20), 38+r()*22, r, null, {city:true})); }
   const fx0=lot.x+6, fx1=lot.x+lot.w-6, fy0=lot.y+6, fy1=lot.y+lot.h-6, gx=(fx0+fx1)/2, gwid=18;   // perimeter fence + south gate
   lot.fences.push({x1:fx0,y1:fy0,x2:fx1,y2:fy0},{x1:fx0,y1:fy0,x2:fx0,y2:fy1},{x1:fx1,y1:fy0,x2:fx1,y2:fy1},
                   {x1:fx0,y1:fy1,x2:gx-gwid,y2:fy1},{x1:gx+gwid,y1:fy1,x2:fx1,y2:fy1});
@@ -854,7 +904,7 @@ function addStreetTrees(lot,i,j,r){
       if(inRoundabout(cx,cy)||inPlaza(cx,cy)) continue;
       let blocked=false; for(const b of lot.buildings){ if(cx>b.x-12&&cx<b.x+b.w+12&&cy>b.y-12&&cy<b.y+b.h+12){ blocked=true; break; } }
       if(blocked) continue;
-      const s=68+r()*46, kd=r()<0.70?"deciduous":(r()<0.55?"oak":"bush");
+      const s=118+r()*72, kd=r()<0.70?"deciduous":(r()<0.55?"oak":"bush");
       lot.props.push(makeTree(cx,cy,s,r,kd,{city:true}));
     }
   }
@@ -1024,10 +1074,10 @@ function addGardens(lot, r){
       const fx=cx+Math.cos(ca)*cd, fy=cy+Math.sin(ca)*cd*0.9, col=["#e8d24a","#e07a9a","#c95ad8","#f0f0f0","#e88a3a","#6aa3e0"][(r()*6)|0];
       for(let k=0;k<5+(r()*7|0);k++){ const x=fx+(r()-0.5)*18, y=fy+(r()-0.5)*14; if(free(x,y,2)) lot.flowers.push({x,y,c:col}); } }
     const ntree=1+(r()*2|0); for(let k=0;k<ntree;k++){ for(let tr=0;tr<8;tr++){ const a=r()*6.283, d=hr+14+r()*reach;  // 1-2 proper garden trees
-      const x=cx+Math.cos(a)*d, y=cy+Math.sin(a)*d*0.9; if(free(x,y,16)){ const s=56+r()*34, kd=r()<0.5?"deciduous":(r()<0.5?"oak":"bush");
+      const x=cx+Math.cos(a)*d, y=cy+Math.sin(a)*d*0.9; if(free(x,y,16)){ const s=98+r()*58, kd=r()<0.5?"deciduous":(r()<0.5?"oak":"bush");
         lot.props.push(makeTree(x,y,s,r,kd,{city:true})); break; } } }
     const nb=(r()*3|0); for(let k=0;k<nb;k++){ for(let tr=0;tr<6;tr++){ const a=r()*6.283, d=hr+10+r()*reach;   // a few low shrubs
-      const x=cx+Math.cos(a)*d, y=cy+Math.sin(a)*d*0.9; if(free(x,y,10)){ lot.props.push(makeTree(x,y,20+r()*14,r,"bush",{city:true})); break; } } }
+      const x=cx+Math.cos(a)*d, y=cy+Math.sin(a)*d*0.9; if(free(x,y,10)){ lot.props.push(makeTree(x,y,28+r()*18,r,"bush",{city:true})); break; } } }
     if(r()<0.55){                                                       // picket fence around the yard, gate on the south side
       const m=10+r()*12;
       const fx0=clamp(b.x-m,lot.x+3,lot.x+lot.w-3), fx1=clamp(b.x+b.w+m,lot.x+3,lot.x+lot.w-3);
@@ -1075,23 +1125,23 @@ function canopyLobes(r,kind){
 function makeTree(x,y,s,r,forceKind,opts){
   opts=opts||{};
   const city=!!opts.city;
-  const kind=forceKind||(city?(s<16?"bush":"deciduous"):pickForestKind(opts.fi??0,opts.fj??0,r));
-  const t={x,y,s,t:"tree",kind};
+  const kind=forceKind||(city?(s<24?"bush":"deciduous"):pickForestKind(opts.fi??0,opts.fj??0,r));
+  const t={x,y,s,t:"tree",kind,forest:!city,city:city};
   if(kind==="bush"){
     t.H=s*0.34; t.crownR=s*0.30; t.trunk={tw:s*0.10,frac:0.12};
     t.outline=leafyOutline(r,0.74,6+(r()*3|0),0.20);
     t.lobes=canopyLobes(r,"bush"); t.hitR=Math.max(s*0.16,5); return t;
   }
   if(kind==="pine"){
-    t.H=s*(city?0.62:0.86); t.crownR=s*(city?0.22:0.30); t.trunk={tw:s*0.08,frac:0.14};
+    t.H=s*(city?0.98:0.96); t.crownR=s*(city?0.40:0.30); t.trunk={tw:s*0.08,frac:0.14};
     t.outline=coniferOutline(r); t.conifer=true; t.lobes=[];
     t.hitR=Math.max(t.trunk.tw*0.55,city?4:9); return t;
   }
   const env={deciduous:{cr:0.40,ry:0.80,lobes:8,h:0.84},
              oak:{cr:0.46,ry:0.74,lobes:7,h:0.80},
              birch:{cr:0.30,ry:1.04,lobes:9,h:0.94}}[kind]||{cr:0.40,ry:0.80,lobes:8,h:0.84};
-  t.H=s*(city?env.h*0.66:env.h);
-  t.crownR=s*(city?env.cr*0.84:env.cr);
+  t.H=s*(city?env.h*1.08:env.h*1.05);
+  t.crownR=s*(city?env.cr*1.38:env.cr);
   t.trunk={tw:s*(kind==="oak"?0.10:kind==="birch"?0.07:0.085),frac:0.62};
   t.outline=leafyOutline(r,env.ry,env.lobes,0.15);
   t.lobes=canopyLobes(r,kind);
@@ -1145,7 +1195,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=13;
+const LOT_CACHE_VER=16;
 function getLot(i,j){
   const key=i+","+j+","+LOT_CACHE_VER; let lot=lotCache.get(key); if(lot) return lot;
   const biome=biomeOf(i,j), B=BIOMES[biome], r=lotRng(i,j), m=16, SW=(biome==="city"?6:28);
@@ -1189,12 +1239,30 @@ function getLot(i,j){
   else if(biome==="forest"){
     lot.empty=true; lot.zone="forest"; lot.forestType=forestType(i,j);
     lot.B.ground=FOREST_GROUND[lot.forestType]||lot.B.ground;
-    const cols=Math.max(1,Math.floor(lw/300)), rows=Math.max(1,Math.floor(lh/300)), cw=lw/cols, ch=lh/rows;
+    // Dense understory: many medium trees (not a few giants — avoids blocky PNG upscale)
+    const cellW=58, cellH=58;
+    const cols=Math.max(4,Math.floor(lw/cellW)), rows=Math.max(4,Math.floor(lh/cellH));
+    const cw=lw/cols, ch=lh/rows;
     for(let a=0;a<cols;a++) for(let b2=0;b2<rows;b2++){
-      if(r()<0.18) continue;
-      const tx=left+(a+0.12+r()*0.76)*cw, ty=top+(b2+0.12+r()*0.76)*ch;
-      const scale=300+r()*90;
-      lot.props.push(makeTree(tx,ty,scale,r,null,{fi:i,fj:j})); }
+      if(r()<0.03) continue;
+      const tx=left+(a+0.02+r()*0.96)*cw, ty=top+(b2+0.02+r()*0.96)*ch;
+      const scale=40+r()*48;
+      lot.props.push(makeTree(tx,ty,scale,r,null,{fi:i,fj:j}));
+      if(r()<0.58){
+        const ux=tx+(r()-0.5)*52, uy=ty+(r()-0.5)*42;
+        lot.props.push(makeTree(ux,uy,18+r()*24,r,r()<0.35?"bush":"birch",{fi:i,fj:j}));
+      }
+      if(r()<0.32){
+        lot.props.push(makeTree(tx+(r()-0.5)*34,ty+(r()-0.5)*28,28+r()*20,r,r()<0.55?"deciduous":"oak",{fi:i,fj:j}));
+      }
+    }
+    // occasional canopy giants at lot edges
+    for(let k=0;k<3+(r()*4|0);k++){
+      const edge=r()<0.5;
+      const tx=edge?(left+(r()<0.5?8:lw-8)):(left+r()*lw);
+      const ty=edge?(top+r()*lh):(top+(r()<0.5?8:lh-8));
+      lot.props.push(makeTree(tx,ty,72+r()*32,r,null,{fi:i,fj:j}));
+    }
     lot.props.sort((u,v)=>u.y-v.y);
     if(r()<0.04) placeBuildings(lot,"outer",r,biome);
   }
@@ -1212,13 +1280,13 @@ function getLot(i,j){
       // downtown / midrise core: only the big landmark (mega) buildings exist here.
       // cells not covered by a landmark stay as open plaza/greens (no small towers).
       lot.empty=true; const n=2+(r()*3|0);
-      for(let k=0;k<n;k++){ const px=left+24+r()*Math.max(2,lw-48), py=top+24+r()*Math.max(2,lh-48), s=64+r()*48;
+      for(let k=0;k<n;k++){ const px=left+24+r()*Math.max(2,lw-48), py=top+24+r()*Math.max(2,lh-48), s=118+r()*68;
         lot.props.push(makeTree(px,py,s,r,r()<0.7?"deciduous":"oak",{city:true})); }
     }
     else {
       const builtChance = biome==="city" ? (zone==="suburb"?0.92:0.96) : B.density;
       if(r() < builtChance) placeBuildings(lot, zone, r, biome);
-      if(!lot.buildings.length){ lot.empty=true; const n=2+(r()*4|0); for(let k=0;k<n;k++){ const px=left+20+r()*(lw-40), py=top+20+r()*(lh-40), s=B.prop==="tree"?(56+r()*46):(16+r()*12);
+      if(!lot.buildings.length){ lot.empty=true; const n=2+(r()*4|0); for(let k=0;k<n;k++){ const px=left+20+r()*(lw-40), py=top+20+r()*(lh-40), s=B.prop==="tree"?(88+r()*62):(16+r()*12);
         lot.props.push(B.prop==="tree"?makeTree(px,py,s,r,null,{city:biome==="city"}):{x:px,y:py,s,t:B.prop}); } }
     }
   }
@@ -1239,7 +1307,13 @@ function getLot(i,j){
       for(let k=0;k<9;k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1+r()*2.4});
       for(let k=0;k<5;k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:34+r()*64, a:(r()-0.5)*1.2});
     } else {
-      const dense=biome==="forest"; const nt=dense?(24+(r()*15|0)):(5+(r()*5|0)); for(let k=0;k<nt;k++) lot.tufts.push({x:left+r()*lw, y:top+r()*lh, s:dense?(7+r()*7):(5+r()*4)});
+      const dense=biome==="forest"; const nt=dense?(72+(r()*48|0)):(5+(r()*5|0)); for(let k=0;k<nt;k++) lot.tufts.push({x:left+r()*lw, y:top+r()*lh, s:dense?(5+r()*9):(5+r()*4)});
+      if(dense||lot.zone==="forest"){
+        lot.forestFloor=[];
+        const nf=68+(r()*52|0);
+        const kinds=["leaf","fern","moss","twig","shroom","needle","log","blade"];
+        for(let k=0;k<nf;k++) lot.forestFloor.push({x:left+r()*lw,y:top+r()*lh,kind:kinds[(r()*kinds.length)|0],s:3+r()*11,rot:r()*6.28});
+      }
       const nf=(r()*6|0); for(let k=0;k<nf;k++) lot.flowers.push({x:left+r()*lw, y:top+r()*lh, c:["#e8d24a","#e07a9a","#c95ad8","#f0f0f0","#e88a3a"][(r()*5)|0]});
     }
   }

@@ -24,7 +24,7 @@ function draw(){
     else if(L.mega){ fillCell(L, "#6f7076"); texFill(L,"concrete"); }
     else if(L.empty){
       if(L.salon||L.gunshop||L.motodealer){ fillCell(L, L.B.walk); texFill(L,"concrete"); if(L.motodealer) drawMotoDealerLot(L); }
-      else { fillCell(L, L.B.ground); const sandy=(L.biome==="desert"||L.biome==="sea"); texFill(L, sandy?"sand":"grass"); if(sandy) drawSandDetail(L); else drawGrassDetail(L); drawProps(L); }
+      else { fillCell(L, L.B.ground); const sandy=(L.biome==="desert"||L.biome==="sea"); texFill(L, sandy?"sand":"grass"); if(sandy) drawSandDetail(L); else { if(L.biome==="forest") drawForestFloor(L); drawGrassDetail(L); } drawProps(L); }
     }
     else if(L.zone==="suburb"){ fillCell(L, L.B.ground); texFill(L,"grass"); drawGrassDetail(L); drawProps(L); drawFences(L); }
     else { fillCell(L, L.B.walk); texFill(L,"concrete"); pavingLines(L); }
@@ -41,6 +41,7 @@ function draw(){
 
   drawWet(ox,oy);          // wet asphalt + puddles (under traffic)
   drawShadows(ox,oy);      // directional sun shadows on the ground (day)
+  drawCanopyShades(ox,oy); // ALTTP forest canopy pools (ambient, under elevated crowns)
   drawBlockGrounds(ox,oy); // courtyards, paths, gardens & estate parks around bloks
 
   // buildings (second pass so shadows sit over neighbouring ground)
