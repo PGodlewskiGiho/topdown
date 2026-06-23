@@ -1,6 +1,6 @@
 {
-  "frameWidth": 480,
-  "frameHeight": 400,
+  "frameWidth": 128,
+  "frameHeight": 128,
   "frames": 5,
   "walkFrames": [
     0,
@@ -9,20 +9,20 @@
     3
   ],
   "attackFrame": 4,
-  "anchorX": 240,
-  "anchorY": 385,
+  "anchorX": 64,
+  "anchorY": 120,
   "variants": {
-    "brown": {
-      "file": "bear-brown.png"
+    "grizzly": {
+      "file": "bear-grizzly.png"
     },
     "dark": {
       "file": "bear-dark.png"
     },
+    "brown": {
+      "file": "bear-brown.png"
+    },
     "cinnamon": {
       "file": "bear-cinnamon.png"
-    },
-    "grizzly": {
-      "file": "bear-grizzly.png"
     }
   }
 }

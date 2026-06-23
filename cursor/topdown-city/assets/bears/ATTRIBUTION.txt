@@ -1,0 +1,5 @@
+Bear sprites derived from Liberated Pixel Cup animal pack.
+Source: https://opengameart.org/content/lpc-bears-deer-lions-and-more
+File: lpc_animals_2022_v1.1.zip (bear, grizzly.png / bear, black.png)
+License: CC-BY-SA 3.0 / GPL 3.0 (see OpenGameArt entry).
+Authors: Sevarihk and contributors to the LPC animals collection.

@@ -1,175 +1,153 @@
 #!/usr/bin/env python3
-"""Top-down bear — compact RPG-style mass (head + barrel + 2 visible front paws).
+"""Build bear sprite sheets from LPC reference art (CC-BY-SA / GPL).
 
-Refs: NPS grizzly overhead proportions, top-down mob sprites (Admurin/SharkusMK style):
-  wide shoulders, blocky head, NO four side-mounted circles, NO segmented stripes.
+Extracts walk-right + attack-right frames, upscales with nearest-neighbor,
+recolors for variants. See assets/bears/ATTRIBUTION.txt.
 """
 from __future__ import annotations
 
 import json
-import math
-import random
+import shutil
+import zipfile
+from io import BytesIO
 from pathlib import Path
+from urllib.request import urlopen
 
-from PIL import Image, ImageDraw
+from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent / "topdown-city"
 OUT = ROOT / "assets" / "bears"
+REF_CACHE = Path("/tmp/bear-refs/lpc_animals.zip")
+LPC_URL = "https://opengameart.org/sites/default/files/lpc_animals_2022_v1.1.zip"
 
-FW, FH = 96, 80
-SS = 5
-W, H = FW * SS, FH * SS
+# LPC individual sheet layout (64×64 cells): rows 0–3 walk N/W/E/S, 4–7 attack, 8–11 die.
+WALK_ROW = 2   # east / right
+ATK_ROW = 6
+WALK_COLS = (0, 1, 2, 3)
+ATK_COL = 1
+SRC = 64
+SCALE = 2  # 64 → 128 px frames
+FW = FH = SRC * SCALE
 N_WALK = 4
 N_FRAMES = N_WALK + 1
-ANCHOR_X = W // 2
-ANCHOR_Y = H - SS * 3
+ANCHOR_X = FW // 2
+ANCHOR_Y = FH - SCALE * 4
 
 
-def s(v: float) -> float:
-    return v * SS
+def ensure_lpc() -> Path:
+    base = REF_CACHE.parent / "lpc animals 2022 v1.1"
+    grizzly = base / "individual creature spritesheets" / "bear, grizzly.png"
+    if grizzly.is_file():
+        return base
+    REF_CACHE.parent.mkdir(parents=True, exist_ok=True)
+    if not REF_CACHE.is_file():
+        print("downloading LPC animals…")
+        with urlopen(LPC_URL, timeout=60) as r:
+            REF_CACHE.write_bytes(r.read())
+    with zipfile.ZipFile(REF_CACHE) as zf:
+        zf.extractall(REF_CACHE.parent)
+    return base
 
 
-def hex_rgb(h: str) -> tuple[int, int, int]:
-    h = h.lstrip("#")
-    return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+def upscale(img: Image.Image) -> Image.Image:
+    w, h = img.size
+    return img.resize((w * SCALE, h * SCALE), Image.Resampling.NEAREST)
 
 
-def inset(pts, cx, cy, k):
-    return [(cx + (x - cx) * k, cy + (y - cy) * k) for x, y in pts]
+def shift_down(img: Image.Image, dy: int) -> Image.Image:
+    out = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    out.paste(img, (0, dy), img)
+    return out
 
 
-def outline(cx, cy, *, attack=False, walk_t=0.0):
-    """Potato rug: wide shoulders, tapered rump, short snout. Facing +X."""
-    wob = math.sin(walk_t * math.pi * 2) * s(2.5)
-    a = 1.06 if attack else 1.0
-
-    def P(fx, fy):
-        x = cx + s(fx * 46)
-        y = cy + s(fy * 36 * a)
-        if fx < 0.15:
-            x += wob * (1 if fy > 0 else -1) * 0.3
-        return (x, y)
-
-    return [
-        P(0.82, 0.0),
-        P(0.72, -0.12),
-        P(0.58, -0.28),
-        P(0.40, -0.46),
-        P(0.18, -0.50),
-        P(-0.02, -0.46),
-        P(-0.22, -0.36),
-        P(-0.42, -0.24),
-        P(-0.58, -0.10),
-        P(-0.68, 0.02),
-        P(-0.70, 0.12),
-        P(-0.62, 0.22),
-        P(-0.48, 0.32),
-        P(-0.28, 0.38),
-        P(-0.06, 0.40),
-        P(0.16, 0.38),
-        P(0.36, 0.32),
-        P(0.54, 0.22),
-        P(0.68, 0.12),
-        P(0.76, 0.04),
-    ]
+def add_shadow(img: Image.Image) -> Image.Image:
+    w, h = img.size
+    out = img.copy()
+    sh = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    px = img.load()
+    sp = sh.load()
+    for y in range(h):
+        for x in range(w):
+            if px[x, y][3] > 20:
+                sy = y + SCALE * 3
+                if sy < h:
+                    sp[x, sy] = (0, 0, 0, min(55, sp[x, sy][3] + 40))
+    return Image.alpha_composite(sh, out)
 
 
-def claw_marks(draw, cx, cy, palette, *, attack=False, walk_t=0.0):
-    """Tiny claws on silhouette edge — not separate leg blobs."""
-    ph = walk_t * math.pi * 2
-    marks = [
-        (0.38, 0.44, math.sin(ph) * s(2)),
-        (0.38, -0.44, math.sin(ph + math.pi) * s(2)),
-        (-0.28, 0.36, math.sin(ph + math.pi) * s(1.5)),
-        (-0.28, -0.36, math.sin(ph) * s(1.5)),
-    ]
-    if attack:
-        marks[0] = (0.52, 0.48, s(4))
-        marks[1] = (0.52, -0.48, s(4))
-    for fx, fy, reach in marks:
-        bx = cx + s(fx * 46) + reach
-        by = cy + s(fy * 36)
-        for i in (-1, 0, 1):
-            draw.line(
-                [(bx + i * s(1.8), by), (bx + i * s(1.8) + s(1.2), by + s(3.5))],
-                fill=(24, 18, 12),
-                width=max(1, SS // 2),
-            )
+def recolor(img: Image.Image, hue_shift: float, sat_mul: float, val_mul: float) -> Image.Image:
+    """HSV tweak for fur variants."""
+    import colorsys
+
+    out = img.copy()
+    px = out.load()
+    w, h = out.size
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 8:
+                continue
+            rf, gf, bf = r / 255, g / 255, b / 255
+            h_, s, v = colorsys.rgb_to_hsv(rf, gf, bf)
+            h_ = (h_ + hue_shift) % 1.0
+            s = max(0, min(1, s * sat_mul))
+            v = max(0, min(1, v * val_mul))
+            nr, ng, nb = colorsys.hsv_to_rgb(h_, s, v)
+            px[x, y] = (int(nr * 255), int(ng * 255), int(nb * 255), a)
+    return out
 
 
-def draw_bear_frame(draw, r, palette, *, walk_i=0, attack=False):
-    cx, cy = W * 0.50, H * 0.52
-    walk_t = 0 if attack else walk_i / N_WALK
-    pts = outline(cx, cy, attack=attack, walk_t=walk_t)
-
-    draw.ellipse([cx - s(26), cy + s(13), cx + s(26), cy + s(19)], fill=(0, 0, 0, 45))
-
-    draw.polygon(pts, fill=palette["dk"])
-    draw.polygon(inset(pts, cx, cy, 0.88), fill=palette["m"])
-    draw.polygon(inset(pts, cx, cy, 0.68), fill=palette["l"])
-
-    # NW lit shoulder (asymmetric patch, not a circle)
-    sh = [
-        (cx + s(2), cy - s(16)),
-        (cx + s(18), cy - s(14)),
-        (cx + s(14), cy - s(4)),
-        (cx + s(-2), cy - s(6)),
-    ]
-    draw.polygon(sh, fill=palette["h"])
-
-    claw_marks(draw, cx, cy, palette, attack=attack, walk_t=walk_t)
-
-    # blocky muzzle
-    mx = cx + s(20 if attack else 18)
-    my = cy
-    draw.polygon(
-        [
-            (mx + s(7 if attack else 5), my - s(5)),
-            (mx + s(9 if attack else 7), my + s(1)),
-            (mx + s(5 if attack else 4), my + s(6)),
-            (mx - s(3), my + s(4)),
-            (mx - s(5), my),
-            (mx - s(3), my - s(4)),
-        ],
-        fill=palette["snout"],
-    )
-    draw.ellipse([mx + s(1), my + s(1), mx + s(4), my + s(4)], fill=(16, 10, 6))
-
-    if attack:
-        draw.polygon(
-            [(mx + s(2), my + s(2)), (mx + s(8), my + s(3)), (mx + s(5), my + s(8)), (mx + s(0), my + s(6))],
-            fill=(90, 28, 20),
-        )
-
-    for ex, ey in [(cx + s(12), cy - s(13)), (cx + s(12), cy + s(13))]:
-        draw.polygon([(ex, ey - s(2)), (ex + s(3), ey), (ex, ey + s(2)), (ex - s(2), ey - s(0.5))], fill=palette["d"])
+def extract_frames(sheet: Image.Image) -> list[Image.Image]:
+    frames: list[Image.Image] = []
+    for col in WALK_COLS:
+        fr = sheet.crop((col * SRC, WALK_ROW * SRC, (col + 1) * SRC, (WALK_ROW + 1) * SRC))
+        frames.append(upscale(add_shadow(shift_down(fr, SCALE))))
+    atk = sheet.crop((ATK_COL * SRC, ATK_ROW * SRC, (ATK_COL + 1) * SRC, (ATK_ROW + 1) * SRC))
+    frames.append(upscale(add_shadow(shift_down(atk, SCALE))))
+    return frames
 
 
-VARIANTS = {
-    "brown": {"dk": "#1a1008", "d": "#342018", "m": "#503020", "l": "#684028", "h": "#886038", "snout": "#3c2818"},
-    "dark": {"dk": "#080604", "d": "#161210", "m": "#262018", "l": "#363028", "h": "#484038", "snout": "#201810"},
-    "cinnamon": {"dk": "#280a04", "d": "#441c10", "m": "#642c18", "l": "#843c24", "h": "#a04c2c", "snout": "#502818"},
-    "grizzly": {"dk": "#1c1008", "d": "#382818", "m": "#543820", "l": "#704830", "h": "#906040", "snout": "#483020"},
-}
-
-
-def make_variant(name: str) -> Image.Image:
-    r = random.Random(sum(ord(c) * (i + 1) for i, c in enumerate(name)))
-    pal = {k: hex_rgb(v) for k, v in VARIANTS[name].items()}
-    sheet = Image.new("RGBA", (W * N_FRAMES, H), (0, 0, 0, 0))
-    for fi in range(N_FRAMES):
-        frame = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-        draw = ImageDraw.Draw(frame)
-        draw_bear_frame(draw, r, pal, walk_i=fi if fi < N_WALK else 0, attack=fi >= N_WALK)
-        sheet.paste(frame, (fi * W, 0))
+def build_sheet(frames: list[Image.Image]) -> Image.Image:
+    sheet = Image.new("RGBA", (FW * N_FRAMES, FH), (0, 0, 0, 0))
+    for i, fr in enumerate(frames):
+        sheet.paste(fr, (i * FW, 0), fr)
     return sheet
 
 
+VARIANTS = {
+    "grizzly": {"src": "bear, grizzly.png", "recolor": None},
+    "dark": {"src": "bear, black.png", "recolor": None},
+    "brown": {"src": "bear, grizzly.png", "recolor": (0.0, 0.95, 1.02)},
+    "cinnamon": {"src": "bear, grizzly.png", "recolor": (0.04, 1.15, 1.05)},
+}
+
+
+def make_variant(base_dir: Path, name: str, cfg: dict) -> Image.Image:
+    path = base_dir / "individual creature spritesheets" / cfg["src"]
+    sheet = Image.open(path).convert("RGBA")
+    frames = extract_frames(sheet)
+    if cfg["recolor"]:
+        hs, sm, vm = cfg["recolor"]
+        frames = [recolor(f, hs, sm, vm) for f in frames]
+    return build_sheet(frames)
+
+
+def write_attribution():
+    text = """Bear sprites derived from Liberated Pixel Cup animal pack.
+Source: https://opengameart.org/content/lpc-bears-deer-lions-and-more
+File: lpc_animals_2022_v1.1.zip (bear, grizzly.png / bear, black.png)
+License: CC-BY-SA 3.0 / GPL 3.0 (see OpenGameArt entry).
+Authors: Sevarihk and contributors to the LPC animals collection.
+"""
+    (OUT / "ATTRIBUTION.txt").write_text(text, encoding="utf-8")
+
+
 def main():
+    base = ensure_lpc()
     OUT.mkdir(parents=True, exist_ok=True)
     meta = {
-        "frameWidth": W,
-        "frameHeight": H,
+        "frameWidth": FW,
+        "frameHeight": FH,
         "frames": N_FRAMES,
         "walkFrames": list(range(N_WALK)),
         "attackFrame": N_WALK,
@@ -177,13 +155,22 @@ def main():
         "anchorY": ANCHOR_Y,
         "variants": {},
     }
-    for name in VARIANTS:
+    for name, cfg in VARIANTS.items():
+        img = make_variant(base, name, cfg)
         path = OUT / f"bear-{name}.png"
-        img = make_variant(name)
         img.save(path, "PNG")
         meta["variants"][name] = {"file": path.name}
         print("wrote", path, img.size)
     (OUT / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
+    write_attribution()
+    # comparison strip for review
+    cmp_dir = ROOT.parent.parent / "artifacts" / "bear-compare"
+    cmp_dir.mkdir(parents=True, exist_ok=True)
+    shutil.copy(OUT / "bear-brown.png", cmp_dir / "new-bear-brown.png")
+    lpc = Image.open(base / "individual creature spritesheets" / "bear, grizzly.png").convert("RGBA")
+    upscale(add_shadow(upscale(lpc.crop((0, WALK_ROW * SRC, SRC, (WALK_ROW + 1) * SRC))))).save(
+        cmp_dir / "lpc-ref-walk0.png"
+    )
 
 
 if __name__ == "__main__":
