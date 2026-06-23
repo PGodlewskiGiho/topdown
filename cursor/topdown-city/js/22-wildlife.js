@@ -1,7 +1,23 @@
 /* TOPDOWN CITY — 22-wildlife.js */
-/* Forest wildlife — procedural canvas sprites (walk cycle + attack lunge). PNG/sheets later if needed. */
+/* Forest wildlife — PNG sprite sheets (4 walk + attack), procedural fallback if assets missing. */
 const bears=[];
 let bearTimer=0;
+const BEAR_VARIANTS=["brown","dark","cinnamon","grizzly"];
+const BEAR_SPRITE={ready:false,meta:null,img:{}};
+
+(function loadBearSprites(){
+  fetch("assets/bears/meta.json").then(r=>r.json()).then(meta=>{
+    BEAR_SPRITE.meta=meta;
+    const kinds=Object.keys(meta.variants||{}); let left=kinds.length||0;
+    if(!left){ BEAR_SPRITE.ready=true; return; }
+    for(const k of kinds){
+      const im=new Image();
+      im.onload=im.onerror=()=>{ if(--left<=0) BEAR_SPRITE.ready=true; };
+      im.src="assets/bears/"+meta.variants[k].file;
+      BEAR_SPRITE.img[k]=im;
+    }
+  }).catch(()=>{ BEAR_SPRITE.ready=true; });
+})();
 
 function inForestAt(x,y){
   const k=cellAt(x,y);
@@ -30,10 +46,12 @@ function spawnBear(){
   const ang=rng()*6.283, dist=rand(180,780), x=focusX+Math.cos(ang)*dist, y=focusY+Math.sin(ang)*dist;
   if(!inForestAt(x,y) || inWater(x,y) || inBuilding(x,y,22)) return null;
   for(const o of bears) if((o.x-x)**2+(o.y-y)**2<130*130) return null;
+  const variant=BEAR_VARIANTS[(rng()*BEAR_VARIANTS.length)|0];
+  const scale=rand(0.88,1.14);
   return {
-    kind:"bear", x, y, a:rng()*6.283, vx:0, vy:0, r:18,
+    kind:"bear", variant, scale, x, y, a:rng()*6.283, vx:0, vy:0, r:18*scale,
     hp:110, maxHp:110, state:"wander", tx:x, ty:y,
-    repick:rand(1.2,3.5), speed:rand(64,92), run:rand(118,152),
+    repick:rand(1.2,3.5), speed:rand(64,92)*scale, run:rand(118,152)*scale,
     attackCd:rand(0.2,0.7), attackT:0, walkPhase:rng()*6.28,
     target:null, targetKind:null, roarCd:0,
   };
@@ -144,7 +162,7 @@ function updateBear(b,dt){
     const mv=Math.min(1,d/90);
     b.x+=dx/d*spd*mv*dt;
     b.y+=dy/d*spd*mv*dt;
-    b.walkPhase+=spd*dt*0.11;
+    b.walkPhase+=spd*dt*0.095;
   }
   pushBearFromBuildings(b);
   collideTrees(b);
@@ -183,61 +201,50 @@ function updateWildlife(dt){
     if(nb) bears.push(nb);
   }
 }
+function bearAnimFrame(b){
+  const m=BEAR_SPRITE.meta;
+  if(!m) return 0;
+  if(b.attackT>0.08) return m.attackFrame??4;
+  const wf=m.walkFrames||[0,1,2,3];
+  const fi=Math.floor(((b.walkPhase%(Math.PI*2))/(Math.PI*2))*wf.length)%wf.length;
+  return wf[fi];
+}
+function drawBearFallback(b){
+  ctx.fillStyle="rgba(0,0,0,.2)";
+  ctx.beginPath(); ctx.ellipse(b.x+2,b.y+3,b.r*0.85,b.r*0.4,0,0,7); ctx.fill();
+  ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.a);
+  ctx.fillStyle="#5a4030"; ctx.beginPath(); ctx.ellipse(0,0,b.r*0.75,b.r*0.55,0,0,7); ctx.fill();
+  ctx.restore();
+}
 function drawBear(b){
-  const phase=b.walkPhase;
-  const bob=Math.sin(phase)*1.6;
-  const lunge=b.attackT>0?1+0.22*(b.attackT/0.32):1;
-  ctx.fillStyle="rgba(0,0,0,.22)";
-  ctx.beginPath(); ctx.ellipse(b.x+2,b.y+4,b.r*0.92,b.r*0.48,0,0,7); ctx.fill();
+  const m=BEAR_SPRITE.meta, img=BEAR_SPRITE.img[b.variant]||BEAR_SPRITE.img.brown;
+  if(!BEAR_SPRITE.ready||!m||!img||!img.complete||!img.naturalWidth){ drawBearFallback(b); return; }
+  const fw=m.frameWidth||384, fh=m.frameHeight||320;
+  const ax=m.anchorX??fw/2, ay=m.anchorY??fh-8;
+  const fr=bearAnimFrame(b);
+  const worldH=b.r*3.35*(b.scale||1);
+  const sc=worldH/fh;
+  const w=fw*sc, h=fh*sc;
+  ctx.fillStyle="rgba(0,0,0,.24)";
+  ctx.beginPath(); ctx.ellipse(b.x+2,b.y+4,b.r*0.95,b.r*0.46,0,0,7); ctx.fill();
   ctx.save();
-  ctx.translate(b.x,b.y+bob);
+  ctx.translate(b.x,b.y);
   ctx.rotate(b.a);
-  ctx.scale(lunge,lunge);
-  const fur="#5a4030", furL="#7a5848", furD="#3a2818", snout="#4a3428";
-  // haunches
-  ctx.fillStyle=furD;
-  ctx.beginPath(); ctx.ellipse(-7,2,9,7,0,0,7); ctx.fill();
-  // torso
-  ctx.fillStyle=fur;
-  ctx.beginPath(); ctx.ellipse(0,0,14,10,0,0,7); ctx.fill();
-  ctx.fillStyle=furL;
-  ctx.beginPath(); ctx.ellipse(-2,-3,8,5,0,0,7); ctx.fill();
-  // legs (4-phase walk)
-  const lg=Math.sin(phase)*5, rg=Math.sin(phase+Math.PI)*5;
-  ctx.fillStyle=furD;
-  for(const [lx,ly,off] of [[-9,7,lg],[9,7,rg],[-5,8,-rg*0.6],[5,8,-lg*0.6]]){
-    ctx.fillRect(lx+off*0.15-2,ly,4,5+Math.abs(off)*0.08);
-  }
-  // head + snout
-  ctx.fillStyle=fur;
-  ctx.beginPath(); ctx.ellipse(12,-1,7,6.5,0,0,7); ctx.fill();
-  ctx.fillStyle=snout;
-  ctx.beginPath(); ctx.ellipse(17,1,4.5,3.2,0,0,7); ctx.fill();
-  ctx.fillStyle="#1a1410";
-  ctx.beginPath(); ctx.arc(18.5,0.6,1.1,0,7); ctx.fill();
-  // ears
-  ctx.fillStyle=furD;
-  ctx.beginPath(); ctx.ellipse(10,-6,2.4,2,0,0,7); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(14,-6,2.4,2,0,0,7); ctx.fill();
-  if(b.state==="chase"||b.state==="attack"){
-    ctx.fillStyle="rgba(200,40,30,.75)";
-    ctx.beginPath(); ctx.arc(13,-2,1.2,0,7); ctx.fill();
-  }
-  if(b.attackT>0.18){
-    ctx.strokeStyle="#dcc8b0";
-    ctx.lineWidth=1.4;
-    ctx.beginPath(); ctx.moveTo(16,2.5); ctx.lineTo(19,4.5); ctx.lineTo(16,5.5); ctx.stroke();
-  }
+  const sm=ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled=true;
+  try{ ctx.imageSmoothingQuality="high"; }catch(e){}
+  ctx.drawImage(img, fr*fw, 0, fw, fh, -ax*sc, -ay*sc, w, h);
+  ctx.imageSmoothingEnabled=sm;
   ctx.restore();
   if(b.hp<b.maxHp){
     const f=clamp(b.hp/b.maxHp,0,1);
-    ctx.fillStyle="rgba(0,0,0,.35)"; ctx.fillRect(b.x-14,b.y-b.r-8,28,3);
-    ctx.fillStyle=f>0.45?"#c04030":"#802018"; ctx.fillRect(b.x-14,b.y-b.r-8,28*f,3);
+    ctx.fillStyle="rgba(0,0,0,.35)"; ctx.fillRect(b.x-14,b.y-b.r-10,28,3);
+    ctx.fillStyle=f>0.45?"#c04030":"#802018"; ctx.fillRect(b.x-14,b.y-b.r-10,28*f,3);
   }
 }
 function drawWildlife(ox,oy){
   for(const b of bears){
-    if(b.x<ox-50||b.x>ox+VW+50||b.y<oy-50||b.y>oy+VH+50) continue;
+    if(b.x<ox-60||b.x>ox+VW+60||b.y<oy-60||b.y>oy+VH+60) continue;
     drawBear(b);
   }
 }

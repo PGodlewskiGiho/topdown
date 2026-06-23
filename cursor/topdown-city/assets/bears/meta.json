@@ -1,0 +1,28 @@
+{
+  "frameWidth": 384,
+  "frameHeight": 320,
+  "frames": 5,
+  "walkFrames": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "attackFrame": 4,
+  "anchorX": 192,
+  "anchorY": 312,
+  "variants": {
+    "brown": {
+      "file": "bear-brown.png"
+    },
+    "dark": {
+      "file": "bear-dark.png"
+    },
+    "cinnamon": {
+      "file": "bear-cinnamon.png"
+    },
+    "grizzly": {
+      "file": "bear-grizzly.png"
+    }
+  }
+}
