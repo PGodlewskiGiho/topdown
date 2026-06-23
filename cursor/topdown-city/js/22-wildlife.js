@@ -52,7 +52,7 @@ function spawnBear(){
     kind:"bear", variant, scale, x, y, a:rng()*6.283, vx:0, vy:0, r:22*scale,
     hp:110, maxHp:110, state:"wander", tx:x, ty:y,
     repick:rand(1.2,3.5), speed:rand(64,92)*scale, run:rand(118,152)*scale,
-    attackCd:rand(0.2,0.7), attackT:0, walkPhase:rng()*6.28,
+    attackCd:rand(0.2,0.7), attackT:0, walkT:rng()*0.5, moving:false,
     target:null, targetKind:null, roarCd:0,
   };
 }
@@ -162,8 +162,10 @@ function updateBear(b,dt){
     const mv=Math.min(1,d/90);
     b.x+=dx/d*spd*mv*dt;
     b.y+=dy/d*spd*mv*dt;
-    b.walkPhase+=spd*dt*0.072;
-  }
+    b.moving=true;
+    // LPC walk: ~100 ms/frame; scale step rate with movement speed
+    b.walkT=(b.walkT||0)+dt*(0.55+spd/180);
+  } else b.moving=false;
   pushBearFromBuildings(b);
   collideTrees(b);
   if(inWater(b.x,b.y)){
@@ -206,7 +208,9 @@ function bearAnimFrame(b){
   if(!m) return 0;
   if(b.attackT>0.08) return m.attackFrame??4;
   const wf=m.walkFrames||[0,1,2,3];
-  const fi=Math.floor(((b.walkPhase%(Math.PI*2))/(Math.PI*2))*wf.length)%wf.length;
+  if(!b.moving) return wf[0];
+  const step=m.walkStep??0.11;
+  const fi=Math.floor((b.walkT||0)/step)%wf.length;
   return wf[fi];
 }
 function drawBearFallback(b){

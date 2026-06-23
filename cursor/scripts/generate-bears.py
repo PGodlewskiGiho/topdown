@@ -20,11 +20,14 @@ OUT = ROOT / "assets" / "bears"
 REF_CACHE = Path("/tmp/bear-refs/lpc_animals.zip")
 LPC_URL = "https://opengameart.org/sites/default/files/lpc_animals_2022_v1.1.zip"
 
-# LPC individual sheet layout (64×64 cells): rows 0–3 walk N/W/E/S, 4–7 attack, 8–11 die.
-WALK_ROW = 2   # east / right
-ATK_ROW = 6
+# LPC individual sheet layout (64×64 cells): rows 0–3 walk S/W/E/N, 4–7 attack, 8–11 die.
+# Rows 0/3 = top-down (head toward camera / away); rows 1/2 = side profile.
+WALK_ROW = 0   # south — true top-down
+ATK_ROW = 4
 WALK_COLS = (0, 1, 2, 3)
 ATK_COL = 1
+# Rotate extracted frame so default facing = +X (game uses atan2 + ctx.rotate).
+FACE_ROT = 90
 SRC = 64
 SCALE = 2  # 64 → 128 px frames
 FW = FH = SRC * SCALE
@@ -52,6 +55,17 @@ def ensure_lpc() -> Path:
 def upscale(img: Image.Image) -> Image.Image:
     w, h = img.size
     return img.resize((w * SCALE, h * SCALE), Image.Resampling.NEAREST)
+
+
+def orient_frame(img: Image.Image) -> Image.Image:
+    """Top-down LPC row faces +Y; rotate to +X for in-game heading."""
+    rot = img.rotate(FACE_ROT, resample=Image.Resampling.NEAREST, expand=True)
+    w, h = rot.size
+    out = Image.new("RGBA", (SRC, SRC), (0, 0, 0, 0))
+    ox = (SRC - w) // 2
+    oy = (SRC - h) // 2
+    out.paste(rot, (ox, oy), rot)
+    return out
 
 
 def shift_down(img: Image.Image, dy: int) -> Image.Image:
@@ -101,8 +115,10 @@ def extract_frames(sheet: Image.Image) -> list[Image.Image]:
     frames: list[Image.Image] = []
     for col in WALK_COLS:
         fr = sheet.crop((col * SRC, WALK_ROW * SRC, (col + 1) * SRC, (WALK_ROW + 1) * SRC))
+        fr = orient_frame(fr)
         frames.append(upscale(add_shadow(shift_down(fr, SCALE))))
     atk = sheet.crop((ATK_COL * SRC, ATK_ROW * SRC, (ATK_COL + 1) * SRC, (ATK_ROW + 1) * SRC))
+    atk = orient_frame(atk)
     frames.append(upscale(add_shadow(shift_down(atk, SCALE))))
     return frames
 
@@ -153,6 +169,7 @@ def main():
         "attackFrame": N_WALK,
         "anchorX": ANCHOR_X,
         "anchorY": ANCHOR_Y,
+        "walkStep": 0.11,
         "variants": {},
     }
     for name, cfg in VARIANTS.items():
