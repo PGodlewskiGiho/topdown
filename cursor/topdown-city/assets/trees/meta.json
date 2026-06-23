@@ -7,7 +7,13 @@
   "crownR": 36,
   "kinds": {
     "deciduous": {
-      "file": "deciduous.png"
+      "file": "deciduous-hd.png",
+      "width": 384,
+      "height": 512,
+      "splitY": 344,
+      "anchorX": 192,
+      "anchorY": 511,
+      "hd": true
     },
     "oak": {
       "file": "oak.png"

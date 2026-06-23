@@ -1269,8 +1269,21 @@ window.TREE_SPRITE=TREE_SPRITE;
     }
   }).catch(()=>{});
 })();
+function treeKindMeta(kind){
+  const g=TREE_SPRITE.meta||{};
+  const k=g.kinds&&g.kinds[kind];
+  const bw=g.width||96, bh=g.height||128, bs=g.splitY??86;
+  if(k&&k.width&&k.height) return {
+    width:k.width, height:k.height,
+    splitY:k.splitY??Math.round(k.height*bs/bh),
+    anchorX:k.anchorX??Math.round(k.width/2),
+    anchorY:k.anchorY??k.height-1,
+    hd:!!k.hd,
+  };
+  return {width:bw,height:bh,splitY:bs,anchorX:g.anchorX??48,anchorY:g.anchorY??127,hd:false};
+}
 function treeSpriteScale(t){
-  const m=TREE_SPRITE.meta||{width:96,height:128};
+  const m=treeKindMeta(t.kind||"deciduous");
   const H=t.H||t.s*0.6;
   // Lock scale to lean height so PNG keeps native aspect — never squash to match crownR width.
   let sc=(H*TREE_LEAN_DEPTH*treeDepthK(t))/(m.height||128);
@@ -1279,13 +1292,16 @@ function treeSpriteScale(t){
 }
 const TREE_SPRITE_PAD=4;                                       // bleed so split strips / wind never clip PNG
 const TREE_SOFT=1.10;                                          // slight upscale + smoothing = softer pixels
+const TREE_SOFT_HD=1.02;                                       // hi-res PNG needs less upscale blur
 function drawLeaningTreeStrip(p,sy0,sy1){
-  const m=TREE_SPRITE.meta, img=TREE_SPRITE.img[p.kind]||TREE_SPRITE.img.deciduous;
+  const m=treeKindMeta(p.kind||"deciduous"), img=TREE_SPRITE.img[p.kind]||TREE_SPRITE.img.deciduous;
   if(!img||!img.complete||!img.naturalWidth) return false;
   const sc=treeSpriteScale(p), [vx,vy]=treeLean(p);
-  const sy0p=Math.max(0, sy0-TREE_SPRITE_PAD), sy1p=Math.min(m.height, sy1+TREE_SPRITE_PAD);
+  const pad=Math.max(TREE_SPRITE_PAD, Math.round(m.height/128));
+  const sy0p=Math.max(0, sy0-pad), sy1p=Math.min(m.height, sy1+pad);
   const sh=sy1p-sy0p, shDraw=sy1-sy0;
-  const W=m.width*sc*TREE_SOFT, hw=W*0.5;
+  const soft=m.hd?TREE_SOFT_HD:TREE_SOFT;
+  const W=m.width*sc*soft, hw=W*0.5;
   const ub=(m.height-sy1)/m.height, ut=(m.height-sy0)/m.height;
   const [wxt,wyt]=treeWindAt(p,ut), [wxb,wyb]=treeWindAt(p,ub);
   const tlx=p.x-hw+vx*ut+wxt, tly=p.y+vy*ut+wyt, trx=p.x+hw+vx*ut+wxt;
@@ -1307,11 +1323,11 @@ function drawTreeTrunkSprite(p){
   if(tr.frac<0.18) return true;
   const hw=tr.tw*0.72, bx=p.x, by=p.y;
   ctx.fillStyle="rgba(0,0,0,.24)"; ctx.beginPath(); ctx.ellipse(bx+2,by+3,Math.max(hw*1.8,(p.crownR||hw)*0.34),Math.max(hw*0.62,(p.crownR||hw)*0.12),0,0,7); ctx.fill();
-  const m=TREE_SPRITE.meta;
-  return drawLeaningTreeStrip(p, Math.max(0, m.splitY-2), m.height);
+  const m=treeKindMeta(p.kind||"deciduous");
+  return drawLeaningTreeStrip(p, Math.max(0, m.splitY-Math.max(2, Math.round(m.height/64))), m.height);
 }
 function drawTreeCanopySprite(p){
-  const m=TREE_SPRITE.meta, split=Math.min(m.height-1, m.splitY+14);
+  const m=treeKindMeta(p.kind||"deciduous"), split=Math.min(m.height-1, m.splitY+Math.max(14, Math.round(m.height/36)));
   return drawLeaningTreeStrip(p, 0, split);
 }
 // Deterministic per-tree RNG (stable across frames) so leaf/bark detail never shimmers.

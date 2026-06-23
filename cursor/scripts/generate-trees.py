@@ -23,6 +23,23 @@ CX = W // 2
 SPLIT_Y = round(86 / 128 * H)
 
 
+def set_supersample(ss: int):
+    """Switch canvas resolution (SS=4 → 384×512 native PNG)."""
+    global SS, W, H, CX, SPLIT_Y
+    SS = max(1, ss)
+    W, H = OUT_W * SS, OUT_H * SS
+    CX = W // 2
+    SPLIT_Y = round(86 / 128 * H)
+
+
+def s(v: float) -> float:
+    return v * SS
+
+
+def sc(base: int) -> int:
+    return int(base * SS * 1.55)
+
+
 def rng_for(name: str, variant: int = 0) -> random.Random:
     h = sum(ord(c) * (i + 1) for i, c in enumerate(name)) + variant * 997
     return random.Random(h)
@@ -62,7 +79,8 @@ def in_ellipse(x: float, y: float, cx: float, cy: float, rx: float, ry: float, m
 def pick_foliage_color(
     x: float, y: float, cx: float, cy: float, palette: dict[str, tuple[int, int, int]], r: random.Random,
 ) -> tuple[int, int, int]:
-    lit = -0.55 * ((x - cx) / 28.0) - 0.65 * ((y - cy) / 24.0)
+    scale = max(SS, 1)
+    lit = -0.55 * ((x - cx) / (28.0 * scale)) - 0.65 * ((y - cy) / (24.0 * scale))
     roll = r.random()
     if lit > 0.28:
         return palette["hi"] if roll < 0.38 else palette["h"]
@@ -96,7 +114,7 @@ def draw_cluster_foliage(
         col = pick_foliage_color(x, y, cx, cy, palette, r)
         # mostly tangential (leaf clusters follow surface), slight outward bias on lit side
         tangent = a + math.pi / 2 + (r.random() - 0.5) * 0.35
-        length = r.uniform(1.8, 4.8)
+        length = r.uniform(s(1.8), s(4.8))
         if col in (palette["hi"], palette["h"], palette["l"]):
             tangent += -0.25  # lit leaves tilt NW
         x2 = x + math.cos(tangent) * length
@@ -116,7 +134,7 @@ def draw_cluster_foliage(
         y = cy + math.sin(a) * ry * rad * 0.88 - ry * 0.08
         col = pick_foliage_color(x, y, cx, cy, palette, r)
         tangent = a + math.pi / 2 + (r.random() - 0.5) * 0.4
-        length = r.uniform(1.2, 3.2)
+        length = r.uniform(s(1.2), s(3.2))
         x2 = x + math.cos(tangent) * length
         y2 = y + math.sin(tangent) * length * 0.8
         draw.line([(x, y), (x2, y2)], fill=col, width=1)
@@ -133,7 +151,7 @@ def draw_cluster_foliage(
             y = ly + math.sin(a) * cap_ry * rad
             col = palette["hi"] if r.random() < 0.45 else palette["h"]
             tangent = a + math.pi / 2 - 0.3
-            length = r.uniform(1.0, 2.8)
+            length = r.uniform(s(1.0), s(2.8))
             x2 = x + math.cos(tangent) * length
             y2 = y + math.sin(tangent) * length * 0.75
             draw.line([(x, y), (x2, y2)], fill=col, width=1)
@@ -147,13 +165,13 @@ def draw_cluster_foliage(
         y = cy + math.sin(a) * ry * edge
         if r.random() < 0.72:
             outward = a + r.uniform(-0.65, 0.65)
-            length = r.uniform(2.5, 7.0) * SS
+            length = r.uniform(s(2.5), s(7.0))
             col = palette["m"] if r.random() < 0.45 else palette["d"]
             if r.random() < 0.22:
                 col = palette["l"]
         else:
             outward = a + math.pi + r.uniform(-0.35, 0.35)
-            length = r.uniform(1.5, 3.5) * SS
+            length = r.uniform(s(1.5), s(3.5))
             col = palette["dk"] if r.random() < 0.6 else palette["d"]
         x2 = x + math.cos(outward) * length
         y2 = y + math.sin(outward) * length * 0.76
@@ -166,15 +184,15 @@ def draw_trunk_join(
     width: float,
 ):
     """Brown wedge at the trunk–canopy join; always hidden under foliage."""
-    top_y = SPLIT_Y - 10
-    mid_y = SPLIT_Y + 12
+    top_y = SPLIT_Y - s(10)
+    mid_y = SPLIT_Y + s(12)
     hw = width * 0.85
     draw.polygon(
         [(CX - hw, mid_y), (CX + hw, mid_y), (CX + hw * 0.35, top_y), (CX - hw * 0.35, top_y)],
         fill=browns["d"],
     )
     draw.polygon(
-        [(CX - hw * 0.7, mid_y), (CX + hw * 0.7, mid_y), (CX + hw * 0.25, top_y + 4), (CX - hw * 0.25, top_y + 4)],
+        [(CX - hw * 0.7, mid_y), (CX + hw * 0.7, mid_y), (CX + hw * 0.25, top_y + s(4)), (CX - hw * 0.25, top_y + s(4))],
         fill=browns["m"],
     )
 
@@ -268,8 +286,8 @@ def draw_trunk(
     width: float,
     birch: bool = False,
 ):
-    base_y = H - 2
-    top_y = SPLIT_Y - 8  # extend well into foliage; leaves drawn after cover this
+    base_y = H - s(2)
+    top_y = SPLIT_Y - s(8)  # extend well into foliage; leaves drawn after cover this
     hw = width * 0.5
     thw = hw * 0.72
 
@@ -320,12 +338,12 @@ def make_deciduous(variant: int = 0) -> Image.Image:
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     clusters = [
-        (CX - 22, 36, 24, 20), (CX + 20, 34, 22, 18), (CX, 24, 26, 22),
-        (CX - 18, 66, 26, 22), (CX + 14, 68, 22, 20),
+        (CX - s(22), s(36), s(24), s(20)), (CX + s(20), s(34), s(22), s(18)), (CX, s(24), s(26), s(22)),
+        (CX - s(18), s(66), s(26), s(22)), (CX + s(14), s(68), s(22), s(20)),
     ]
     draw_canopy_clusters(
-        draw, clusters, r, pal, 95,
-        trunk_collar=(CX, 82, 26, 18), browns=browns, trunk_w=9,
+        draw, clusters, r, pal, sc(95),
+        trunk_collar=(CX, s(82), s(26), s(18)), browns=browns, trunk_w=s(9),
     )
     return img
 
@@ -450,7 +468,34 @@ def main():
     ap = argparse.ArgumentParser(description="Generate tree PNG sprites")
     ap.add_argument("--production", action="store_true", help="Write to assets/trees/ (game) instead of preview folder")
     ap.add_argument("--out", type=Path, help="Custom output directory")
+    ap.add_argument("--trial", metavar="KIND", help="Generate one hi-res trial PNG (e.g. deciduous)")
+    ap.add_argument("--supersample", type=int, default=4, help="Supersample factor for --trial (default 4 → 384×512)")
     args = ap.parse_args()
+
+    if args.trial:
+        kind = args.trial
+        if kind not in GENERATORS:
+            ap.error(f"unknown kind {kind!r}; choose from {', '.join(GENERATORS)}")
+        set_supersample(args.supersample)
+        out = args.out or (ROOT / "assets" / "trees")
+        out.mkdir(parents=True, exist_ok=True)
+        fname = f"{kind}-hd.png"
+        path = out / fname
+        img = GENERATORS[kind](0)
+        img.save(path, "PNG")
+        kind_meta = {
+            "file": fname,
+            "width": W,
+            "height": H,
+            "splitY": SPLIT_Y,
+            "anchorX": W // 2,
+            "anchorY": H - 1,
+            "hd": True,
+        }
+        print("wrote", path, f"({W}×{H})")
+        print("meta snippet for kinds.%s:" % kind)
+        print(json.dumps(kind_meta, indent=2))
+        return
 
     if args.out:
         out = args.out
