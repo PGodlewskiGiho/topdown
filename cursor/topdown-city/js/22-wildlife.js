@@ -47,9 +47,9 @@ function spawnBear(){
   if(!inForestAt(x,y) || inWater(x,y) || inBuilding(x,y,22)) return null;
   for(const o of bears) if((o.x-x)**2+(o.y-y)**2<130*130) return null;
   const variant=BEAR_VARIANTS[(rng()*BEAR_VARIANTS.length)|0];
-  const scale=rand(0.88,1.14);
+  const scale=rand(0.92,1.18);
   return {
-    kind:"bear", variant, scale, x, y, a:rng()*6.283, vx:0, vy:0, r:18*scale,
+    kind:"bear", variant, scale, x, y, a:rng()*6.283, vx:0, vy:0, r:22*scale,
     hp:110, maxHp:110, state:"wander", tx:x, ty:y,
     repick:rand(1.2,3.5), speed:rand(64,92)*scale, run:rand(118,152)*scale,
     attackCd:rand(0.2,0.7), attackT:0, walkPhase:rng()*6.28,
@@ -162,7 +162,7 @@ function updateBear(b,dt){
     const mv=Math.min(1,d/90);
     b.x+=dx/d*spd*mv*dt;
     b.y+=dy/d*spd*mv*dt;
-    b.walkPhase+=spd*dt*0.095;
+    b.walkPhase+=spd*dt*0.072;
   }
   pushBearFromBuildings(b);
   collideTrees(b);
@@ -222,7 +222,7 @@ function drawBear(b){
   const fw=m.frameWidth||384, fh=m.frameHeight||320;
   const ax=m.anchorX??fw/2, ay=m.anchorY??fh-8;
   const fr=bearAnimFrame(b);
-  const worldH=b.r*3.35*(b.scale||1);
+  const worldH=b.r*2.85*(b.scale||1);
   const sc=worldH/fh;
   const w=fw*sc, h=fh*sc;
   ctx.fillStyle="rgba(0,0,0,.24)";

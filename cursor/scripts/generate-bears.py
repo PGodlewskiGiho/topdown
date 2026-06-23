@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Generate top-down bear sprite sheets (Pillow → PNG).
+"""Generate top-down bear sprite sheets — compact, wide, heavy (not worm-shaped).
 
-Each variant: horizontal strip — 4 walk frames + 1 attack frame.
-Bears face +X (right); game rotates by heading angle.
+Each variant: 4 walk + 1 attack. Bears face +X; game rotates by heading.
 """
 from __future__ import annotations
 
@@ -16,14 +15,15 @@ from PIL import Image, ImageDraw
 ROOT = Path(__file__).resolve().parent.parent / "topdown-city"
 OUT = ROOT / "assets" / "bears"
 
-FW, FH = 96, 80
+# Square frame → round heavy silhouette (width ≈ length)
+FW, FH = 88, 88
 SS = 4
 W, H = FW * SS, FH * SS
 N_WALK = 4
 N_ATTACK = 1
 N_FRAMES = N_WALK + N_ATTACK
 ANCHOR_X = W // 2
-ANCHOR_Y = H - SS * 2
+ANCHOR_Y = H - SS * 3
 
 
 def s(v: float) -> float:
@@ -35,49 +35,42 @@ def hex_rgb(h: str) -> tuple[int, int, int]:
     return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
 
 
-def lerp(a: float, b: float, t: float) -> float:
-    return a + (b - a) * t
-
-
-def blob_points(cx, cy, rx, ry, r, n=20, wobble=0.12):
-    pts = []
-    ph = r.random() * 6.283
-    for i in range(n):
-        a = (i / n) * 6.283
-        rad = 1 + wobble * math.sin(a * 3 + ph) + wobble * 0.5 * math.sin(a * 5 + ph * 1.3)
-        pts.append((cx + math.cos(a) * rx * rad, cy + math.sin(a) * ry * rad))
-    return pts
-
-
 def fur_strokes(draw, cx, cy, rx, ry, r, palette, count: int):
-    scale = max(SS, 1)
     for _ in range(count):
         a = r.random() * 6.283
-        rad = math.sqrt(r.random()) * 0.9
+        rad = math.sqrt(r.random()) * 0.88
         x = cx + math.cos(a) * rx * rad
         y = cy + math.sin(a) * ry * rad
-        lit = -0.5 * ((x - cx) / (rx * 1.1)) - 0.55 * ((y - cy) / (ry * 1.1))
-        if lit > 0.15:
-            col = palette["hi"] if r.random() < 0.4 else palette["h"]
-        elif lit > -0.05:
-            col = palette["l"] if r.random() < 0.45 else palette["m"]
+        lit = -0.45 * ((x - cx) / rx) - 0.5 * ((y - cy) / ry)
+        if lit > 0.12:
+            col = palette["hi"] if r.random() < 0.35 else palette["h"]
+        elif lit > -0.08:
+            col = palette["l"] if r.random() < 0.4 else palette["m"]
         else:
-            col = palette["d"] if r.random() < 0.55 else palette["dk"]
-        tangent = a + math.pi / 2 + (r.random() - 0.5) * 0.5
-        ln = r.uniform(s(1.4), s(4.2))
-        x2 = x + math.cos(tangent) * ln
-        y2 = y + math.sin(tangent) * ln * 0.85
-        draw.line([(x, y), (x2, y2)], fill=col, width=max(1, SS // 2))
+            col = palette["d"] if r.random() < 0.5 else palette["dk"]
+        tangent = a + math.pi / 2 + (r.random() - 0.5) * 0.45
+        ln = r.uniform(s(1.2), s(3.5))
+        draw.line(
+            [(x, y), (x + math.cos(tangent) * ln, y + math.sin(tangent) * ln * 0.8)],
+            fill=col,
+            width=max(1, SS // 2),
+        )
 
 
-def draw_paw(draw, x, y, palette, forward: float = 0):
-    hw, hh = s(5.5), s(4.2)
-    y += forward
+def draw_claw_paw(draw, x, y, palette, *, forward: float = 0, spread: float = 0, attack: bool = False):
+    """Chunky paw — wide stance, visible claws."""
+    x += forward
+    y += spread
+    hw, hh = s(7.5), s(6.5)
     draw.ellipse([x - hw, y - hh, x + hw, y + hh], fill=palette["dk"])
-    draw.ellipse([x - hw * 0.75, y - hh * 0.65, x + hw * 0.75, y + hh * 0.55], fill=palette["m"])
-    for i in range(3):
-        px = x + (i - 1) * s(2.8)
-        draw.ellipse([px - s(1.1), y - hh * 0.35, px + s(1.1), y + s(0.8)], fill=palette["dk"])
+    draw.ellipse([x - hw * 0.82, y - hh * 0.72, x + hw * 0.82, y + hh * 0.68], fill=palette["m"])
+    claw_len = s(4.5 if attack else 3.2)
+    for i in range(4):
+        fx = x + (i - 1.5) * s(3.6)
+        fy = y + hh * 0.55
+        tx = fx + s(1.5 if attack else 0.8)
+        ty = fy + claw_len
+        draw.line([(fx, fy), (tx, ty)], fill=(35, 28, 22), width=max(2, SS // 2))
 
 
 def draw_bear_frame(
@@ -88,98 +81,103 @@ def draw_bear_frame(
     walk_i: int = 0,
     attack: bool = False,
 ):
-    """Top-down bear facing +X. Anchor feet near bottom center."""
-    cx, cy = W * 0.46, H * 0.58
-    if attack:
-        cy -= s(3)
-    # shadow under body
-    draw.ellipse([cx - s(28), cy + s(14), cx + s(28), cy + s(22)], fill=(0, 0, 0, 55))
+    """Wide, tanky bear mass — head + shoulders + haunches, not a segmented worm."""
+    cx, cy = W * 0.50, H * 0.52
 
-    stride = 0 if attack else walk_i / max(N_WALK, 1)
-    ph = stride * math.pi * 2
-    leg_f = math.sin(ph) * s(5)
-    leg_b = math.sin(ph + math.pi) * s(5)
-
-    # hindquarters
-    hx, hy = cx - s(22), cy + s(1)
-    pts = blob_points(hx, hy, s(16), s(13), r, wobble=0.1)
-    draw.polygon(pts, fill=palette["dk"])
-    draw.ellipse([hx - s(14), hy - s(11), hx + s(14), hy + s(11)], fill=palette["d"])
-
-    # back legs
-    draw_paw(draw, hx - s(8), cy + s(12) + leg_b * 0.5, palette, leg_b * 0.25)
-    draw_paw(draw, hx + s(8), cy + s(12) - leg_b * 0.35, palette, -leg_b * 0.2)
-
-    # torso — elongated, not a circle blob
-    tx, ty = cx + s(2), cy - s(1)
-    draw.ellipse([tx - s(26), ty - s(14), tx + s(20), ty + s(14)], fill=palette["dk"])
-    draw.ellipse([tx - s(23), ty - s(12), tx + s(17), ty + s(12)], fill=palette["m"])
-    draw.ellipse([tx - s(12), ty - s(10), tx + s(6), ty + s(2)], fill=palette["l"])
-    fur_strokes(draw, tx, ty, s(21), s(12), r, palette, int(48 * SS * 1.1))
-    # subtle shoulder mass (no flat disc)
-    draw.ellipse([cx + s(6), cy - s(12), cx + s(18), cy - s(2)], fill=palette["h"])
-
-    # front legs
-    fx = cx + s(18)
-    draw_paw(draw, fx - s(7), cy + s(11) + leg_f * 0.45, palette, leg_f * 0.3)
-    draw_paw(draw, fx + s(7), cy + s(11) - leg_f * 0.4, palette, -leg_f * 0.25)
-
-    # head — larger, clearer muzzle
-    hx2, hy2 = cx + s(28), cy - s(2)
-    if attack:
-        hx2 += s(8)
-        hy2 -= s(5)
-    draw.ellipse([hx2 - s(15), hy2 - s(13), hx2 + s(15), hy2 + s(13)], fill=palette["d"])
-    draw.ellipse([hx2 - s(11), hy2 - s(11), hx2 + s(9), hy2 + s(7)], fill=palette["m"])
-    fur_strokes(draw, hx2, hy2, s(11), s(10), r, palette, int(22 * SS))
-
-    # ears
-    for ex, ey in [(hx2 - s(8), hy2 - s(11)), (hx2 + s(4), hy2 - s(12))]:
-        draw.ellipse([ex - s(4), ey - s(3.5), ex + s(4), ey + s(3.5)], fill=palette["dk"])
-        draw.ellipse([ex - s(2.5), ey - s(2), ex + s(2), ey + s(2)], fill=palette["l"])
-
-    # snout
-    sx, sy = hx2 + s(11), hy2 + s(2)
-    if attack:
-        sx += s(5)
-        sy += s(1)
-    draw.ellipse([sx - s(7), sy - s(5), sx + s(7), sy + s(6)], fill=palette["snout"])
-    draw.ellipse([sx - s(4), sy - s(3), sx + s(2), sy + s(2)], fill=palette["snout_l"])
-    draw.ellipse([sx + s(2), sy + s(0.5), sx + s(4.5), sy + s(3)], fill=(25, 18, 15))
+    ph = 0 if attack else (walk_i / N_WALK) * math.pi * 2
+    # Walk: paws step forward/back along facing axis only (no lateral worm wiggle)
+    step = s(4.5)
+    fl_f = math.sin(ph) * step
+    fr_f = math.sin(ph + math.pi) * step
+    bl_f = math.sin(ph + math.pi) * step * 0.85
+    br_f = math.sin(ph) * step * 0.85
 
     if attack:
-        # open jaw / teeth
-        draw.polygon(
-            [(sx - s(2), sy + s(2)), (sx + s(8), sy + s(5)), (sx + s(3), sy + s(9)), (sx - s(4), sy + s(6))],
-            fill=(120, 35, 30),
-        )
-        draw.line([(sx + s(1), sy + s(4)), (sx + s(6), sy + s(6))], fill=(240, 230, 210), width=max(1, SS // 2))
-        # claws on front paws
-        for px in [fx - s(7), fx + s(7)]:
-            draw.line([(px, cy + s(6)), (px + s(8), cy + s(2))], fill=palette["dk"], width=max(2, SS // 2))
+        fl_f, fr_f, bl_f, br_f = s(10), s(10), s(-2), s(-2)
+        spread_f, spread_b = s(20), s(14)
     else:
-        draw.ellipse([hx2 + s(2), hy2 - s(3), hx2 + s(5.5), hy2 - s(0.5)], fill=(30, 22, 18))
+        spread_f, spread_b = s(15), s(15)
 
-    # tail nub
-    draw.ellipse([cx - s(30), cy + s(1), cx - s(24), cy + s(6)], fill=palette["dk"])
+    # Ground shadow — wide oval
+    draw.ellipse([cx - s(26), cy + s(16), cx + s(26), cy + s(24)], fill=(0, 0, 0, 60))
+
+    # === REAR HAUNCHES (wide, not a tail segment) ===
+    rx, ry = cx - s(10), cy
+    draw.ellipse([rx - s(18), ry - s(17), rx + s(6), ry + s(17)], fill=palette["dk"])
+    draw.ellipse([rx - s(15), ry - s(14), rx + s(3), ry + s(14)], fill=palette["d"])
+
+    # === MAIN BODY — almost as wide as long ===
+    bx, by = cx - s(2), cy - s(2)
+    draw.ellipse([bx - s(20), by - s(19), bx + s(18), by + s(19)], fill=palette["dk"])
+    draw.ellipse([bx - s(18), by - s(17), bx + s(16), by + s(17)], fill=palette["m"])
+    draw.ellipse([bx - s(10), by - s(12), bx + s(8), by + s(4)], fill=palette["l"])
+    fur_strokes(draw, bx, by, s(17), s(15), r, palette, int(42 * SS))
+
+    # Shoulder humps (side bulk — makes bear look massive from above)
+    draw.ellipse([cx + s(2), cy - s(20), cx + s(16), cy - s(8)], fill=palette["h"])
+    draw.ellipse([cx + s(2), cy + s(8), cx + s(16), cy + s(20)], fill=palette["d"])
+
+    # Back legs — wide stance
+    draw_claw_paw(draw, cx - s(14) + bl_f, cy + spread_b, palette, forward=bl_f * 0.2)
+    draw_claw_paw(draw, cx - s(14) + br_f, cy - spread_b, palette, forward=br_f * 0.2)
+
+    # Front legs — thick, forward
+    fx = cx + s(12)
+    draw_claw_paw(draw, fx + fl_f, cy + spread_f, palette, forward=fl_f * 0.35, attack=attack)
+    draw_claw_paw(draw, fx + fr_f, cy - spread_f, palette, forward=fr_f * 0.35, attack=attack)
+
+    # === HEAD — big, merged with chest (not a ball on a stick) ===
+    hx, hy = cx + s(18), cy - s(1)
+    if attack:
+        hx += s(6)
+        hy -= s(2)
+    draw.ellipse([hx - s(16), hy - s(15), hx + s(14), hy + s(15)], fill=palette["d"])
+    draw.ellipse([hx - s(13), hy - s(13), hx + s(11), hy + s(11)], fill=palette["m"])
+    fur_strokes(draw, hx, hy, s(12), s(11), r, palette, int(20 * SS))
+
+    # Ears — small vs massive head
+    for ex, ey in [(hx - s(9), hy - s(12)), (hx + s(5), hy - s(13))]:
+        draw.ellipse([ex - s(3.5), ey - s(3), ex + s(3.5), ey + s(3)], fill=palette["dk"])
+
+    # Snout / muzzle block
+    sx, sy = hx + s(12), hy + s(2)
+    if attack:
+        sx += s(6)
+    draw.ellipse([sx - s(8), sy - s(6), sx + s(8), sy + s(7)], fill=palette["snout"])
+    draw.ellipse([sx - s(5), sy - s(4), sx + s(3), sy + s(3)], fill=palette["snout_l"])
+    draw.ellipse([sx + s(2), sy + s(1), sx + s(5), sy + s(4)], fill=(22, 16, 12))
+
+    if attack:
+        # Roaring maw
+        draw.polygon(
+            [(sx - s(3), sy + s(1)), (sx + s(10), sy + s(4)), (sx + s(4), sy + s(11)), (sx - s(6), sy + s(7))],
+            fill=(130, 28, 22),
+        )
+        for tx in [sx + s(2), sx + s(5), sx + s(8)]:
+            draw.line([(tx, sy + s(3)), (tx + s(1), sy + s(7))], fill=(240, 235, 220), width=max(1, SS // 2))
+        # Angry eyes
+        for ex, ey in [(hx - s(4), hy - s(5)), (hx + s(6), hy - s(5))]:
+            draw.ellipse([ex - s(2.5), ey - s(2), ex + s(2.5), ey + s(2)], fill=(180, 30, 25))
+    else:
+        draw.ellipse([hx + s(3), hy - s(4), hx + s(6.5), hy - s(1.5)], fill=(28, 20, 16))
 
 
 VARIANTS = {
     "brown": {
-        "dk": "#2a1810", "d": "#4a3020", "m": "#6a4830", "l": "#886040", "h": "#a87850", "hi": "#c89868",
-        "snout": "#5a4030", "snout_l": "#786048",
+        "dk": "#221408", "d": "#3a2418", "m": "#583820", "l": "#785030", "h": "#986848", "hi": "#b88858",
+        "snout": "#483020", "snout_l": "#685040",
     },
     "dark": {
-        "dk": "#121010", "d": "#242018", "m": "#383028", "l": "#504840", "h": "#686058", "hi": "#807870",
-        "snout": "#302820", "snout_l": "#484038",
+        "dk": "#0c0a08", "d": "#1c1814", "m": "#2c2820", "l": "#403830", "h": "#585048", "hi": "#706860",
+        "snout": "#282018", "snout_l": "#403830",
     },
     "cinnamon": {
-        "dk": "#381810", "d": "#5a3020", "m": "#7a4830", "l": "#986040", "h": "#b87848", "hi": "#d09858",
-        "snout": "#684030", "snout_l": "#886050",
+        "dk": "#301008", "d": "#502818", "m": "#703820", "l": "#905030", "h": "#b06838", "hi": "#d08048",
+        "snout": "#603020", "snout_l": "#805040",
     },
     "grizzly": {
-        "dk": "#302010", "d": "#504028", "m": "#705838", "l": "#907050", "h": "#b09068", "hi": "#d0b080",
-        "snout": "#604830", "snout_l": "#806850",
+        "dk": "#281808", "d": "#443020", "m": "#604830", "l": "#806040", "h": "#a08058", "hi": "#c0a070",
+        "snout": "#584028", "snout_l": "#786048",
     },
 }
 
