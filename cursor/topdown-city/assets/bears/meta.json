@@ -1,6 +1,6 @@
 {
-  "frameWidth": 352,
-  "frameHeight": 352,
+  "frameWidth": 480,
+  "frameHeight": 400,
   "frames": 5,
   "walkFrames": [
     0,
@@ -9,8 +9,8 @@
     3
   ],
   "attackFrame": 4,
-  "anchorX": 176,
-  "anchorY": 340,
+  "anchorX": 240,
+  "anchorY": 385,
   "variants": {
     "brown": {
       "file": "bear-brown.png"

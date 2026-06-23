@@ -222,7 +222,7 @@ function drawBear(b){
   const fw=m.frameWidth||384, fh=m.frameHeight||320;
   const ax=m.anchorX??fw/2, ay=m.anchorY??fh-8;
   const fr=bearAnimFrame(b);
-  const worldH=b.r*2.85*(b.scale||1);
+  const worldH=b.r*2.65*(b.scale||1);
   const sc=worldH/fh;
   const w=fw*sc, h=fh*sc;
   ctx.fillStyle="rgba(0,0,0,.24)";
