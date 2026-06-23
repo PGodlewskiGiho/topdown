@@ -16,6 +16,26 @@ function saveGame(){
     saveFlash=1.3;
   }catch(e){ /* storage unavailable (e.g. preview iframe) — ignore */ }
 }
+function hasSaveGame(){
+  try{ return !!localStorage.getItem(SAVE_KEY); }catch(e){ return false; }
+}
+function resetNewGameState(){
+  try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+  money=0; stats.missionsDone=0; health=100; heat=0;stars=0; bustTimer=0; prevStars=0;
+  mission=null; pickup=null; saveTimer=4;
+  const m=CARS[0];
+  car.carName=m.name; car.brand=m.brand; car.model=m; car.type=m.type; car.era=m.era;
+  car.accent=m.accent; car.color=m.colors?m.colors[0]:m.color; car.power=m.power; car.topSpeed=m.topSpeed;
+  car.W=m.W; car.L=m.L; car.hp=car.maxHp=280; car.dead=false; car.vx=car.vy=0; car.a=0; car.parts=null;
+  car.R=vehicleHitRadius(car.W, car.L, "car");
+  for(let i=0;i<owned.length;i++){ owned[i]=i===0; ammo[i]=WEAPONS[i].kind==="melee"?Infinity:0; }
+  curWeapon=0; rebuildGauge();
+}
+function teleportPlayer(x,y){
+  car.x=x; car.y=y; car.vx=car.vy=0; car.a=0;
+  ped.x=x; ped.y=y; ped.vx=ped.vy=0;
+  mode="car"; focusX=x; focusY=y; cam.x=x; cam.y=y;
+}
 function loadGame(){
   try{
     const raw=localStorage.getItem(SAVE_KEY); if(!raw) return;
@@ -41,5 +61,4 @@ function tickSave(dt){
   if(saveFlash>0){ saveFlash-=dt; statsEl.textContent="✓ zapisano"; statsEl.style.color="#7fe0a8"; }
   else { statsEl.textContent="ukończone misje: "+stats.missionsDone; statsEl.style.color="#9aa1ad"; }
 }
-loadGame();
 

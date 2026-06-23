@@ -54,6 +54,7 @@ function setKey(e,down){
   if(!down && k==="m") mHeld=false;
   if(down && k==="h"){ if(!hHeld){ hHeld=true; honk(); } }
   if(!down && k==="h") hHeld=false;
+  if(typeof gamePhase!=="undefined" && gamePhase!=="playing") return;
   if(down && ((k>="1"&&k<="9")||k==="0")){
     const idx = k==="0" ? 9 : (+k)-1;
     if(inGunShop) buyWeapon(idx); else if(owned[idx]) curWeapon=idx;
@@ -61,13 +62,9 @@ function setKey(e,down){
   if(down && k==="q"){ if(!qHeld){ qHeld=true; cycleWeapon(-1); } }  if(!down && k==="q") qHeld=false;
   if(down && k==="e"){ if(!eHeld){ eHeld=true; cycleWeapon(1); } }   if(!down && k==="e") eHeld=false;
   keys[k]=down;
-  if(down) hideBoot();
 }
 window.addEventListener("keydown", e=>setKey(e,true));
 window.addEventListener("keyup",   e=>setKey(e,false));
-let booted=false;
-function hideBoot(){ initAudio(); if(actx && actx.state==="suspended") actx.resume(); if(booted) return; booted=true; const b=document.getElementById("boot"); b.style.opacity="0"; setTimeout(()=>b.remove(),420); }
-window.addEventListener("pointerdown", hideBoot);
 
 function inBuilding(x,y,r){
   const ci=Math.floor((x-ROAD)/GAP), cj=Math.floor((y-ROAD)/GAP);

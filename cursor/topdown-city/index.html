@@ -33,10 +33,32 @@
     <b>1–0 / Q E / kółko</b> wybór broni &nbsp; <b>sklep z bronią:</b> wejdź i kup klawiszami 2–0
   </div>
 </div>
-<div id="boot"><div>
-  <h1>TOPDOWN <span>CITY</span></h1>
-  <p>Naciśnij dowolny klawisz, żeby ruszyć</p>
-</div></div>
+<div id="menu">
+  <div class="menu-panel" id="menu-main">
+    <h1>TOPDOWN <span>CITY</span></h1>
+    <p class="menu-sub">Menu startowe · narzędzie testowe</p>
+    <div class="menu-actions">
+      <button type="button" class="menu-primary" id="btn-new">Nowa gra</button>
+      <button type="button" class="menu-secondary" id="btn-load">Wczytaj grę</button>
+    </div>
+    <p class="menu-hint" id="menu-save-hint"></p>
+  </div>
+  <div class="menu-panel hidden" id="menu-new">
+    <button type="button" class="menu-back" id="btn-back">← Wróć</button>
+    <h2>Nowa gra</h2>
+    <p class="menu-sub">Wybierz biom i miejsce startu (podgląd na mapie)</p>
+    <div class="menu-field">
+      <span class="menu-label">Biom</span>
+      <div class="menu-choices" id="biome-choices"></div>
+    </div>
+    <div class="menu-field">
+      <span class="menu-label">Miejsce startu</span>
+      <div class="menu-choices menu-choices-col" id="spawn-choices"></div>
+    </div>
+    <p class="menu-preview" id="spawn-preview">—</p>
+    <button type="button" class="menu-primary" id="btn-start">Rozpocznij</button>
+  </div>
+</div>
   <script src="js/00-core.js"></script>
   <script src="js/01-world.js"></script>
   <script src="js/02-player.js"></script>
@@ -57,6 +79,7 @@
   <script src="js/17-effects.js"></script>
   <script src="js/18-audio.js"></script>
   <script src="js/19-save.js"></script>
+  <script src="js/21-menu.js"></script>
   <script src="js/20-main.js"></script>
 </body>
 </html>

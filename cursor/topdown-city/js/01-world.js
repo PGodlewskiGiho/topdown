@@ -422,6 +422,56 @@ function biomeOf(i,j){
   const B=5, ci=Math.floor(i/B), cj=Math.floor(j/B), r=hsh(ci,cj,177);   // countryside between cities
   return r<0.5?"forest": r<0.8?"desert":"sea";
 }
+// Road junction at grid cell (i,j) — used by start menu / spawn picker.
+function roadJunctionAtCell(i,j){
+  return {x:nX(i,j)+ROAD/2, y:nY(i,j)+ROAD/2, i, j, biome:biomeOf(i,j)};
+}
+const CITY_SPAWN_PRESETS=[
+  {i:0, j:0, label:"Vesper City — skrzyżowanie startowe"},
+  {i:1, j:2, label:"Salon samochodowy"},
+  {i:2, j:1, label:"Sklep z bronią"},
+  {i:8, j:6, label:"Peryferie Vesper City"},
+  {i:2, j:2, label:"Dealer motocykli"},
+];
+function findBiomeSpawn(biome, variant=0){
+  if(biome==="city"){
+    const p=CITY_SPAWN_PRESETS[((variant%CITY_SPAWN_PRESETS.length)+CITY_SPAWN_PRESETS.length)%CITY_SPAWN_PRESETS.length];
+    const pt=roadJunctionAtCell(p.i, p.j);
+    return Object.assign(pt, {label:p.label, biome:"city"});
+  }
+  const found=[];
+  for(let ring=4; ring<100; ring++){
+    for(let i=-ring;i<=ring;i++) for(let j=-ring;j<=ring;j++){
+      if(Math.max(Math.abs(i),Math.abs(j))!==ring) continue;
+      if(biomeOf(i,j)!==biome) continue;
+      if(isMountain(i,j)) continue;
+      const pt=roadJunctionAtCell(i,j);
+      if(inWater(pt.x, pt.y)) continue;
+      let score=0;
+      if(biome==="sea"){
+        for(const d of [[90,0],[-90,0],[0,90],[0,-90]]) if(inWater(pt.x+d[0], pt.y+d[1])) score+=1;
+      }
+      found.push(Object.assign({score, ring}, pt));
+    }
+    if(found.length>=4) break;
+  }
+  if(!found.length){
+    const fb=roadJunctionAtCell(0,0);
+    return Object.assign(fb, {label:"Domyślny start", biome:biomeOf(0,0)});
+  }
+  found.sort((a,b)=>(b.score-a.score)||(a.ring-b.ring));
+  const pick=found[(variant*7+3)%found.length];
+  const names={forest:"Las", desert:"Pustynia", sea:"Wybrzeże"};
+  return Object.assign({}, pick, {label:(names[biome]||biome)+" · trasa "+(variant+1), biome});
+}
+function getSpawnPoint(biome, variant){
+  const sp=findBiomeSpawn(biome, variant|0);
+  const nc=nearestCity(sp.i, sp.j);
+  let district=BIOMES[sp.biome]?.name||sp.biome;
+  if(sp.biome==="city") district=nc.name;
+  else if(sp.biome==="forest") district=FOREST_NAMES[forestType(sp.i, sp.j)]||district;
+  return Object.assign({}, sp, {district, cityName:nc.name});
+}
 const lotCache=new Map();
 let pruneT=0;
 function pruneCaches(){
