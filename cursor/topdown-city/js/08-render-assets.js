@@ -1047,6 +1047,42 @@ function drawGrassDetail(L){
   for(const t of L.tufts){ if(t.x<cl||t.x>cr||t.y<ct||t.y>cb) continue; drawClump(t.x,t.y,t.s); }
   for(const f of L.flowers){ ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(f.x,f.y,1.7,0,7); ctx.fill(); ctx.fillStyle="rgba(255,255,255,.5)"; ctx.fillRect(f.x-0.4,f.y-0.4,0.9,0.9); }
 }
+function drawForestFloor(L){
+  if(!L.forestFloor||!L.forestFloor.length||VW>1700) return;
+  const cl=cam.x-VW/2-24, cr=cam.x+VW/2+24, ct=cam.y-VH/2-24, cb=cam.y+VH/2+24;
+  for(const d of L.forestFloor){
+    if(d.x<cl||d.x>cr||d.y<ct||d.y>cb) continue;
+    const s=d.s, r=d.rot||0, x=d.x, y=d.y;
+    ctx.save(); ctx.translate(x,y); ctx.rotate(r);
+    if(d.kind==="leaf"){
+      const c=["#5a4020","#6a5028","#3a5828","#7a6020","#4a4820"][(s*3|0)%5];
+      ctx.fillStyle=c; ctx.beginPath(); ctx.ellipse(0,0,s*0.9,s*0.55,s*0.4,0,7); ctx.fill();
+      ctx.fillStyle="rgba(255,255,220,.18)"; ctx.beginPath(); ctx.ellipse(-s*0.15,-s*0.1,s*0.35,s*0.2,s*0.3,0,7); ctx.fill();
+    } else if(d.kind==="fern"){
+      ctx.fillStyle="#1a4820"; for(let k=-2;k<=2;k++){ ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(k*s*0.22,-s*0.55,k*s*0.38,-s*0.95); ctx.lineWidth=1.4; ctx.strokeStyle="#286830"; ctx.stroke(); }
+      ctx.fillStyle="#347838"; ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(s*0.12,-s*0.5,s*0.22,-s*0.88); ctx.stroke();
+    } else if(d.kind==="moss"){
+      ctx.fillStyle="rgba(28,58,28,.55)"; ctx.beginPath(); ctx.ellipse(0,0,s*1.1,s*0.72,0,0,7); ctx.fill();
+      ctx.fillStyle="rgba(52,88,48,.42)"; ctx.beginPath(); ctx.ellipse(-s*0.2,-s*0.15,s*0.55,s*0.38,0,0,7); ctx.fill();
+    } else if(d.kind==="twig"){
+      ctx.strokeStyle="#4a3828"; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(-s*0.4,s*0.2); ctx.lineTo(s*0.5,-s*0.35); ctx.stroke();
+      ctx.strokeStyle="#6a5038"; ctx.lineWidth=0.8; ctx.beginPath(); ctx.moveTo(s*0.1,-s*0.05); ctx.lineTo(s*0.35,-s*0.28); ctx.stroke();
+    } else if(d.kind==="shroom"){
+      ctx.fillStyle="#e8e0d0"; ctx.fillRect(-0.8,s*0.05,1.6,s*0.35);
+      ctx.fillStyle=s>7?"#a83828":"#8a6838"; ctx.beginPath(); ctx.ellipse(0,-s*0.08,s*0.55,s*0.38,0,0,7); ctx.fill();
+      ctx.fillStyle="rgba(255,255,255,.25)"; ctx.beginPath(); ctx.ellipse(-s*0.12,-s*0.14,s*0.14,s*0.1,0,0,7); ctx.fill();
+    } else if(d.kind==="needle"){
+      ctx.strokeStyle="#2a5828"; ctx.lineWidth=1; for(let k=0;k<4;k++){ const a=k*1.2-0.6; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*s*0.5,-Math.sin(a)*s*0.5-0.2); ctx.stroke(); }
+    } else if(d.kind==="log"){
+      ctx.fillStyle="#3a2818"; ctx.beginPath(); ctx.ellipse(0,s*0.08,s*1.05,s*0.38,0,0,7); ctx.fill();
+      ctx.fillStyle="#5a4030"; ctx.beginPath(); ctx.ellipse(-s*0.15,0,s*0.75,s*0.28,0,0,7); ctx.fill();
+      ctx.fillStyle="#2a1810"; ctx.beginPath(); ctx.ellipse(s*0.95,0,s*0.12,s*0.22,0,0,7); ctx.fill();
+    } else { // blade
+      ctx.strokeStyle="#2a5828"; ctx.lineWidth=1.1; for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(k*2,s*0.15); ctx.quadraticCurveTo(k*2.5,-s*0.35,k*1.2,-s*0.75); ctx.stroke(); }
+    }
+    ctx.restore();
+  }
+}
 function drawSandDetail(L){
   if(L.biome==="desert"||L.biome==="sea"){                                   // soft rolling dunes
     for(let k=0;k<4;k++){ const dx=L.x+hsh(L.i,L.j,500+k)*L.w, dy=L.y+hsh(L.i,L.j,520+k)*L.h, rw=L.w*(0.22+hsh(L.i,L.j,540+k)*0.26);
@@ -1187,8 +1223,15 @@ function treeSpriteScale(t){
   const H=t.H||t.s*0.6;
   const byCrown=(t.crownR||t.s*0.35)/(m.crownR||36);
   const byHeight=(H*0.96)/(m.height||128);
-  const boost=t.city?1.38:1.22;
-  return Math.max(byCrown, byHeight*0.92)*boost;
+  // City: punch above geometry so street trees read near car scale. Forest: cap upscale so PNG
+  // texels stay ~2 world units (same chunky pixel feel as vehicles at PX=2).
+  const boost=t.city?2.12:1.02;
+  let sc=Math.max(byCrown, byHeight*0.92)*boost;
+  if(t.city) sc=Math.max(sc, 2.4);
+  else sc=Math.min(sc, 2.85);
+  const texel=2;                                              // world units per sprite pixel
+  sc=Math.round(sc/texel)*texel;
+  return Math.max(texel, sc);
 }
 function drawLeaningTreeStrip(p,sy0,sy1){
   const m=TREE_SPRITE.meta, img=TREE_SPRITE.img[p.kind]||TREE_SPRITE.img.deciduous;
