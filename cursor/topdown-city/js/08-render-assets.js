@@ -1175,15 +1175,20 @@ function forEachVisibleTree(ox,oy,fn){
   trees.sort((a,b)=>treeSortKey(a)-treeSortKey(b));
   for(const p of trees) fn(p);
 }
+function updateTreeGhostAlpha(p){
+  const want=treeOccludesActor(p) ? 0.34 : 1;
+  if(p._tga===undefined) p._tga=1;
+  p._tga+=(want-p._tga)*0.18;
+  return p._tga;
+}
+function drawTreeGhosted(p, fn){
+  const ga=p._tga!==undefined ? p._tga : 1;
+  if(ga<0.999){ ctx.globalAlpha=ga; fn(p); ctx.globalAlpha=1; }
+  else fn(p);
+}
 function drawCanopies(ox,oy){
   const lod=VW>1500;
-  forEachVisibleTree(ox,oy, p=>{
-    const want=treeOccludesActor(p) ? 0.34 : 1;
-    if(p._tga===undefined) p._tga=1;
-    p._tga+=(want-p._tga)*0.18;
-    if(p._tga<0.999){ ctx.globalAlpha=p._tga; drawTreeCanopy(p.x,p.y,p,lod); ctx.globalAlpha=1; }
-    else drawTreeCanopy(p.x,p.y,p,lod);
-  });
+  forEachVisibleTree(ox,oy, p=>drawTreeGhosted(p, tp=>drawTreeCanopy(tp.x,tp.y,tp,lod)));
 }
 // ALTTP-style forest canopy shade: dark pool on the ground under the elevated crown mass.
 function drawTreeCanopyShade(t){
@@ -1476,7 +1481,10 @@ function drawProps(L){
 // — whose ground pass never calls drawProps — still render their pole, and trunks never hide
 // behind a neighbouring building. Canopies are drawn later still, over actors.
 function drawTrunks(ox,oy){
-  forEachVisibleTree(ox,oy,p=>drawTreeTrunk(p));
+  forEachVisibleTree(ox,oy, p=>{
+    updateTreeGhostAlpha(p);
+    drawTreeGhosted(p, drawTreeTrunk);
+  });
 }
 function drawPlazas(ox,oy){
   const i0=Math.floor((ox-NODE_VAR)/GAP)-1, i1=Math.floor((ox+VW+NODE_VAR)/GAP)+1;
