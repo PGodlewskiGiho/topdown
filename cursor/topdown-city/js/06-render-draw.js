@@ -89,6 +89,7 @@ function draw(){
 
   // NPC pedestrians (culled) — drawn under vehicles so run-overs read correctly
   for(const p of peds){ if(p.x<ox-30||p.x>ox+VW+30||p.y<oy-30||p.y>oy+VH+30) continue; drawPerson(p,p.color,p.state==="down"); if(p.act==="chat"&&p.talking&&p.state!=="down") drawSpeech(p); }
+  drawWildlife(ox,oy);
   // traffic (culled)
   for(const c of traffic){ if(c.x<ox-50||c.x>ox+VW+50||c.y<oy-50||c.y>oy+VH+50) continue; drawVehicle(c,c.color); }
   // police (culled)

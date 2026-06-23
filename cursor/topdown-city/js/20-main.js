@@ -17,6 +17,7 @@ function frame(now){
   updateLeaving(dt); updateDebris(dt); updateFalling(dt); updateSparks(dt);
   updateBoats(dt);
   updateBirds(dt);
+  updateWildlife(dt);
   if(mode==="car") updateCar(dt); else if(mode==="boat") updateBoatDrive(dt); else if(mode==="inside") updateInside(dt); else updatePed(dt);
   updateMission(dt);
   updateWanted(dt);
