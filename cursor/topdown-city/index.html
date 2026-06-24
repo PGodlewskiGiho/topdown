@@ -36,15 +36,98 @@
     </div>
     <div class="drift-sub">—</div>
   </div>
-  <div class="keys">
-    <b>W / ↑</b> gaz &nbsp; <b>S / ↓</b> hamulec/wsteczny<br>
-    <b>A D / ← →</b> skręt &nbsp; <b>SPACJA</b> ręczny (drift) &nbsp; <b>V</b> run driftu (90 s)<br>
-    <b>F</b> wsiądź / wejdź / wysiądź (auto, łódź lub budynek) &nbsp; <b>SHIFT</b> bieg (pieszo)<br>
-    <b>T</b> przewiń czas (dzień/noc) &nbsp; <b>R</b> zmień pogodę<br>
-    <b>P</b> mapa / nawigacja &nbsp; <b>klik minimapa</b> — pełna mapa<br>
-    <b>MYSZ / SPACJA</b> strzał (pieszo) &nbsp; <b>B</b> kup auto (w salonie) &nbsp; <b>M</b> dźwięk<br>
-    <b>Tab / I</b> ekwipunek &nbsp; <b>G</b> przeładuj &nbsp; <b>1–0 / Q E</b> szybki wybór broni<br>
-    <b>sklep z bronią:</b> wejdź i kup klawiszami 2–0
+</div>
+<div id="pause-menu" class="hidden">
+  <div class="pause-shell">
+    <header class="pause-header">
+      <div>
+        <h2 class="pause-title">PAUZA</h2>
+        <p class="pause-hint">Esc — wznów grę</p>
+      </div>
+      <button type="button" class="menu-primary pause-resume" id="pause-resume">Wznów</button>
+    </header>
+    <div class="pause-layout">
+      <nav class="pause-tabs" id="pause-tabs">
+        <button type="button" class="pause-tab on" data-tab="controls">Sterowanie</button>
+        <button type="button" class="pause-tab" data-tab="map">Mapa</button>
+        <button type="button" class="pause-tab" data-tab="missions">Misje</button>
+        <button type="button" class="pause-tab" data-tab="stats">Postęp</button>
+      </nav>
+      <div class="pause-panels">
+        <div class="pause-panel" id="pause-tab-controls">
+          <div class="controls-grid">
+            <section>
+              <h3>Pojazd</h3>
+              <ul>
+                <li><b>W / ↑</b> gaz</li>
+                <li><b>S / ↓</b> hamulec / wsteczny</li>
+                <li><b>A D / ← →</b> skręt</li>
+                <li><b>Spacja</b> ręczny (drift)</li>
+                <li><b>H</b> klakson</li>
+                <li><b>F</b> wsiądź / wysiądź</li>
+              </ul>
+            </section>
+            <section>
+              <h3>Pieszo / broń</h3>
+              <ul>
+                <li><b>WASD</b> ruch</li>
+                <li><b>Shift</b> bieg</li>
+                <li><b>Mysz / Spacja</b> strzał</li>
+                <li><b>G</b> przeładuj</li>
+                <li><b>1–0 / Q E</b> wybór broni</li>
+                <li><b>Tab / I</b> ekwipunek</li>
+              </ul>
+            </section>
+            <section>
+              <h3>Świat</h3>
+              <ul>
+                <li><b>Esc</b> menu pauzy</li>
+                <li><b>P</b> mapa (w pauzie)</li>
+                <li><b>Klik minimapa</b> mapa</li>
+                <li><b>T</b> przyspiesz czas (przytrzymaj)</li>
+                <li><b>R</b> zmień pogodę</li>
+                <li><b>M</b> wycisz dźwięk</li>
+              </ul>
+            </section>
+            <section>
+              <h3>Sklepy / drift</h3>
+              <ul>
+                <li><b>B</b> kup auto (salon)</li>
+                <li><b>C</b> kolor auta (salon)</li>
+                <li><b>V</b> run driftu (90 s)</li>
+                <li><b>Sklep z bronią</b> klawisze 2–0</li>
+                <li><b>F</b> wejście do budynku / łódź</li>
+              </ul>
+            </section>
+          </div>
+        </div>
+        <div class="pause-panel hidden" id="pause-tab-map">
+          <div class="pause-map-wrap" id="pause-map-wrap">
+            <canvas id="pause-map-cv"></canvas>
+            <div class="bigmap-legend pause-map-legend">
+              <span><i class="blip blip-nav"></i> Cel GPS</span>
+              <span><i class="blip blip-mission"></i> Misja</span>
+              <span><i class="blip blip-you"></i> Ty</span>
+            </div>
+          </div>
+          <div class="pause-map-bar">
+            <span class="bigmap-hint">Klik — cel nawigacji · PPM — usuń · Scroll — zoom · Przeciągnij — przesuń</span>
+            <div class="bigmap-actions">
+              <button type="button" id="pause-map-center">Centruj</button>
+              <button type="button" id="pause-map-clear">Usuń cel</button>
+            </div>
+          </div>
+        </div>
+        <div class="pause-panel hidden" id="pause-tab-missions">
+          <div class="pause-mission-card" id="pause-mission-body">
+            <p class="pause-empty">Ładowanie…</p>
+          </div>
+        </div>
+        <div class="pause-panel hidden" id="pause-tab-stats">
+          <div class="pause-stats-grid" id="pause-stats-body"></div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 <div id="bigmap" class="hidden">
@@ -213,6 +296,7 @@
   <script src="js/21-menu.js?v=4"></script>
   <script src="js/22-wildlife.js?v=19"></script>
   <script src="js/37-drift.js?v=1"></script>
+  <script src="js/42-pause-menu.js"></script>
   <script src="js/20-main.js?v=8"></script>
 </body>
 </html>

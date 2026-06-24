@@ -15,7 +15,7 @@ function frame(now){
     return;
   }
   updateClock(dt); updateWeather(dt); updateRain(dt); updateLeaves(dt);
-  const mapPause=typeof bigMapOpen!=="undefined"&&bigMapOpen;
+  const mapPause=typeof isGamePaused==="function"?isGamePaused():(typeof bigMapOpen!=="undefined"&&bigMapOpen);
   if(!mapPause){
   for(let k=0;k<traffic.length;k++) updateTrafficCar(traffic[k],dt);
   maintainTraffic();

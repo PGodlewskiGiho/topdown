@@ -315,19 +315,29 @@ function drawNavRouteWorld(ox,oy){
 }
 
 function resizeBigMap(){
-  if(!bigMapCv||!bigMapEl) return;
-  const r=bigMapEl.getBoundingClientRect();
-  bigMapCv.width=Math.ceil(r.width*DPR);
-  bigMapCv.height=Math.ceil(r.height*DPR);
-  bigMapCv.style.width=r.width+"px";
-  bigMapCv.style.height=r.height+"px";
+  const tgt=typeof mapViewTarget==="function"?mapViewTarget():null;
+  if(!tgt||!tgt.cv||!tgt.el) return;
+  const r=tgt.el.getBoundingClientRect();
+  tgt.cv.width=Math.ceil(r.width*DPR);
+  tgt.cv.height=Math.ceil(r.height*DPR);
+  tgt.cv.style.width=r.width+"px";
+  tgt.cv.style.height=r.height+"px";
+}
+function resizeActiveMap(){ resizeBigMap(); }
+
+function mapViewTarget(){
+  if(typeof pauseMapActive!=="undefined"&&pauseMapActive&&pauseMapCv&&pauseMapWrap)
+    return {cv:pauseMapCv, ctx:pauseMapCtx, el:pauseMapWrap};
+  if(bigMapOpen&&bigMapCv&&bigMapEl) return {cv:bigMapCv, ctx:bigMapCtx, el:bigMapEl};
+  return null;
 }
 
 function drawBigMap(){
-  if(!bigMapOpen||!bigMapCtx||!bigMapCv) return;
+  const tgt=mapViewTarget();
+  if(!tgt||!tgt.ctx||!tgt.cv) return;
   resizeBigMap();
-  const W=bigMapCv.width/DPR, H=bigMapCv.height/DPR;
-  const bctx=bigMapCtx;
+  const W=tgt.cv.width/DPR, H=tgt.cv.height/DPR;
+  const bctx=tgt.ctx;
   bctx.setTransform(DPR,0,0,DPR,0,0);
   bctx.clearRect(0,0,W,H);
   bctx.fillStyle="#080a0f";
@@ -416,7 +426,7 @@ function initBigMapEvents(){
 function updateMap(dt){
   updateMapDiscovery();
   if(navTarget) recomputeNavPath(false);
-  if(bigMapOpen) drawBigMap();
+  if(bigMapOpen||(typeof pauseMapActive!=="undefined"&&pauseMapActive)) drawBigMap();
 }
 
 initBigMapEvents();

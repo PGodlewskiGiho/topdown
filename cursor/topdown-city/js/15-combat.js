@@ -5,7 +5,7 @@ const bullets=[], muzzles=[];
 let firing=false, pointerActive=false, mx=0, my=0, playerFireCd=0;
 const healthFill=document.getElementById("healthfill");
 window.addEventListener("pointermove", e=>{ mx=e.clientX; my=e.clientY; pointerActive=true; });
-window.addEventListener("pointerdown", e=>{ mx=e.clientX; my=e.clientY; pointerActive=true; if(typeof gamePhase!=="undefined"&&gamePhase==="playing"&&!(typeof invOpen!=="undefined"&&invOpen)) firing=true; });
+window.addEventListener("pointerdown", e=>{ mx=e.clientX; my=e.clientY; pointerActive=true; if(typeof pauseOpen!=="undefined"&&pauseOpen) return; if(typeof gamePhase!=="undefined"&&gamePhase==="playing"&&!(typeof invOpen!=="undefined"&&invOpen)) firing=true; });
 window.addEventListener("pointerup",   ()=>{ firing=false; });
 window.addEventListener("blur",         ()=>{ firing=false; });
 function spawnBullet(x,y,ang,spd,owner,dmg,type){
