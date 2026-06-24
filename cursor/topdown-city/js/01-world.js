@@ -1338,8 +1338,78 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=23;
+const LOT_CACHE_VER=24;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
+
+const FOREST_MUSHROOMS=["shroom_red","shroom_brown","shroom_tan","shroom_puff","shroom_lilac","shroom_shelf"];
+const FOREST_FLORA_EXTRA=["lichen","berry","bracken","ivy","clover","violet","sprout","heather","deadwood"];
+
+function forestFloraOk(x,y){ return !inWater(x,y) && !isRiverAt(x,y); }
+
+function genForestFloor(lot,r,left,top,lw,lh,i,j){
+  lot.forestFloor=[];
+  const ft=lot.forestType||forestType(i,j);
+  const moist=lot.river||lot.hill||(cellElev(i,j)<0.52);
+  const nf=145+(r()*95|0);
+  const pickKind=()=>{
+    const roll=r();
+    if(roll<0.28) return FOREST_MUSHROOMS[(r()*FOREST_MUSHROOMS.length)|0];
+    if(roll<0.42) return "moss";
+    if(roll<0.52) return "fern";
+    if(roll<0.60) return "leaf";
+    if(roll<0.68) return FOREST_FLORA_EXTRA[(r()*FOREST_FLORA_EXTRA.length)|0];
+    if(ft==="pine"||ft==="spruce") return r()<0.55?"needle":"blade";
+    return ["twig","blade","blade","log","clover"][(r()*5)|0];
+  };
+  for(let k=0;k<nf;k++){
+    const x=left+12+r()*(lw-24), y=top+12+r()*(lh-24);
+    if(!forestFloraOk(x,y)) continue;
+    lot.forestFloor.push({x,y,kind:pickKind(),s:3.5+r()*10,rot:r()*6.28});
+  }
+  const rings=2+(r()*5|0);
+  for(let c=0;c<rings;c++){
+    const cx=left+36+r()*(lw-72), cy=top+36+r()*(lh-72);
+    if(!forestFloraOk(cx,cy)) continue;
+    const mush=FOREST_MUSHROOMS[(r()*FOREST_MUSHROOMS.length)|0];
+    const n=3+(r()*7|0);
+    const rad=10+r()*16;
+    for(let k=0;k<n;k++){
+      const ang=(k/n)*6.283+r()*0.5, d=rad*(0.55+r()*0.55);
+      lot.forestFloor.push({x:cx+Math.cos(ang)*d,y:cy+Math.sin(ang)*d,kind:mush,s:5+r()*9,rot:r()*6.28});
+    }
+    if(r()<0.55) lot.forestFloor.push({x:cx,y:cy,kind:"moss",s:10+r()*14,rot:r()*6.28});
+  }
+  if(moist){
+    const patches=2+(r()*4|0);
+    for(let p=0;p<patches;p++){
+      const px=left+24+r()*(lw-48), py=top+24+r()*(lh-48);
+      if(!forestFloraOk(px,py)) continue;
+      for(let k=0;k<4+(r()*6|0);k++){
+        const ang=r()*6.283, d=r()*14;
+        lot.forestFloor.push({x:px+Math.cos(ang)*d,y:py+Math.sin(ang)*d,kind:FOREST_MUSHROOMS[(r()*FOREST_MUSHROOMS.length)|0],s:6+r()*11,rot:r()*6.28});
+      }
+      lot.forestFloor.push({x:px,y:py,kind:"lichen",s:12+r()*16,rot:r()*6.28});
+    }
+  }
+  const logs=lot.forestFloor.filter(d=>d.kind==="log");
+  for(const lg of logs){
+    if(r()>0.72) continue;
+    lot.forestFloor.push({x:lg.x+4+r()*8,y:lg.y-2+r()*4,kind:"shroom_shelf",s:lg.s*0.9,rot:lg.rot+(r()-0.5)*0.4});
+    if(r()<0.45) lot.forestFloor.push({x:lg.x-3+r()*6,y:lg.y+2,kind:"shroom_brown",s:4+r()*5,rot:r()*6.28});
+  }
+  if(ft==="birch"||ft==="willow"){
+    for(let k=0;k<2+(r()*3|0);k++){
+      const x=left+20+r()*(lw-40), y=top+20+r()*(lh-40);
+      if(forestFloraOk(x,y)) lot.forestFloor.push({x,y,kind:"ivy",s:8+r()*12,rot:r()*6.28});
+    }
+  }
+  if(ft==="maple"||ft==="oak"||ft==="deciduous"){
+    for(let k=0;k<3+(r()*4|0);k++){
+      const x=left+16+r()*(lw-32), y=top+16+r()*(lh-32);
+      if(forestFloraOk(x,y)) lot.forestFloor.push({x,y,kind:r()<0.5?"berry":"bracken",s:7+r()*11,rot:r()*6.28});
+    }
+  }
+}
 function getLot(i,j){
   const key=i+","+j+","+LOT_CACHE_VER; let lot=lotCache.get(key); if(lot) return lot;
   const biome=biomeOf(i,j), B=BIOMES[biome], r=lotRng(i,j), m=16, SW=(biome==="city"?6:28);
@@ -1450,10 +1520,7 @@ function getLot(i,j){
         lot.tufts.push(dense?{x,y,s,v:FOREST_GRASS_VARIANTS[(r()*FOREST_GRASS_VARIANTS.length)|0]}:{x,y,s});
       }
       if(dense||lot.zone==="forest"){
-        lot.forestFloor=[];
-        const nf=105+(r()*85|0);
-        const kinds=["leaf","leaf","fern","moss","moss","moss","moss","twig","needle","needle","blade","blade","blade","shroom","log"];
-        for(let k=0;k<nf;k++) lot.forestFloor.push({x:left+r()*lw,y:top+r()*lh,kind:kinds[(r()*kinds.length)|0],s:3+r()*11,rot:r()*6.28});
+        genForestFloor(lot,r,left,top,lw,lh,i,j);
       }
       const nf=(r()*6|0); for(let k=0;k<nf;k++) lot.flowers.push({x:left+r()*lw, y:top+r()*lh, c:["#e8d24a","#e07a9a","#c95ad8","#f0f0f0","#e88a3a"][(r()*5)|0]});
     }

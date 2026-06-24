@@ -1165,36 +1165,166 @@ function drawForestFloor(L){
   const cl=cam.x-VW/2-24, cr=cam.x+VW/2+24, ct=cam.y-VH/2-24, cb=cam.y+VH/2+24;
   for(const d of L.forestFloor){
     if(d.x<cl||d.x>cr||d.y<ct||d.y>cb) continue;
-    const s=d.s, r=d.rot||0, x=d.x, y=d.y;
-    ctx.save(); ctx.translate(x,y); ctx.rotate(r);
-    if(d.kind==="leaf"){
+    drawForestFloraItem(d);
+  }
+}
+
+function drawForestFloraItem(d){
+  const s=d.s, r=d.rot||0, x=d.x, y=d.y;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(r);
+  switch(d.kind){
+    case "leaf": {
       const c=["#5a4020","#6a5028","#3a5828","#7a6020","#4a4820"][(s*3|0)%5];
       ctx.fillStyle=c; ctx.beginPath(); ctx.ellipse(0,0,s*0.9,s*0.55,s*0.4,0,7); ctx.fill();
       ctx.fillStyle="rgba(255,255,220,.18)"; ctx.beginPath(); ctx.ellipse(-s*0.15,-s*0.1,s*0.35,s*0.2,s*0.3,0,7); ctx.fill();
-    } else if(d.kind==="fern"){
-      ctx.fillStyle="#1a4820"; for(let k=-2;k<=2;k++){ ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(k*s*0.22,-s*0.55,k*s*0.38,-s*0.95); ctx.lineWidth=1.4; ctx.strokeStyle="#286830"; ctx.stroke(); }
-      ctx.fillStyle="#347838"; ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(s*0.12,-s*0.5,s*0.22,-s*0.88); ctx.stroke();
-    } else if(d.kind==="moss"){
+      break;
+    }
+    case "fern": {
+      ctx.lineWidth=1.4; ctx.strokeStyle="#286830";
+      for(let k=-2;k<=2;k++){ ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(k*s*0.22,-s*0.55,k*s*0.38,-s*0.95); ctx.stroke(); }
+      ctx.strokeStyle="#347838"; ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(s*0.12,-s*0.5,s*0.22,-s*0.88); ctx.stroke();
+      break;
+    }
+    case "bracken": {
+      ctx.strokeStyle="#1e4a20"; ctx.lineWidth=1.6;
+      for(let k=-3;k<=3;k++){ ctx.beginPath(); ctx.moveTo(k*1.5,s*0.1); ctx.quadraticCurveTo(k*s*0.18,-s*0.45,k*s*0.32,-s*1.05); ctx.stroke(); }
+      ctx.fillStyle="rgba(40,72,36,0.35)"; ctx.beginPath(); ctx.ellipse(0,s*0.05,s*0.55,s*0.22,0,0,7); ctx.fill();
+      break;
+    }
+    case "moss": {
       ctx.fillStyle="rgba(28,58,28,.55)"; ctx.beginPath(); ctx.ellipse(0,0,s*1.1,s*0.72,0,0,7); ctx.fill();
       ctx.fillStyle="rgba(52,88,48,.42)"; ctx.beginPath(); ctx.ellipse(-s*0.2,-s*0.15,s*0.55,s*0.38,0,0,7); ctx.fill();
-    } else if(d.kind==="twig"){
+      ctx.fillStyle="rgba(68,102,58,.28)"; ctx.beginPath(); ctx.ellipse(s*0.18,s*0.08,s*0.42,s*0.28,0,0,7); ctx.fill();
+      break;
+    }
+    case "lichen": {
+      ctx.fillStyle="rgba(148,138,108,0.42)"; ctx.beginPath(); ctx.ellipse(0,0,s,s*0.62,0.2,0,7); ctx.fill();
+      ctx.fillStyle="rgba(178,188,148,0.35)"; ctx.beginPath(); ctx.ellipse(-s*0.15,0,s*0.55,s*0.38,0,0,7); ctx.fill();
+      ctx.fillStyle="rgba(108,128,88,0.28)"; ctx.beginPath(); ctx.ellipse(s*0.2,-s*0.08,s*0.45,s*0.32,0,0,7); ctx.fill();
+      for(let k=0;k<5;k++){ ctx.fillStyle="rgba(92,82,62,0.22)"; ctx.beginPath(); ctx.arc((k-2)*s*0.18,(k%2)*s*0.12,s*0.12,0,7); ctx.fill(); }
+      break;
+    }
+    case "ivy": {
+      ctx.fillStyle="#2a5a28";
+      for(let k=0;k<6;k++){ const ang=k*1.05, lx=Math.cos(ang)*s*0.35, ly=Math.sin(ang)*s*0.28;
+        ctx.beginPath(); ctx.ellipse(lx,ly,s*0.22,s*0.16,ang,0,7); ctx.fill(); }
+      ctx.strokeStyle="#1a4018"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-s*0.4,s*0.2); ctx.quadraticCurveTo(0,-s*0.2,s*0.5,s*0.15); ctx.stroke();
+      break;
+    }
+    case "clover": {
+      ctx.fillStyle="#347838";
+      for(let k=0;k<3;k++){ const a=k*2.094; ctx.beginPath(); ctx.ellipse(Math.cos(a)*s*0.22,Math.sin(a)*s*0.18,s*0.18,s*0.14,a,0,7); ctx.fill(); }
+      ctx.strokeStyle="#286830"; ctx.lineWidth=0.9; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,s*0.35); ctx.stroke();
+      break;
+    }
+    case "berry": {
+      ctx.fillStyle="#2a5028"; ctx.beginPath(); ctx.ellipse(0,s*0.05,s*0.35,s*0.55,0,0,7); ctx.fill();
+      const bc=((s*7|0)%2)===0?"#a82838":"#3848a8";
+      for(let k=0;k<5+(s|0);k++){ const bx=(k%3-1)*s*0.18, by=-s*0.15+(k/5)*s*0.35;
+        ctx.fillStyle=bc; ctx.beginPath(); ctx.arc(bx,by,1.1+s*0.05,0,7); ctx.fill();
+        ctx.fillStyle="rgba(255,255,255,0.35)"; ctx.beginPath(); ctx.arc(bx-0.3,by-0.3,0.45,0,7); ctx.fill(); }
+      break;
+    }
+    case "violet": {
+      ctx.fillStyle="#3a6838"; ctx.beginPath(); ctx.ellipse(0,s*0.12,s*0.28,s*0.42,0,0,7); ctx.fill();
+      for(let k=0;k<3;k++){ const a=k*2.09; ctx.fillStyle=k===0?"#7a48a8":"#9868c0";
+        ctx.beginPath(); ctx.ellipse(Math.cos(a)*s*0.2,Math.sin(a)*s*0.15-s*0.05,s*0.16,s*0.12,a,0,7); ctx.fill(); }
+      ctx.fillStyle="#c8a838"; ctx.beginPath(); ctx.arc(0,-s*0.02,1.2,0,7); ctx.fill();
+      break;
+    }
+    case "heather": {
+      ctx.strokeStyle="#4a3868"; ctx.lineWidth=1.1; ctx.beginPath(); ctx.moveTo(0,s*0.2); ctx.lineTo(0,-s*0.55); ctx.stroke();
+      for(let k=0;k<6;k++){ const py=-s*0.08-k*s*0.08;
+        ctx.fillStyle=k%2?"#9868b0":"#b888c8"; ctx.beginPath(); ctx.arc((k%3-1)*2.5,py,1.4,0,7); ctx.fill(); }
+      break;
+    }
+    case "sprout": {
+      ctx.fillStyle="#4a7838"; ctx.beginPath(); ctx.ellipse(0,s*0.08,s*0.14,s*0.38,0,0,7); ctx.fill();
+      ctx.fillStyle="#68a048"; ctx.beginPath(); ctx.ellipse(-s*0.12,-s*0.18,s*0.22,s*0.12,-0.5,0,7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(s*0.12,-s*0.22,s*0.22,s*0.12,0.5,0,7); ctx.fill();
+      break;
+    }
+    case "twig": {
       ctx.strokeStyle="#4a3828"; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(-s*0.4,s*0.2); ctx.lineTo(s*0.5,-s*0.35); ctx.stroke();
       ctx.strokeStyle="#6a5038"; ctx.lineWidth=0.8; ctx.beginPath(); ctx.moveTo(s*0.1,-s*0.05); ctx.lineTo(s*0.35,-s*0.28); ctx.stroke();
-    } else if(d.kind==="shroom"){
-      ctx.fillStyle="#e8e0d0"; ctx.fillRect(-0.8,s*0.05,1.6,s*0.35);
-      ctx.fillStyle=s>7?"#a83828":"#8a6838"; ctx.beginPath(); ctx.ellipse(0,-s*0.08,s*0.55,s*0.38,0,0,7); ctx.fill();
-      ctx.fillStyle="rgba(255,255,255,.25)"; ctx.beginPath(); ctx.ellipse(-s*0.12,-s*0.14,s*0.14,s*0.1,0,0,7); ctx.fill();
-    } else if(d.kind==="needle"){
+      break;
+    }
+    case "deadwood": {
+      ctx.strokeStyle="#3a2818"; ctx.lineWidth=1.8; ctx.lineCap="round";
+      ctx.beginPath(); ctx.moveTo(-s*0.45,s*0.15); ctx.lineTo(s*0.42,-s*0.12); ctx.stroke();
+      ctx.fillStyle="rgba(48,38,28,0.45)"; ctx.beginPath(); ctx.ellipse(s*0.42,-s*0.12,s*0.14,s*0.1,0,0,7); ctx.fill();
+      break;
+    }
+    case "needle": {
       ctx.strokeStyle="#2a5828"; ctx.lineWidth=1; for(let k=0;k<4;k++){ const a=k*1.2-0.6; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*s*0.5,-Math.sin(a)*s*0.5-0.2); ctx.stroke(); }
-    } else if(d.kind==="log"){
+      break;
+    }
+    case "log": {
       ctx.fillStyle="#3a2818"; ctx.beginPath(); ctx.ellipse(0,s*0.08,s*1.05,s*0.38,0,0,7); ctx.fill();
       ctx.fillStyle="#5a4030"; ctx.beginPath(); ctx.ellipse(-s*0.15,0,s*0.75,s*0.28,0,0,7); ctx.fill();
       ctx.fillStyle="#2a1810"; ctx.beginPath(); ctx.ellipse(s*0.95,0,s*0.12,s*0.22,0,0,7); ctx.fill();
-    } else { // blade
+      break;
+    }
+    case "shroom":
+    case "shroom_brown": drawFloraMushroomBrown(s); break;
+    case "shroom_red": drawFloraMushroomRed(s); break;
+    case "shroom_tan": drawFloraMushroomTan(s); break;
+    case "shroom_puff": drawFloraMushroomPuff(s); break;
+    case "shroom_lilac": drawFloraMushroomLilac(s); break;
+    case "shroom_shelf": drawFloraMushroomShelf(s); break;
+    default: { // blade
       ctx.strokeStyle="#2a5828"; ctx.lineWidth=1.1; for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(k*2,s*0.15); ctx.quadraticCurveTo(k*2.5,-s*0.35,k*1.2,-s*0.75); ctx.stroke(); }
     }
-    ctx.restore();
   }
+  ctx.restore();
+}
+
+function drawFloraMushroomStem(s, w){
+  ctx.fillStyle="#e8e4d8"; ctx.fillRect(-w,s*0.02,w*2,s*0.38);
+  ctx.fillStyle="rgba(0,0,0,0.06)"; ctx.fillRect(w*0.3,s*0.05,w*0.5,s*0.32);
+}
+
+function drawFloraMushroomRed(s){
+  drawFloraMushroomStem(s,0.85);
+  ctx.fillStyle="#b82828"; ctx.beginPath(); ctx.ellipse(0,-s*0.1,s*0.58,s*0.42,0,0,7); ctx.fill();
+  ctx.fillStyle="#d04040"; ctx.beginPath(); ctx.ellipse(-s*0.08,-s*0.16,s*0.32,s*0.22,-0.2,0,7); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,0.88)";
+  for(let k=0;k<5;k++){ const px=(k%3-1)*s*0.16, py=-s*0.08-(k>2?0.12:0);
+    ctx.beginPath(); ctx.ellipse(px,py,s*0.09,s*0.07,0,0,7); ctx.fill(); }
+}
+
+function drawFloraMushroomBrown(s){
+  drawFloraMushroomStem(s,0.75);
+  ctx.fillStyle="#6a4828"; ctx.beginPath(); ctx.ellipse(0,-s*0.08,s*0.62,s*0.4,0,0,7); ctx.fill();
+  ctx.fillStyle="#8a6038"; ctx.beginPath(); ctx.ellipse(-s*0.1,-s*0.14,s*0.28,s*0.18,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(40,28,16,0.25)"; ctx.beginPath(); ctx.ellipse(0,-s*0.02,s*0.38,s*0.12,0,0,7); ctx.fill();
+}
+
+function drawFloraMushroomTan(s){
+  drawFloraMushroomStem(s,0.65);
+  ctx.fillStyle="#c8a038"; ctx.beginPath();
+  ctx.moveTo(-s*0.45,-s*0.05); ctx.quadraticCurveTo(-s*0.2,-s*0.45,s*0.05,-s*0.35);
+  ctx.quadraticCurveTo(s*0.35,-s*0.55,s*0.48,-s*0.08); ctx.quadraticCurveTo(s*0.15,s*0.05,-s*0.45,-s*0.05); ctx.fill();
+  ctx.fillStyle="#e8c858"; ctx.beginPath(); ctx.ellipse(-s*0.08,-s*0.22,s*0.18,s*0.12,-0.3,0,7); ctx.fill();
+}
+
+function drawFloraMushroomPuff(s){
+  ctx.fillStyle="#d8d4c8"; ctx.beginPath(); ctx.ellipse(0,-s*0.05,s*0.52,s*0.48,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,0.35)"; ctx.beginPath(); ctx.ellipse(-s*0.12,-s*0.14,s*0.22,s*0.16,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(180,176,168,0.35)"; ctx.beginPath(); ctx.ellipse(0,s*0.08,s*0.38,s*0.12,0,0,7); ctx.fill();
+}
+
+function drawFloraMushroomLilac(s){
+  drawFloraMushroomStem(s,0.55);
+  ctx.fillStyle="#8868a8"; ctx.beginPath(); ctx.ellipse(0,-s*0.06,s*0.48,s*0.34,0,0,7); ctx.fill();
+  ctx.fillStyle="#a888c8"; ctx.beginPath(); ctx.ellipse(-s*0.08,-s*0.12,s*0.22,s*0.14,0,0,7); ctx.fill();
+}
+
+function drawFloraMushroomShelf(s){
+  ctx.fillStyle="#5a4028"; ctx.fillRect(-s*0.55,0,s*1.1,s*0.18);
+  ctx.fillStyle="#8a6038"; ctx.beginPath(); ctx.ellipse(0,-s*0.02,s*0.75,s*0.22,0,0,7); ctx.fill();
+  ctx.fillStyle="#a87848"; ctx.beginPath(); ctx.ellipse(-s*0.15,-s*0.06,s*0.35,s*0.12,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,0.12)"; ctx.beginPath(); ctx.ellipse(s*0.12,-s*0.04,s*0.18,s*0.08,0,0,7); ctx.fill();
 }
 function drawSandDetail(L){
   if(L.biome==="desert"||L.biome==="sea"){                                   // soft rolling dunes
