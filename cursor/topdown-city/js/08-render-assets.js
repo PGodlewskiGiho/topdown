@@ -1078,7 +1078,7 @@ function forestGrassMeta(key){
 function drawForestGrassClump(x,y,s,v){
   const m=forestGrassMeta(v), img=FOREST_GRASS.img[v]||FOREST_GRASS.img.clump_med;
   if(!img||!img.complete||!img.naturalWidth) return false;
-  const sc=s*1.35/(m.height||56), W=(m.width||52)*sc, H=(m.height||56)*sc;
+  const sc=s*2.05/(m.height||56), W=(m.width||52)*sc, H=(m.height||56)*sc;
   const ax=(m.anchorX??((m.width||52)*0.5))*sc, ay=(m.anchorY??((m.height||56)-1))*sc;
   const sm=ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled=true;
@@ -1103,10 +1103,13 @@ function drawGrassDetail(L){
   if(VW>1700) return;                                            // grass invisible when far out: skip entirely
   const cl=cam.x-VW/2-20, cr=cam.x+VW/2+20, ct=cam.y-VH/2-20, cb=cam.y+VH/2+20;
   const useForest=L.biome==="forest"&&FOREST_GRASS.ready;
+  const fKeys=useForest?(FOREST_GRASS._keys||(FOREST_GRASS._keys=Object.keys(FOREST_GRASS.meta?.variants||{}))):null;
   for(const t of L.tufts){
     if(t.x<cl||t.x>cr||t.y<ct||t.y>cb) continue;
-    if(useForest&&t.v){ if(!drawForestGrassClump(t.x,t.y,t.s,t.v)) drawClump(t.x,t.y,t.s); }
-    else drawClump(t.x,t.y,t.s);
+    if(useForest){
+      const vk=t.v||fKeys[(((t.x*73856093)^(t.y*19349663))>>>0)%fKeys.length];
+      if(!drawForestGrassClump(t.x,t.y,t.s,vk)) drawClump(t.x,t.y,t.s);
+    } else drawClump(t.x,t.y,t.s);
   }
   for(const f of L.flowers){ ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(f.x,f.y,1.7,0,7); ctx.fill(); ctx.fillStyle="rgba(255,255,255,.5)"; ctx.fillRect(f.x-0.4,f.y-0.4,0.9,0.9); }
 }
