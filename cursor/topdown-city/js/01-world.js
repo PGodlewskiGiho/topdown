@@ -715,7 +715,7 @@ function pickForestKind(i,j,r){
 const CITY_SPACING=48;                                 // cells between city centres
 const CITY_NAMES=["Vesper City","Port Royal","Santa Mira","Kessler","Verano","Stalcrest","Ironhaven","Loma Vista","Redhill","Carrow Bay","New Dawn","Marlow","Ashford","Granite Falls","Solano","Westmoor","Eastgate","Brightwater","Kingsmouth","Dunmore","Cordova","Halcyon","Riverton","Northvale","Crestwood","Bayshore","Fairhaven","Silvercreek"];
 function cityCenter(sci,scj){
-  if(sci===0&&scj===0) return {cx:1, cy:1, R:13, id:0, name:CITY_NAMES[0]};   // spawn city near origin
+  if(sci===0&&scj===0) return {cx:1, cy:1, R:15, id:0, name:CITY_NAMES[0]};   // spawn city — larger downtown
   const hx=hsh(sci,scj,401), hy=hsh(sci,scj,402), hr=hsh(sci,scj,403), hn=hsh(sci,scj,404);
   return { cx: sci*CITY_SPACING+(hx-0.5)*CITY_SPACING*0.34, cy: scj*CITY_SPACING+(hy-0.5)*CITY_SPACING*0.34,
            R: 8+hr*6, id: sci*10007+scj, name: CITY_NAMES[(hn*CITY_NAMES.length)|0] };
@@ -827,11 +827,11 @@ const TOWER_WALL=["#5d7e9a","#6f8ea8","#52718c","#7d96aa","#586d88","#6a8296"];
 const SHOP_WALL=["#cdbb96","#c2a87e","#b6bec4","#d0c4a8","#c8b0a0"];
 const SIGN_COL=["#c43a3a","#e0a32e","#2f7ec4","#3f9a52","#a23fa2","#e06a2e"];
 function cityZone(i,j){
-  const c=nearestCity(i,j), n=hsh(i,j,303), f=(c.dist+(n-0.5)*1.6)/c.R;   // fraction of this city's radius
-  if(f<0.40) return "downtown";                                // larger skyscraper core
-  if(f<0.78) return n<0.30?"downtown":"midrise";               // wide dense urban belt
-  if(f<0.95) return n<0.7 ?"midrise":"suburb";                 // suburban ring pushed farther out
-  return "suburb";                                             // outer suburbs (houses)
+  const c=nearestCity(i,j), n=hsh(i,j,303), f=(c.dist+(n-0.5)*1.6)/c.R;
+  if(f<0.48) return "downtown";                                // wider dense core
+  if(f<0.82) return n<0.38?"downtown":"midrise";
+  if(f<0.96) return n<0.72?"midrise":"suburb";
+  return "suburb";
 }
 // ===== real-size landmark buildings (towers + bloki), densely packed =====
 // Scale: avg car ~80u = ~3.6 m  ->  ~22 units/m. 1 big chunk (GAP) ~= 49 m.
@@ -876,7 +876,7 @@ function cellRole(i,j){
 function cellRole2(i,j){
   if(!landmarkCell(i,j)) return "none";
   const z=cityZone(i,j), t=hsh(i,j,904);
-  const wantBlok = z==="downtown" ? t<0.34 : t<0.62;
+  const wantBlok = z==="downtown" ? t<0.48 : t<0.58;
   if(!wantBlok) return "tower";
   return hsh(i,j,955)<0.5 ? "blokH" : "blokV";
 }
@@ -1134,8 +1134,11 @@ function placeBuildings(lot, zone, r, biome){
   const m=zone==="downtown"?2:zone==="midrise"?4:10, x0=lot.x+m, y0=lot.y+m, w=lot.w-2*m, h=lot.h-2*m;
   if(w<22||h<22) return;
   if(zone==="downtown"){
-    if(w>360 && r()<0.34){ const g=Math.max(14,w*0.016); addBuilding(lot, x0, y0, (w-g)/2, h, r, "tower"); addBuilding(lot, x0+(w+g)/2, y0, (w-g)/2, h, r, "tower"); }
-    else { const bw=w*(0.97+r()*0.03), bh=h*(0.97+r()*0.03); addBuilding(lot, x0+(w-bw)/2, y0+(h-bh)/2, bw, bh, r, "tower"); }
+    if(r()<0.22 && w>180 && h>110){
+      addBuilding(lot, x0+w*0.04, y0+h*0.50, w*0.44, h*0.42, r, r()<0.6?"shop":"super");
+    }else if(w>260 && r()<0.58){
+      const g=Math.max(12,w*0.014); addBuilding(lot, x0, y0, (w-g)/2, h, r, "tower"); addBuilding(lot, x0+(w+g)/2, y0, (w-g)/2, h, r, "tower");
+    }else { const bw=w*(0.97+r()*0.03), bh=h*(0.97+r()*0.03); addBuilding(lot, x0+(w-bw)/2, y0+(h-bh)/2, bw, bh, r, "tower"); }
   } else if(zone==="midrise"){
     if(r()<0.22 && w>240){ const g=Math.max(12,w*0.016); addBuilding(lot,x0,y0,(w-g)/2,h,r,"blok"); addBuilding(lot,x0+(w+g)/2,y0,(w-g)/2,h,r,"blok"); }
     else if(r()<0.36){ const bw=w*(0.96+r()*0.04), bh=h*(0.96+r()*0.04); addBuilding(lot,x0+(w-bw)/2,y0+(h-bh)/2,bw,bh,r,"tower"); }
@@ -1149,6 +1152,24 @@ function placeBuildings(lot, zone, r, biome){
       addBuilding(lot, x0+cI*pw+(pw-bw)/2, y0+rI*ph+(ph-bh)/2, bw, bh, r, "house");
     }
   }
+}
+function fillDenseCoreLot(lot, zone, r, biome){
+  placeBuildings(lot, zone, r, biome);
+  lot.empty=!lot.buildings.length;
+  if(lot.empty){
+    const m=zone==="downtown"?1:3, bw=Math.max(26,lot.w-m*2), bh=Math.max(22,lot.h-m*2);
+    if(bw>=30&&bh>=26){
+      addBuilding(lot, lot.x+(lot.w-bw)/2, lot.y+(lot.h-bh)/2, bw, bh, r, zone==="downtown"?"tower":"blok");
+      lot.empty=!lot.buildings.length;
+    }
+  }
+  if(zone==="midrise" && lot.empty){
+    const n=1+(r()*2|0);
+    for(let k=0;k<n;k++){
+      lot.props.push(makeTree(lot.x+20+r()*Math.max(2,lot.w-40), lot.y+20+r()*Math.max(2,lot.h-40), 88+r()*52, r, r()<0.65?"deciduous":"oak", {city:true}));
+    }
+  }
+  addPlazaParking(lot,r);
 }
 function genCemetery(lot, r){
   lot.graves=[];
@@ -1182,13 +1203,13 @@ function genParkingLot(lot,r){
 }
 function curbsideDensity(lot){
   if(lot.biome!=="city") return 0.3;
-  if(lot.zone==="downtown") return 0.94;
-  if(lot.zone==="midrise") return 0.84;
+  if(lot.zone==="downtown") return 0.98;
+  if(lot.zone==="midrise") return 0.90;
   return 0.68;
 }
 function addPlazaParking(lot,r){
   if(lot.zone!=="downtown"&&lot.zone!=="midrise") return;
-  const n=lot.zone==="downtown"?(3+(r()*3|0)):(2+(r()*2|0));
+  const n=lot.zone==="downtown"?(5+(r()*4|0)):(3+(r()*3|0));
   for(let k=0;k<n;k++){
     const cx=lot.x+28+r()*(lot.w-56), cy=lot.y+28+r()*(lot.h-56);
     if(inRoundabout(cx,cy)) continue;
@@ -1233,7 +1254,7 @@ function addCurbside(lot,i,j,r){
 function addStreetTrees(lot,i,j,r){
   const A=node(i,j),Bn=node(i+1,j),D=node(i,j+1);
   const edges=[ {ex:getEdge(i,j,1,0),P0:A,P1:Bn,nx:0,ny:1,di:1,dj:0}, {ex:getEdge(i,j,0,1),P0:A,P1:D,nx:1,ny:0,di:0,dj:1} ];
-  const zone=lot.zone||"", dens=(zone==="suburb"||zone==="transition")?0.6:0.4;
+  const zone=lot.zone||"", dens=zone==="downtown"?0.10:(zone==="suburb"||zone==="transition")?0.6:0.32;
   for(const e of edges){ if(!e.ex.exists||e.ex.bridge||e.ex.klass==="hwy") continue;
     if(edgeAtRoundabout(i,j,e.di,e.dj)) continue;
     const dx=e.P1[0]-e.P0[0], dy=e.P1[1]-e.P0[1], off=e.ex.width/2+15;
@@ -1578,8 +1599,9 @@ function genForestTrees(lot,r,ci,cj){
 function isPlaza(i,j){
   if(biomeOf(i,j)!=="city"||isRoundabout(i,j)) return false;
   if(nodeDegree(i,j)<3) return false;
-  const cc=nearestCity(i,j); if(cc.dist>cc.R*0.55) return false;
-  return hsh(i,j,321)<0.10;
+  const cc=nearestCity(i,j); if(cc.dist>cc.R*0.58) return false;
+  if(cityZone(i,j)==="downtown" && hsh(i,j,321)>0.04) return false;
+  return hsh(i,j,321)<0.08;
 }
 function plazaR(i,j){ return nodeMaxWidth(i,j)*0.85+58; }
 function inPlaza(x,y){
@@ -1621,7 +1643,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=32;
+const LOT_CACHE_VER=33;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 
 const FOREST_MUSHROOMS=["shroom_red","shroom_brown","shroom_tan","shroom_puff","shroom_lilac","shroom_shelf"];
@@ -1754,13 +1776,18 @@ function getLot(i,j){
   const elevMean=(e00+e10+e01+e11)/4;
   lot={i,j,x:left,y:top,w:lw,h:lh,poly:[A,Bn,C,D],biome,B,buildings:[],props:[],puddles:[],parked:[],stalls:null,water:false,river:false,empty:false,fences:[],elevMean, hill:false}; lot._r=r;
   lot.hill=elevMean>0.50 && (Math.max(e00,e10,e01,e11)-Math.min(e00,e10,e01,e11))>0.06;
+  const zone=biome==="city"?cityZone(i,j):(biome==="forest"?"forest":"outer");
+  const denseCore=biome==="city"&&(zone==="downtown"||zone==="midrise");
   const tiny = lw<100||lh<100;
   const mega=megaAtCell(i,j);
   if(mega){ lot.mega=true; lot.empty=true; lot.zone="mega"; }
-  else if(i===1 && j===2){ lot.salon=true; lot.empty=true; if(!tiny) buildSalonLot(lot); }
-  else if(i===2 && j===1){ lot.gunshop=true; lot.empty=true; if(!tiny) buildGunShop(lot); }
-  else if(i===2 && j===2){ lot.motodealer=true; lot.empty=true; if(!tiny) buildMotoDealer(lot); }
-  else if(tiny){ lot.empty=true; }
+  else if(i===1 && j===2){ lot.salon=true; lot.empty=true; lot.zone=zone; if(!tiny) buildSalonLot(lot); }
+  else if(i===2 && j===1){ lot.gunshop=true; lot.empty=true; lot.zone=zone; if(!tiny) buildGunShop(lot); }
+  else if(i===2 && j===2){ lot.motodealer=true; lot.empty=true; lot.zone=zone; if(!tiny) buildMotoDealer(lot); }
+  else if(tiny){
+    if(denseCore){ lot.zone=zone; fillDenseCoreLot(lot, zone, r, biome); }
+    else { lot.empty=true; lot.zone=zone; }
+  }
   else if(isMountain(i,j)){ lot.mountain=true; lot.empty=true; const n=4+(r()*5|0); for(let k=0;k<n;k++) lot.props.push({x:left+18+r()*(lw-36), y:top+18+r()*(lh-36), s:16+r()*28, t:"rock"}); }
   else if(isLakeLot(i,j)){ lot.water=true; lot.lake=true;
     if(hsh(i,j,141)<0.20){ const nb=[[0,-1],[0,1],[-1,0],[1,0]].find(d=>!isWaterCell(i+d[0],j+d[1]));
@@ -1794,22 +1821,16 @@ function getLot(i,j){
     if(r()<0.04) placeBuildings(lot,"outer",r,biome);
   }
   else {
-    const zone = biome==="city" ? cityZone(i,j) : "outer";
-    lot.zone = zone;
-    const denseCore = biome==="city" && (zone==="downtown"||zone==="midrise");
-    const cemOK = (zone==="suburb"||zone==="transition"||biome!=="city");
+    lot.zone=zone;
+    const cemOK=(zone==="suburb"||zone==="transition"||biome!=="city");
     if(cemOK && lw>150 && lh>150 && hsh(i,j,505)<0.06){ lot.cemetery=true; lot.empty=true; lot.zone="cemetery"; genCemetery(lot,r); }
     else if(!denseCore && biome==="city" && (zone==="midrise"||zone==="transition"||zone==="suburb") && lw>160 && lh>160 && hsh(i,j,617)<0.05){
       lot.church=true; const cw=Math.min(lw*0.86,230), ch=Math.min(lh*0.86,180);
       addBuilding(lot, left+lw/2-cw/2, top+lh/2-ch/2, cw, ch, r, "church"); }
-    else if(biome==="city" && zone!=="suburb" && (zone!=="downtown" ? r()<0.05 : hsh(i,j,618)<0.055)){
+    else if(biome==="city" && zone!=="suburb" && zone!=="downtown" && (zone==="midrise"?hsh(i,j,618)<0.04:r()<0.05)){
       lot.parking=true; lot.empty=true; genParkingLot(lot,r); }
     else if(denseCore){
-      // downtown / midrise core: open plaza with street parking + greenery
-      lot.empty=true; const n=2+(r()*3|0);
-      for(let k=0;k<n;k++){ const px=left+24+r()*Math.max(2,lw-48), py=top+24+r()*Math.max(2,lh-48), s=118+r()*68;
-        lot.props.push(makeTree(px,py,s,r,r()<0.7?"deciduous":"oak",{city:true})); }
-      addPlazaParking(lot,r);
+      fillDenseCoreLot(lot, zone, r, biome);
     }
     else {
       const builtChance = biome==="city" ? (zone==="suburb"?0.92:0.96) : B.density;

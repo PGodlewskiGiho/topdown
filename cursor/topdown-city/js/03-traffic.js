@@ -33,7 +33,7 @@ function spawnTrafficCell(){
   for(let t=0;t<36;t++){
     let ai,aj;
     if(inCity && rng()<0.78){
-      const bias=downtownFocus?0.35:0.55, maxR=downtownFocus?7:11;
+      const bias=downtownFocus?0.28:0.55, maxR=downtownFocus?9:11;
       const ang=rng()*6.283, dist=Math.pow(rng(),bias)*maxR;
       ai=Math.round(cc.cx+Math.cos(ang)*dist);
       aj=Math.round(cc.cy+Math.sin(ang)*dist);
@@ -94,20 +94,32 @@ function trafficCap(){
   const ci=Math.round(focusX/GAP), cj=Math.round(focusY/GAP);
   if(biomeOf(ci,cj)!=="city") return 34;
   const z=cityZone(ci,cj);
-  if(z==="downtown") return 58;
-  if(z==="midrise") return 48;
+  if(z==="downtown") return 78;
+  if(z==="midrise") return 58;
   return 38;
+}
+function pedCap(){
+  const ci=Math.round(focusX/GAP), cj=Math.round(focusY/GAP);
+  if(biomeOf(ci,cj)!=="city") return 42;
+  const z=cityZone(ci,cj);
+  if(z==="downtown") return 88;
+  if(z==="midrise") return 68;
+  return 46;
 }
 function maintainTraffic(){
   const cap=trafficCap();
   while(traffic.length<cap) traffic.push(spawnTrafficCar());
+}
+function maintainPeds(){
+  const cap=pedCap();
+  while(peds.length<cap) peds.push(spawnPed());
 }
 const awayFromCam=(x,y)=>Math.hypot(x-cam.x,y-cam.y) > 720;
 function respawnTraffic(c){ let n; for(let k=0;k<24;k++){ n=spawnTrafficCar(); if(awayFromCam(n.x,n.y)) break; } Object.assign(c,n); }
 function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); }
 
 for(let i=0;i<38;i++) traffic.push(spawnTrafficCar());
-for(let i=0;i<40;i++) peds.push(spawnPed());
+for(let i=0;i<46;i++) peds.push(spawnPed());
 
 function isAhead(c,dx,dy,ox,oy,dist,lat){
   const rx=ox-c.x, ry=oy-c.y, fwd=rx*dx+ry*dy, side=Math.abs(rx*(-dy)+ry*dx);

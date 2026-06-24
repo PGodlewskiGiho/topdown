@@ -15,6 +15,7 @@ function frame(now){
   updateClock(dt); updateWeather(dt); updateRain(dt); updateLeaves(dt);
   for(let k=0;k<traffic.length;k++) updateTrafficCar(traffic[k],dt);
   maintainTraffic();
+  maintainPeds();
   for(let k=0;k<peds.length;k++) updateNpcPed(peds[k],dt);
   updateLeaving(dt); updateDebris(dt); updateFalling(dt); updateSparks(dt);
   updateBoats(dt);
