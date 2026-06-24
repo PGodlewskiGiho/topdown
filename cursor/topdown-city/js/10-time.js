@@ -24,7 +24,7 @@ function convexHull(pts){
   for(let i=pts.length-1;i>=0;i--){ const p=pts[i]; while(up.length>=2&&cr(up[up.length-2],up[up.length-1],p)<=0)up.pop(); up.push(p); }
   lo.pop(); up.pop(); return lo.concat(up);
 }
-// ---- block grounds: courtyards, paths, gardens (+ estate parks for clusters) ----
+// ---- block grounds: courtyards, paths, gardens around bloks ----
 // A flat tree blob for ground-level greenery (drawn under buildings, no 3D canopy).
 function flatTree(cx,cy,s){
   drawTreeCanopy(cx,cy,makeTree(cx,cy,s*1.2,()=>0.4,"deciduous",{city:true}),true);
@@ -42,65 +42,6 @@ function drawBlockGrounds(ox,oy){
     bloks.push(m);
   });
   if(!bloks.length) return;
-
-  // ---- estate greens: where bloks cluster on the outskirts, paint a shared lawn between
-  // them. A pair of nearby bloks already earns a small green; 3+ a larger park.
-  const parkDrawn=new Set();
-  for(const m of bloks){
-    const b=m.building; if(b.isCity) continue;                 // parks favour outskirts
-    // gather neighbouring bloks within ~1.9 chunks
-    const near=bloks.filter(o=>o!==m && Math.abs(o.building.x-b.x)<GAP*1.9 && Math.abs(o.building.y-b.y)<GAP*1.9);
-    if(near.length<1) continue;                                // at least a pair
-    // park centroid = average of this + neighbours' centres, keyed so it's drawn once
-    const grp=[m,...near].sort((p,q)=>p.id<q.id?-1:1);
-    const key=grp.map(g=>g.id).join("|"); if(parkDrawn.has(key)) continue; parkDrawn.add(key);
-    let cx=0,cy=0; for(const g of grp){ cx+=g.building.x+g.building.w/2; cy+=g.building.y+g.building.h/2; }
-    cx/=grp.length; cy/=grp.length;
-    if(cx<ox-200||cx>ox+VW+200||cy<oy-200||cy>oy+VH+200) continue;
-    // don't paint a park where its centre falls inside a building footprint
-    let onBldg=false;
-    for(const g of bloks){ const bb=g.building; if(cx>bb.x-10&&cx<bb.x+bb.w+10&&cy>bb.y-10&&cy<bb.y+bb.h+10){ onBldg=true; break; } }
-    if(onBldg) continue;
-    // don't paint over roads: require clearance from every nearby road segment.
-    // (safe to call getEdge here — we're in the render pass, not inside plotBuilding.)
-    const ci=Math.floor(cx/GAP), cj=Math.floor(cy/GAP);
-    let roadClear=true, minRoad=1e9;
-    for(let a=ci-1;a<=ci+1&&roadClear;a++) for(let bj=cj-1;bj<=cj+1;bj++){
-      for(const [di,dj] of [[1,0],[0,1]]){
-        const e=getEdge(a,bj,di,dj); if(!e.exists) continue;
-        const A=node(a,bj), B=node(a+di,bj+dj);
-        // distance from centroid to segment AB
-        const vx=B[0]-A[0], vy=B[1]-A[1], wx=cx-A[0], wy=cy-A[1];
-        const t=Math.max(0,Math.min(1,(wx*vx+wy*vy)/(vx*vx+vy*vy||1)));
-        const dx=cx-(A[0]+vx*t), dy=cy-(A[1]+vy*t), d=Math.hypot(dx,dy)-e.width*0.5;
-        if(d<minRoad) minRoad=d;
-      }
-    }
-    if(minRoad<40) continue;                                   // too close to a road -> skip
-    // radius: bigger for larger clusters, but never reaching the nearest road or blok
-    let minBlok=1e9;
-    for(const g of bloks){ const bb=g.building;
-      const qx=Math.max(bb.x,Math.min(cx,bb.x+bb.w)), qy=Math.max(bb.y,Math.min(cy,bb.y+bb.h));
-      const d=Math.hypot(cx-qx,cy-qy); if(d<minBlok) minBlok=d; }
-    const base = grp.length>=3 ? 200 : 130;
-    const pr = Math.min(base+((b.gardenSeed%60)), minRoad-12, minBlok-8);
-    if(pr<70) continue;                                        // not enough room
-    ctx.fillStyle="#3a5a2a"; ctx.beginPath(); ctx.ellipse(cx,cy,pr,pr*0.74,0,0,7); ctx.fill();
-    ctx.fillStyle="#436a30"; ctx.beginPath(); ctx.ellipse(cx,cy,pr*0.82,pr*0.6,0,0,7); ctx.fill();
-    // a winding path across the park
-    ctx.strokeStyle="#b9a988"; ctx.lineWidth=9; ctx.lineCap="round";
-    ctx.beginPath(); ctx.moveTo(cx-pr*0.8,cy+pr*0.2);
-    ctx.quadraticCurveTo(cx,cy-pr*0.4,cx+pr*0.8,cy+pr*0.1); ctx.stroke(); ctx.lineCap="butt";
-    // scattered trees + a small pond
-    let rs=(b.gardenSeed*2654435761)>>>0; const rng=()=>{ rs=(rs*1664525+1013904223)>>>0; return rs/4294967296; };
-    ctx.fillStyle="#2d6aa0"; const pondx=cx+pr*0.4*(rng()-0.5), pondy=cy+pr*0.3*(rng()-0.2);
-    ctx.beginPath(); ctx.ellipse(pondx,pondy,pr*0.18,pr*0.12,0,0,7); ctx.fill();
-    ctx.fillStyle="#3f86c0"; ctx.beginPath(); ctx.ellipse(pondx-3,pondy-2,pr*0.13,pr*0.08,0,0,7); ctx.fill();
-    for(let k=0;k<7;k++){ const a=rng()*6.283, rr=pr*(0.45+rng()*0.5);
-      const tx=cx+Math.cos(a)*rr, ty=cy+Math.sin(a)*rr*0.74;
-      if(Math.hypot(tx-pondx,ty-pondy)<pr*0.22) continue;
-      flatTree(tx,ty,16+rng()*8); }
-  }
 
   // ---- per-blok courtyard slab, perimeter path, and front gardens ----
   // Everything must stay within the narrow sidewalk gap (>=26u to the kerb), so the
