@@ -171,7 +171,7 @@ def main():
         "anchorX": ANCHOR_X,
         "anchorY": ANCHOR_Y,
         "walkStep": 0.11,
-        "angleOffset": -1.5707963267948966,
+        "angleOffset": 1.5707963267948966,
         "variants": {},
     }
     for name, cfg in VARIANTS.items():

@@ -12,7 +12,7 @@
   "anchorX": 64,
   "anchorY": 120,
   "walkStep": 0.11,
-  "angleOffset": -1.5707963267948966,
+  "angleOffset": 1.5707963267948966,
   "variants": {
     "grizzly": {
       "file": "bear-grizzly.png"
