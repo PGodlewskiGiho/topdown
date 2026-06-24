@@ -301,11 +301,7 @@ function playerAim(){
 function damage(x){ health=Math.max(0,health-x); const px=mode==="car"?car.x:ped.x, py=mode==="car"?car.y:ped.y;
   if(mode==="foot") stainCharacter(ped,0.4);
   spawnBlood(px,py,0,0,0.38,rng()*6.283); if(health<=0) wasted(); }
-function wasted(){
-  showBigMsg("WYELIMINOWANY");
-  health=100; heat=0; stars=0; clearAllLaw(); bullets.length=0; firing=false;
-  const p=roadPoint(); ped.x=p.x; ped.y=p.y; mode="foot";
-}
+function wasted(){ playerDeath("wasted"); }
 function updateBullets(dt){
   for(let i=bullets.length-1;i>=0;i--){
     const b=bullets[i]; b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt;

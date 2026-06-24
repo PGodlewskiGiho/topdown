@@ -214,7 +214,7 @@ function copInteractions(dt){
   else bustTimer=Math.max(0,bustTimer-dt*2.2);
 }
 
-function busted(){ heat=0; stars=0; clearAllLaw(); showBigMsg("ZWINIĘTY"); }
+function busted(){ playerDeath("busted"); }
 
 function spawnFootCop(x,y,type){
   type=type||"police";

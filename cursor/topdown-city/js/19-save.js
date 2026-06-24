@@ -2,7 +2,7 @@
 /* ---------- save / load (graceful: no-ops if storage blocked) ---------- */
 const SAVE_KEY="topdown_city_save_v6";
 const SAVE_KEY_LEGACY="topdown_city_save_v5";
-let stats={missionsDone:0};
+let stats={missionsDone:0, deaths:0};
 let saveTimer=4, saveFlash=0;
 const statsEl=document.getElementById("stats");
 function saveGame(){
@@ -10,7 +10,7 @@ function saveGame(){
     const carSave={carName:car.carName, x:car.x, y:car.y, a:car.a};
     for(const k of CAR_VIS_KEYS) carSave[k]=car[k];
     localStorage.setItem(SAVE_KEY, JSON.stringify({
-      money, missionsDone:stats.missionsDone,
+      money, missionsDone:stats.missionsDone, deaths:stats.deaths||0,
       worldSeed: typeof getWorldSeed==="function"?getWorldSeed():undefined,
       car:carSave,
       player: typeof characterFromPed==="function"?characterFromPed():null,
@@ -24,8 +24,9 @@ function saveGame(){
 function hasSaveGame(){
   try{ return !!(localStorage.getItem(SAVE_KEY)||localStorage.getItem(SAVE_KEY_LEGACY)); }catch(e){ return false; }
 }
-function resetNewGameState(){
-  try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+function resetRunState(opts={}){
+  const keepWorld=!!opts.keepWorld;
+  if(!keepWorld){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
   if(typeof clearLivingWorld==="function") clearLivingWorld();
   money=0; stats.missionsDone=0; health=100; heat=0;stars=0; bustTimer=0; prevStars=0;
   mission=null; pickup=null; saveTimer=4;
@@ -43,6 +44,14 @@ function resetNewGameState(){
   if(typeof initInventory==="function") initInventory();
   rebuildGauge();
 }
+function resetNewGameState(){ resetRunState({keepWorld:false}); }
+function respawnPointNear(x,y){
+  const prevFx=focusX, prevFy=focusY;
+  focusX=x; focusY=y; cam.x=x; cam.y=y;
+  const p=roadPoint();
+  focusX=prevFx; focusY=prevFy;
+  return p;
+}
 function teleportPlayer(x,y){
   car.x=x; car.y=y; car.vx=car.vy=0; car.a=0;
   ped.x=x; ped.y=y; ped.vx=ped.vy=0;
@@ -58,6 +67,7 @@ function loadGame(){
     if(typeof d.worldSeed==="number" && typeof applyWorldSeed==="function") applyWorldSeed(d.worldSeed, true);
     if(typeof d.money==="number") money=d.money;
     if(typeof d.missionsDone==="number") stats.missionsDone=d.missionsDone;
+    if(typeof d.deaths==="number") stats.deaths=d.deaths;
     if(d.car){
       car.carName=d.car.carName||"E30";
       for(const k of CAR_VIS_KEYS) if(d.car[k]!==undefined) car[k]=d.car[k];
@@ -88,6 +98,6 @@ function loadGame(){
 function tickSave(dt){
   saveTimer-=dt; if(saveTimer<=0){ saveGame(); saveTimer=4; }
   if(saveFlash>0){ saveFlash-=dt; statsEl.textContent="✓ zapisano"; statsEl.style.color="#7fe0a8"; }
-  else { statsEl.textContent="ukończone misje: "+stats.missionsDone; statsEl.style.color="#9aa1ad"; }
+  else { statsEl.textContent="ukończone misje: "+stats.missionsDone+(stats.deaths?(" · śmierci: "+stats.deaths):""); statsEl.style.color="#9aa1ad"; }
 }
 

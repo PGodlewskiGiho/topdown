@@ -135,6 +135,12 @@
   .char-name-input:focus{outline:none;border-color:rgba(127,224,168,.45)}
   .char-palette .menu-choice.char-color{min-width:28px;width:28px;height:28px;padding:0;border-radius:8px}
   .char-next-btn{width:100%;margin-top:4px}
+  .menu-panel-death{border-color:rgba(255,91,70,.22);text-align:center}
+  .menu-panel-death .death-title{font-size:clamp(22px,5vw,34px);letter-spacing:.18em;color:#ff6b5a;text-shadow:0 0 18px rgba(255,80,60,.35)}
+  .death-world,.death-stats{margin:8px 0 4px;font-size:11px;color:#7a8494;letter-spacing:.06em}
+  .death-stats{color:#9aa1ad;margin-bottom:14px}
+  .death-menu-link{margin-top:6px;width:100%;border:none;background:transparent;color:#6f7784}
+  .death-menu-link:hover{color:#9aa1ad;background:rgba(255,255,255,.04)}
   @media (max-width:640px){
     .char-layout{grid-template-columns:1fr}
     .char-preview-col{flex-direction:row;flex-wrap:wrap;justify-content:center}
