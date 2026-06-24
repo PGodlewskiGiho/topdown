@@ -369,8 +369,18 @@ function updateNpcPed(p,dt){
       p.x+=dx/d*p.speed*1.15*dt; p.y+=dy/d*p.speed*1.15*dt; }
     return;
   }
+  if(p.act==="shop"){
+    if(typeof updatePedShopping==="function") updatePedShopping(p,dt);
+    { const ci=Math.floor((p.x-ROAD)/GAP), cj=Math.floor((p.y-ROAD)/GAP);
+      for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){ const L=getLot(i,j); for(const b of L.buildings){
+        const cx=clamp(p.x,b.x,b.x+b.w), cy=clamp(p.y,b.y,b.y+b.h), ex=p.x-cx, ey=p.y-cy, dd=Math.hypot(ex,ey);
+        if(dd<p.r && dd>0.001){ p.x+=ex/dd*(p.r-dd); p.y+=ey/dd*(p.r-dd); } } } }
+    return;
+  }
   if(!p.hostile && !p.cross && !p._wait){ p.actCd-=dt;
-    if(p.actCd<=0){ p.actCd=rand(7,15); const roll=rng(); if(roll<0.5) startChat(p); else if(roll<0.72) startBoard(p); } }
+    if(p.actCd<=0){ p.actCd=rand(7,15); const roll=rng();
+      if(typeof maybeStartPedShop==="function" && maybeStartPedShop(p)) {}
+      else if(roll<0.42) startChat(p); else if(roll<0.62) startBoard(p); } }
   if(p.onGraph){ pedWalkGraph(p,dt); }
   else {
     if(p.plaza){                                                        // free roam inside a plaza, then rejoin the graph

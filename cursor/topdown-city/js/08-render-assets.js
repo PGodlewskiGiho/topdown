@@ -893,9 +893,18 @@ function drawFacade(b,x,fy,w,H){
   }
   if(t==="shop"||t==="super"){
     ctx.fillStyle=b.sign.c; ctx.fillRect(x+2, fy+1, w-4, Math.max(3,H*0.36));
+    if(t==="super" && b.shopName){
+      ctx.fillStyle="rgba(255,255,255,.92)"; ctx.font=`bold ${Math.max(7,Math.min(11,w*0.07))}px monospace`; ctx.textAlign="center";
+      ctx.fillText(b.shopName, x+w/2, fy+H*0.22);
+    }
     ctx.fillStyle="rgba(255,255,255,.85)"; const n=Math.max(3,(w/16)|0), step=(w-12)/n;
     for(let k=0;k<n;k++) ctx.fillRect(x+6+k*step, fy+2.5, Math.max(2,step*0.45), Math.max(2,H*0.2));
     ctx.fillStyle="#bfe0ee"; ctx.fillRect(x+3, fy+H*0.52, w-6, H*0.44);
+    const prodCols=["#e74c3c","#f39c12","#2ecc71","#3498db","#9b59b6","#e67e22"];
+    for(let row=0;row<3;row++) for(let col=0;col<Math.max(4,(w/14)|0);col++){
+      ctx.fillStyle=prodCols[(row*5+col*3+b.x|0)%prodCols.length];
+      ctx.fillRect(x+8+col*13, fy+H*0.56+row*11, 9, 8);
+    }
     ctx.strokeStyle="rgba(0,0,0,.25)"; ctx.lineWidth=0.8; for(let gx=x+9; gx<x+w-3; gx+=11){ ctx.beginPath(); ctx.moveTo(gx, fy+H*0.52); ctx.lineTo(gx, fy+H*0.95); ctx.stroke(); }
     return;
   }
@@ -2114,7 +2123,9 @@ function drawProps(L){
       ctx.fillStyle="#2f8a5a"; for(let a=0;a<6;a++){ const ang=a/6*6.283; ctx.save(); ctx.translate(p.x,p.y-p.s); ctx.rotate(ang); ctx.fillRect(0,-2,p.s*0.95,4); ctx.restore(); }
     } else if(p.t==="rock"){
       drawForestRock(p.x,p.y,p.s,p.v,p.moss);
-    } else if(p.t==="reed"){ drawReed(p);
+    } else if(p.t==="shop_cart"){ if(typeof drawShopCart==="function") drawShopCart(p); }
+    else if(p.t==="produce_crate"){ if(typeof drawProduceCrate==="function") drawProduceCrate(p); }
+    else if(p.t==="reed"){ drawReed(p);
     } else if(p.t==="tree"){ /* trunks drawn in drawTrunks() pass, over buildings */ }
     else {
       ctx.fillStyle="#39612f"; ctx.beginPath(); ctx.arc(p.x,p.y-p.s*0.2,p.s,0,7); ctx.fill();

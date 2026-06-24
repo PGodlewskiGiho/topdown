@@ -1136,6 +1136,14 @@ function addBuilding(lot,bx,by,bw,bh,r,type){
     const fn=1+(r()*2|0); for(let k=0;k<fn;k++) b.feat.push({t:["ac","stair","tank"][(r()*3)|0],x:bx+8+r()*Math.max(2,bw-26),y:by+8+r()*Math.max(2,bh-26),w:11+r()*8,h:10+r()*8});
   } else if(type==="shop"||type==="super"){ b.color=pick(SHOP_WALL); b.roofC=shade(b.color,-20); b.floors=type==="super"?(2+(r()*7|0)):(1+(r()*3|0)); b.H=b.floors*(24+r()*8); b.super=type==="super"; b.sign={c:pick(SIGN_COL)};
     const fn=type==="super"?3:1; for(let k=0;k<fn;k++) b.feat.push({t:"ac",x:bx+10+r()*Math.max(2,bw-30),y:by+8+r()*Math.max(2,bh-24),w:12+r()*8,h:10+r()*6});
+    if(type==="super"){
+      b.shopName=pick(typeof SUPER_NAMES!=="undefined"?SUPER_NAMES:["FRESHMART","MEGA FOOD","CITY MART","GROSZEK","MARKET 24","SUPER BAZAR","FOOD HALL"]);
+      const nc=2+(r()*4|0);
+      for(let k=0;k<nc;k++) lot.props.push({x:bx+bw*(0.12+r()*0.76), y:by+bh+3+r()*12, s:10+r()*5, t:"shop_cart", a:(r()-0.5)*0.35});
+      if(r()<0.72) lot.props.push({x:bx+bw*0.06, y:by+bh+5, s:15+r()*7, t:"produce_crate"});
+      if(r()<0.55) lot.props.push({x:bx+bw*0.88, y:by+bh+4, s:14+r()*6, t:"produce_crate"});
+      if(typeof registerSupermarket==="function") registerSupermarket(b, lot);
+    }
   } else if(type==="chapel"||type==="church"){ b.type="house"; b.church=true; b.bigChurch=(type==="church");
     b.color=pick(["#bcb6a8","#c4bdae","#aca596"]); b.roofC=pick(["#46505a","#3f4a52","#574b42"]);
     b.floors=type==="church"?(8+(r()*13|0)):(5+(r()*8|0)); b.H=b.floors*(24+r()*6); b.chimney=null;
@@ -1148,13 +1156,16 @@ function placeBuildings(lot, zone, r, biome){
   const m=zone==="downtown"?2:zone==="midrise"?4:10, x0=lot.x+m, y0=lot.y+m, w=lot.w-2*m, h=lot.h-2*m;
   if(w<22||h<22) return;
   if(zone==="downtown"){
-    if(r()<0.22 && w>180 && h>110){
-      addBuilding(lot, x0+w*0.04, y0+h*0.50, w*0.44, h*0.42, r, r()<0.6?"shop":"super");
+    if(r()<0.28 && w>180 && h>110){
+      addBuilding(lot, x0+w*0.04, y0+h*0.50, w*0.44, h*0.42, r, r()<0.35?"shop":"super");
+    }else if(r()<0.14 && w>200 && h>100){
+      addBuilding(lot, x0+w*0.02, y0+h*0.52, w*0.48, h*0.44, r, "super");
     }else if(w>260 && r()<0.58){
       const g=Math.max(12,w*0.014); addBuilding(lot, x0, y0, (w-g)/2, h, r, "tower"); addBuilding(lot, x0+(w+g)/2, y0, (w-g)/2, h, r, "tower");
     }else { const bw=w*(0.97+r()*0.03), bh=h*(0.97+r()*0.03); addBuilding(lot, x0+(w-bw)/2, y0+(h-bh)/2, bw, bh, r, "tower"); }
   } else if(zone==="midrise"){
-    if(r()<0.22 && w>240){ const g=Math.max(12,w*0.016); addBuilding(lot,x0,y0,(w-g)/2,h,r,"blok"); addBuilding(lot,x0+(w+g)/2,y0,(w-g)/2,h,r,"blok"); }
+    if(r()<0.16 && w>220 && h>100) addBuilding(lot, x0+(w-w*0.46)/2, y0+h*0.48, w*0.46, h*0.46, r, "super");
+    else if(r()<0.22 && w>240){ const g=Math.max(12,w*0.016); addBuilding(lot,x0,y0,(w-g)/2,h,r,"blok"); addBuilding(lot,x0+(w+g)/2,y0,(w-g)/2,h,r,"blok"); }
     else if(r()<0.36){ const bw=w*(0.96+r()*0.04), bh=h*(0.96+r()*0.04); addBuilding(lot,x0+(w-bw)/2,y0+(h-bh)/2,bw,bh,r,"tower"); }
     else { const bw=w*(0.97+r()*0.03), bh=h*(0.97+r()*0.03); addBuilding(lot,x0+(w-bw)/2,y0+(h-bh)/2,bw,bh,r,"blok"); }
   } else {
@@ -1656,7 +1667,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=34;
+const LOT_CACHE_VER=35;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 const DESERT_FLOOR_VARIANTS=["ripple_light","ripple_dark","dune_crest","cracked_earth","salt_patch","pebble_cluster","sage_bush","dry_grass"];
 const DESERT_FLORA=["sage","tumbleweed","driftwood","bone","pebble","crack","salt_crust"];
