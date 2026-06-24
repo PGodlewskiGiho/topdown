@@ -36,7 +36,7 @@ function glassWeight(b){
 function drawBuildingSunGlints(ox,oy,st,sg){
   const i0=Math.floor((ox-NODE_VAR*2)/GAP)-2, i1=Math.floor((ox+VW+NODE_VAR*2)/GAP)+2;
   const j0=Math.floor((oy-NODE_VAR*2)/GAP)-2, j1=Math.floor((oy+VH+NODE_VAR*2)/GAP)+2;
-  let budget=28;
+  let budget=10;
 
   const glintBuilding=(b)=>{
     if(budget<=0) return;
@@ -76,39 +76,19 @@ function drawSunGlintsWorld(ox,oy){
 
   drawBuildingSunGlints(ox,oy,st,sg);
 
-  if(typeof lakeScore==="function")
-    sg.drawWaterGlints(ctx,ox,oy,VW,VH,lakeScore,st,42);
-  if(typeof riverScore==="function")
-    sg.drawWaterGlints(ctx,ox,oy,VW,VH,riverScore,st,34);
+  if(typeof lakeScore==="function"&&st.intensity>0.22)
+    sg.drawWaterGlints(ctx,ox,oy,VW,VH,lakeScore,st,52);
+  if(typeof riverScore==="function"&&st.intensity>0.22)
+    sg.drawWaterGlints(ctx,ox,oy,VW,VH,riverScore,st,44);
 
-  if(typeof wetness!=="undefined"&&wetness>0.15&&st.intensity>0.12){
-    const i0=Math.floor((ox-NODE_VAR)/GAP)-1, i1=Math.floor((ox+VW+NODE_VAR)/GAP)+2;
-    const j0=Math.floor((oy-NODE_VAR)/GAP)-1, j1=Math.floor((oy+VH+NODE_VAR)/GAP)+2;
-    let rb=12;
-    for(let i=i0;i<=i1&&rb>0;i++) for(let j=j0;j<=j1&&rb>0;j++){
-      for(const[di,dj]of[[1,0],[0,1]]){
-        const e=getEdge(i,j,di,dj);
-        if(!e.exists||e.bridge||e.klass==="trail") continue;
-        const paved=e.klass==="st"||e.klass==="art"||e.klass==="blvd"||e.klass==="hwy"||nodeIsCity(i,j);
-        if(!paved) continue;
-        const g=edgeGeom(i,j,di,dj);
-        const steps=Math.max(3,Math.ceil(g.e.len/48));
-        for(let s=0;s<=steps&&rb>0;s++){
-          const t=s/steps;
-          const p=bez(g.p0,g.cp,g.p1,t);
-          const tan=bezTan(g.p0,g.cp,g.p1,t);
-          sg.drawWetSunStreak(ctx,p[0],p[1],Math.atan2(tan[1],tan[0]),e.width*0.7,st,wetness);
-          rb--;
-        }
-      }
-    }
-  }
+  // Wet-road sun streaks removed — they drew visible bands on asphalt.
 }
 
 function drawSunFlareScreen(){
   const sg=getSunGlare();
   if(!sg) return;
   const st=sunGlareState();
+  if(!st.active||(st.weatherI||0)>0.18) return;
   sg.drawFlare(ctx,VW,VH,st);
 }
 

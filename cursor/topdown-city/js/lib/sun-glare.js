@@ -132,50 +132,21 @@ class SunGlare{
   }
 
   drawFlare(ctx,vw,vh,st){
-    if(!st.active||st.intensity<0.06) return;
-    const {cx,cy,sx,sy}=this.screenSun(vw,vh,st);
-    const dx=cx-sx, dy=cy-sy, len=Math.hypot(dx,dy)||1;
-    const ux=dx/len, uy=dy/len;
-    const flick=1+st.flicker*0.08+Math.sin(st.time*3.1)*0.04;
-    const base=st.intensity*flick;
+    if(!st.active||st.intensity<0.08) return;
+    if((st.weatherI||0)>0.18) return;
+    const {sx,sy}=this.screenSun(vw,vh,st);
+    const flick=1+st.flicker*0.05;
+    const base=st.intensity*flick*0.32;
 
     ctx.save();
     ctx.globalCompositeOperation="screen";
 
-    // soft god-ray wash from sun corner
-    const ray=ctx.createRadialGradient(sx,sy,0,sx,sy,Math.max(vw,vh)*0.95);
-    const warmA=(0.10+0.22*st.warm)*base;
-    ray.addColorStop(0,`rgba(255,220,150,${warmA.toFixed(3)})`);
-    ray.addColorStop(0.35,`rgba(255,190,110,${(warmA*0.35).toFixed(3)})`);
-    ray.addColorStop(1,"rgba(255,180,100,0)");
-    ctx.fillStyle=ray;
-    ctx.fillRect(0,0,vw,vh);
-
-    // anamorphic horizontal streak through view center
-    const ang=Math.atan2(dy,dx);
-    ctx.save();
-    ctx.translate(cx,cy);
-    ctx.rotate(ang);
+    // Small hotspot hugging the screen edge — no full-screen god-rays (they band into stripes).
+    const pad=72;
+    const hx=Math.max(-pad,Math.min(vw+pad,sx));
+    const hy=Math.max(-pad,Math.min(vh+pad,sy));
     ctx.globalAlpha=base*0.55;
-    ctx.drawImage(this.streak,-vw*0.55,-32,vw*1.1,64);
-    ctx.restore();
-
-    // central hotspot near sun direction (offset slightly toward center)
-    const hx=sx+ux*len*0.12, hy=sy+uy*len*0.12;
-    ctx.globalAlpha=base*0.85;
-    ctx.drawImage(this.hot,hx-64,hy-64,128,128);
-
-    // ghost chain along flare axis
-    for(const g of GHOSTS){
-      const px=cx+dx*g.t, py=cy+dy*g.t;
-      let tex, tw, th;
-      if(g.tex==="ring"){ tex=this.ring; tw=th=96*g.s; }
-      else if(g.tex==="cool"){ tex=this.ghostCool; tw=64*g.s; th=64*g.s; }
-      else if(g.tex==="hot"){ tex=this.ghostHot; tw=48*g.s; th=48*g.s; }
-      else { tex=this.ghostWarm; tw=80*g.s; th=80*g.s; }
-      ctx.globalAlpha=base*g.a;
-      ctx.drawImage(tex,px-tw*0.5,py-th*0.5,tw,th);
-    }
+    ctx.drawImage(this.hot,hx-40,hy-40,80,80);
 
     ctx.restore();
   }
@@ -189,7 +160,7 @@ class SunGlare{
     let cx=0,cy=0;
     for(const p of pts){ cx+=p[0]; cy+=p[1]; }
     cx/=pts.length; cy/=pts.length;
-    const a=st.intensity*align*g*(0.55+0.45*st.warm);
+    const a=st.intensity*align*g*(0.28+0.32*st.warm);
     if(a<0.03) return;
     const wob=Math.sin(st.time*2.2+cx*0.04+cy*0.03)*0.06;
     const gw=Math.hypot(pts[1][0]-pts[0][0],pts[1][1]-pts[0][1]);
