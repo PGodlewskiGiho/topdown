@@ -3,7 +3,7 @@
 const bears=[];
 let bearTimer=0;
 const BEAR_VARIANTS=["brown","dark","cinnamon","grizzly"];
-const BEAR_ASSET_V=9;
+const BEAR_ASSET_V=10;
 const BEAR_SPRITE={ready:false,meta:null,img:{}};
 
 (function loadBearSprites(){
@@ -205,8 +205,8 @@ function updateWildlife(dt){
   }
 }
 function bearDir4(a){
-  if(a>=Math.PI/4 && a<3*Math.PI/4) return 0;
-  if(a<-Math.PI/4 && a>=-3*Math.PI/4) return 1;
+  if(a>=Math.PI/4 && a<3*Math.PI/4) return 1;
+  if(a<-Math.PI/4 && a>=-3*Math.PI/4) return 0;
   if(a>=-Math.PI/4 && a<Math.PI/4) return 2;
   return 3;
 }
