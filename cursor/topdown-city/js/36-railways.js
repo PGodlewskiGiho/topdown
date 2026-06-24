@@ -15,6 +15,9 @@ function getRailEdge(i,j,di,dj){
   let e=railEdgeCache.get(key);
   if(e) return e;
 
+  e={exists:false,_pending:true,width:56,cp:[0,0],col:"#4a4038",len:0,bridge:false,tunnel:false,klass:"rail"};
+  railEdgeCache.set(key,e);
+
   const ii=i+di, jj=j+dj;
   const bA=biomeOf(i,j), bB=biomeOf(ii,jj);
   const vertical=di===0&&dj!==0, horizontal=di!==0&&dj===0;
@@ -43,14 +46,17 @@ function getRailEdge(i,j,di,dj){
     if(terrainSlope((x1+x2)/2,(y1+y2)/2)>0.0042 && hsh(i,j,914)<0.55) exists=false;
   }
 
-  e={exists,width:56,cp,col:"#4a4038",len,bridge,tunnel:false,klass:"rail"};
-  railEdgeCache.set(key,e);   // cache before crossingKindAt (it calls getRailEdge again)
+  e.exists=exists;
+  e.cp=cp;
+  e.len=len;
+  e.bridge=bridge;
 
   const roadE=getEdge(i,j,di,dj);
   if(exists && roadE.exists){
-    const kind=crossingKindAt(i,j,di,dj);
+    const kind=crossingKindAt(i,j,di,dj,e,roadE);
     if(kind==="tunnel") e.tunnel=true;
   }
+  delete e._pending;
   return e;
 }
 
@@ -73,8 +79,9 @@ function roadAtNode(i,j){
   return false;
 }
 
-function crossingKindAt(i,j,di,dj){
-  const re=getRailEdge(i,j,di,dj), rd=getEdge(i,j,di,dj);
+function crossingKindAt(i,j,di,dj,reOpt,rdOpt){
+  const re=reOpt||getRailEdge(i,j,di,dj);
+  const rd=rdOpt||getEdge(i,j,di,dj);
   if(!re.exists||!rd.exists) return null;
   const zone=biomeOf(i,j)==="city"?cityZone(i,j):"outer";
   let hwy=rd.hwy;
@@ -117,7 +124,7 @@ function addRailCrossings(lot,i,j){
   for(const[di,dj]of[[1,0],[0,1]]){
     const re=getRailEdge(i,j,di,dj), rd=getEdge(i,j,di,dj);
     if(!re.exists||!rd.exists) continue;
-    const kind=crossingKindAt(i,j,di,dj);
+    const kind=crossingKindAt(i,j,di,dj,re,rd);
     if(kind) registerCrossing(i,j,di,dj,kind);
   }
 }
