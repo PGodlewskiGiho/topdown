@@ -80,11 +80,21 @@ function setKey(e,down){
   if(!down && k==="g") gHeld=false;
   if(down && (k==="i"||k==="tab")){ if(!iHeld){ iHeld=true; if(typeof toggleInventory==="function") toggleInventory(); } e.preventDefault(); }
   if(!down && (k==="i"||k==="tab")) iHeld=false;
-  if(down && k==="p"){ if(!pHeld){ pHeld=true; if(typeof toggleBigMap==="function") toggleBigMap(); } e.preventDefault(); }
+  if(down && k==="p"){
+    if(!pHeld){
+      pHeld=true;
+      if(typeof gamePhase!=="undefined"&&gamePhase==="playing"&&typeof openPauseTab==="function") openPauseTab("map");
+      else if(typeof toggleBigMap==="function") toggleBigMap();
+    }
+    e.preventDefault();
+  }
   if(!down && k==="p") pHeld=false;
   if(down && k==="escape"){
+    if(typeof invOpen!=="undefined"&&invOpen&&typeof toggleInventory==="function"){ toggleInventory(); e.preventDefault(); return; }
     if(typeof tuningOpen!=="undefined"&&tuningOpen&&typeof toggleTuningShop==="function"){ toggleTuningShop(false); e.preventDefault(); return; }
-    if(typeof bigMapOpen!=="undefined"&&bigMapOpen && typeof toggleBigMap==="function"){ toggleBigMap(false); e.preventDefault(); return; }
+    if(typeof pauseOpen!=="undefined"&&pauseOpen&&typeof togglePauseMenu==="function"){ togglePauseMenu(false); e.preventDefault(); return; }
+    if(typeof bigMapOpen!=="undefined"&&bigMapOpen&&typeof toggleBigMap==="function"){ toggleBigMap(false); e.preventDefault(); return; }
+    if(typeof gamePhase!=="undefined"&&gamePhase==="playing"&&typeof togglePauseMenu==="function"){ togglePauseMenu(true); e.preventDefault(); return; }
   }
   if(down && k==="b"){ if(!bHeld){ bHeld=true; tryBuy(); } }
   if(!down && k==="b") bHeld=false;
@@ -95,6 +105,7 @@ function setKey(e,down){
   if(down && k==="h"){ if(!hHeld){ hHeld=true; honk(); } }
   if(!down && k==="h") hHeld=false;
   if(typeof gamePhase!=="undefined" && gamePhase!=="playing") return;
+  if(typeof pauseOpen!=="undefined"&&pauseOpen) return;
   if(typeof invOpen!=="undefined"&&invOpen){
     if(down && k==="escape") toggleInventory();
     return;

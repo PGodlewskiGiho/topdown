@@ -12,9 +12,6 @@
   .gauge{position:absolute;left:22px;bottom:22px;width:148px;height:148px}
   .readout{position:absolute;left:22px;bottom:182px;font-size:12px;letter-spacing:.14em;
     text-transform:uppercase;color:#aeb4bf;background:var(--panel);padding:6px 10px;border-radius:8px}
-  .keys{position:absolute;right:22px;bottom:22px;background:var(--panel);padding:12px 14px;
-    border-radius:12px;font-size:12px;line-height:1.7;letter-spacing:.04em;color:#c9ced7}
-  .keys b{color:var(--ink);font-weight:600}
   .tag{position:absolute;left:22px;top:20px;font-size:11px;letter-spacing:.34em;
     text-transform:uppercase;color:#7f8794}
   .tag .v{color:var(--accent)}
@@ -102,7 +99,7 @@
   #bigmap{position:fixed;inset:0;z-index:7500;background:rgba(4,6,10,.92);pointer-events:auto;
     display:grid;grid-template-rows:1fr auto;font-family:var(--mono);color:var(--ink)}
   #bigmap.hidden{display:none!important}
-  body.map-open #hud .keys,.gauge,.readout,#weapon,#health,#gunshop,.minimap{opacity:.2}
+  body.map-open #hud .gauge,.readout,#weapon,#health,#gunshop,.minimap{opacity:.2}
   #bigmap-cv{display:block;width:100%;height:100%;min-height:0;cursor:crosshair;touch-action:none;grid-row:1}
   .bigmap-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:12px 18px 10px;
     background:linear-gradient(180deg,rgba(8,10,14,.95),rgba(12,14,18,.98));
@@ -173,6 +170,60 @@
   .char-name-input:focus{outline:none;border-color:rgba(127,224,168,.45)}
   .char-palette .menu-choice.char-color{min-width:28px;width:28px;height:28px;padding:0;border-radius:8px}
   .char-next-btn{width:100%;margin-top:4px}
+  .menu-panel-death{border-color:rgba(255,91,70,.22);text-align:center}
+  .menu-panel-death .death-title{font-size:clamp(22px,5vw,34px);letter-spacing:.18em;color:#ff6b5a;text-shadow:0 0 18px rgba(255,80,60,.35)}
+  .death-world,.death-stats{margin:8px 0 4px;font-size:11px;color:#7a8494;letter-spacing:.06em}
+  .death-stats{color:#9aa1ad;margin-bottom:14px}
+  .death-menu-link{margin-top:6px;width:100%;border:none;background:transparent;color:#6f7784}
+  .death-menu-link:hover{color:#9aa1ad;background:rgba(255,255,255,.04)}
+  /* Pause menu (Esc) */
+  #pause-menu{position:fixed;inset:0;z-index:8100;display:grid;place-items:center;
+    background:linear-gradient(180deg,rgba(6,8,12,.94),rgba(10,14,20,.92));font-family:var(--mono);color:var(--ink);pointer-events:auto}
+  #pause-menu.hidden{display:none!important}
+  body.pause-open #hud{opacity:.22}
+  .pause-shell{width:min(1040px,96vw);max-height:min(92vh,820px);display:flex;flex-direction:column;
+    background:rgba(14,16,22,.95);border:1px solid rgba(255,255,255,.1);border-radius:18px;
+    box-shadow:0 28px 72px rgba(0,0,0,.6);overflow:hidden}
+  .pause-header{display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:18px 22px 14px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .pause-title{font-size:20px;letter-spacing:.24em;text-transform:uppercase}
+  .pause-hint{font-size:11px;color:#8a919e;letter-spacing:.08em;margin-top:4px}
+  .pause-resume{padding:10px 18px;white-space:nowrap}
+  .pause-layout{display:grid;grid-template-columns:168px 1fr;min-height:0;flex:1}
+  .pause-tabs{display:flex;flex-direction:column;gap:6px;padding:14px 10px;border-right:1px solid rgba(255,255,255,.08);
+    background:rgba(0,0,0,.18)}
+  .pause-tab{text-align:left;padding:11px 12px;border-radius:10px;border:1px solid transparent;
+    background:transparent;color:#aeb4bf;font-family:var(--mono);font-size:12px;letter-spacing:.06em;cursor:pointer}
+  .pause-tab:hover{background:rgba(255,255,255,.05);color:var(--ink)}
+  .pause-tab.on{background:rgba(127,224,168,.12);border-color:rgba(127,224,168,.35);color:#dfffe8}
+  .pause-panels{min-height:0;overflow:auto;padding:18px 20px 20px}
+  .pause-panel.hidden{display:none}
+  .controls-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 20px}
+  .controls-grid section{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:12px 14px}
+  .controls-grid h3{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#c8a860;margin-bottom:8px}
+  .controls-grid ul{list-style:none;font-size:12px;line-height:1.75;color:#c9ced7}
+  .controls-grid b{color:var(--ink);font-weight:600}
+  .pause-map-wrap{position:relative;height:min(52vh,460px);min-height:280px;border-radius:12px;overflow:hidden;
+    border:1px solid rgba(255,255,255,.08);background:#080a0f}
+  #pause-map-cv{display:block;width:100%;height:100%;cursor:crosshair;touch-action:none}
+  .pause-map-legend{right:12px;bottom:12px}
+  .pause-map-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:10px}
+  .pause-mission-card{background:rgba(0,0,0,.24);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:18px 20px}
+  .pm-title{font-size:18px;letter-spacing:.12em;color:var(--accent);text-transform:uppercase}
+  .pm-objective{font-size:14px;line-height:1.55;color:var(--ink);margin:12px 0 16px}
+  .pm-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid rgba(255,255,255,.06);
+    font-size:13px;color:#aeb4bf}
+  .pm-row b{color:#fff}
+  .pause-empty{color:#8a919e;font-size:13px;line-height:1.6}
+  .pause-stats-grid{display:grid;gap:8px}
+  .pause-stat{display:flex;justify-content:space-between;gap:12px;padding:11px 14px;border-radius:10px;
+    background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.06);font-size:13px;color:#aeb4bf}
+  .pause-stat b{color:#fff;font-weight:600;text-align:right}
+  @media (max-width:720px){
+    .pause-layout{grid-template-columns:1fr}
+    .pause-tabs{flex-direction:row;flex-wrap:wrap;border-right:none;border-bottom:1px solid rgba(255,255,255,.08)}
+    .controls-grid{grid-template-columns:1fr}
+  }
   @media (max-width:640px){
     .char-layout{grid-template-columns:1fr}
     .char-preview-col{flex-direction:row;flex-wrap:wrap;justify-content:center}
@@ -183,7 +234,7 @@
   #inventory{position:fixed;inset:0;z-index:8000;display:grid;place-items:center;
     background:rgba(4,6,10,.88);font-family:var(--mono);color:var(--ink);pointer-events:auto}
   #inventory.hidden{display:none!important}
-  body.inv-open #hud .keys,#weapon,#health,#gunshop{opacity:.25}
+  body.inv-open #hud #weapon,#health,#gunshop{opacity:.25}
   .inv-panel{width:min(920px,96vw);background:linear-gradient(165deg,rgba(18,22,28,.97),rgba(10,12,16,.98));
     border:1px solid rgba(180,150,90,.22);border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 24px 64px rgba(0,0,0,.65);
     padding:18px 20px 20px}

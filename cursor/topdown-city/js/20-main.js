@@ -8,14 +8,14 @@ function frame(now){
   if(dt>0.05) dt=0.05;
   if(gamePhase!=="playing"){
     updateClock(dt); updateWeather(dt); updateRain(dt); updateLeaves(dt);
-    if(gamePhase==="charcreate" && typeof drawCharacterPreview==="function") drawCharacterPreview();
+    if((gamePhase==="charcreate"||gamePhase==="respawn") && typeof drawCharacterPreview==="function") drawCharacterPreview();
     if(mode!=="inside"){ cam.x=focusX; cam.y=focusY; }
     draw(); drawClock();
     requestAnimationFrame(frame);
     return;
   }
   updateClock(dt); updateWeather(dt); updateRain(dt); updateLeaves(dt);
-  const mapPause=typeof bigMapOpen!=="undefined"&&bigMapOpen;
+  const mapPause=typeof isGamePaused==="function"?isGamePaused():(typeof bigMapOpen!=="undefined"&&bigMapOpen);
   if(!mapPause){
   for(let k=0;k<traffic.length;k++) updateTrafficCar(traffic[k],dt);
   maintainTraffic();

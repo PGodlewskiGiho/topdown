@@ -1,17 +1,34 @@
 /* TOPDOWN CITY — 21-menu.js */
-/* ---------- start menu (new game / load + spawn & biome picker for testing) ---------- */
-let gamePhase="menu";                                        // "menu" | "newgame" | "playing"
+/* ---------- start menu (new game / load + roguelike death respawn) ---------- */
+let gamePhase="menu";                                        // "menu" | "newgame" | "playing" | "dead" | "respawn" | "charcreate"
 const menuState={biome:"city", variant:0, preview:null};
+let respawnMode=false, respawnAnchor={x:0,y:0}, lastDeathReason="";
 const BIOMES_UI=[
   {id:"city", label:"Miasto"},
   {id:"forest", label:"Las"},
   {id:"desert", label:"Pustynia"},
   {id:"sea", label:"Wybrzeże"},
 ];
+const DEATH_COPY={
+  wasted:{title:"WYELIMINOWANY", sub:"Run zakończony — świat zostaje, zaczynasz jako ktoś nowy."},
+  busted:{title:"ZWINIĘTY", sub:"Policja cię dopadła — nowa tożsamość w tym samym mieście."},
+};
 function spawnOptionsForBiome(biome){
   if(biome==="city") return CITY_SPAWN_PRESETS.map((p,variant)=>({variant, label:p.label}));
   const n=biome==="forest"?4:3;
   return Array.from({length:n}, (_,variant)=>({variant, label:(BIOMES[biome]?.name||biome)+" · trasa "+(variant+1)}));
+}
+function hideMenuPanels(){
+  for(const id of ["menu-main","menu-char","menu-new","menu-death"])
+    document.getElementById(id)?.classList.add("hidden");
+}
+function setCharPanelMode(respawn){
+  const h2=document.querySelector("#menu-char h2");
+  const next=document.getElementById("btn-char-next");
+  const back=document.getElementById("btn-char-back");
+  if(h2) h2.textContent=respawn?"Nowa postać":"Stwórz postać";
+  if(next) next.textContent=respawn?"Odrodź się →":"Dalej — wybór świata →";
+  if(back) back.textContent=respawn?"← Wróć":"← Wróć";
 }
 function refreshSpawnPreview(){
   try{
@@ -48,10 +65,37 @@ function renderSpawnChoices(){
   refreshSpawnPreview();
 }
 function showMenuPanel(id){
-  document.getElementById("menu-main")?.classList.toggle("hidden", id!=="main");
-  document.getElementById("menu-char")?.classList.toggle("hidden", id!=="char");
-  document.getElementById("menu-new")?.classList.toggle("hidden", id!=="new");
-  gamePhase=id==="new"?"newgame":id==="char"?"charcreate":"menu";
+  hideMenuPanels();
+  const panelId=id==="main"?"menu-main":id==="char"?"menu-char":id==="new"?"menu-new":"menu-death";
+  document.getElementById(panelId)?.classList.remove("hidden");
+  if(id==="new" && !respawnMode && typeof generateNewWorld==="function"){
+    generateNewWorld();
+    if(typeof clearLivingWorld==="function") clearLivingWorld();
+    getLot(1,2); getLot(2,1);
+  }
+  if(id==="main"){ gamePhase="menu"; respawnMode=false; }
+  else if(id==="char") gamePhase=respawnMode?"respawn":"charcreate";
+  else if(id==="new") gamePhase="newgame";
+  else if(id==="death") gamePhase="dead";
+}
+function showDeathPanel(reason){
+  respawnMode=false;
+  lastDeathReason=reason||"wasted";
+  const copy=DEATH_COPY[lastDeathReason]||DEATH_COPY.wasted;
+  const titleEl=document.getElementById("death-title");
+  const subEl=document.getElementById("death-sub");
+  const seedEl=document.getElementById("death-world");
+  if(titleEl) titleEl.textContent=copy.title;
+  if(subEl) subEl.textContent=copy.sub;
+  if(seedEl && typeof getWorldSeed==="function"){
+    const s=getWorldSeed();
+    seedEl.textContent="Ten sam świat · seed "+s.toString(16).toUpperCase().padStart(8,"0");
+  }
+  const deathsEl=document.getElementById("death-stats");
+  if(deathsEl && typeof stats!=="undefined") deathsEl.textContent="Śmierci w tym świecie: "+(stats.deaths||0);
+  document.getElementById("menu")?.classList.remove("hidden");
+  document.body.classList.add("in-menu");
+  showMenuPanel("death");
 }
 function dismissMenu(){
   const m=document.getElementById("menu");
@@ -59,8 +103,51 @@ function dismissMenu(){
   m.classList.add("hidden");
   document.body.classList.remove("in-menu");
   gamePhase="playing";
+  respawnMode=false;
   initAudio();
   if(actx && actx.state==="suspended") actx.resume();
+}
+function finishRespawn(){
+  const seed=typeof getWorldSeed==="function"?getWorldSeed():null;
+  if(typeof resetRunState==="function") resetRunState({keepWorld:true});
+  else if(typeof resetNewGameState==="function") resetNewGameState();
+  if(seed!=null && typeof applyWorldSeed==="function") applyWorldSeed(seed, false);
+  if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
+  const p=typeof respawnPointNear==="function"?respawnPointNear(respawnAnchor.x,respawnAnchor.y):roadPoint();
+  teleportPlayer(p.x, p.y);
+  dismissMenu();
+  const who=(playerCharacter&&playerCharacter.name)||"Wędrowiec";
+  showBigMsg(who+" · nowe życie");
+  saveGame();
+}
+function openRespawnCreator(randomize){
+  respawnMode=true;
+  setCharPanelMode(true);
+  if(randomize && typeof randomCharacter==="function") Object.assign(playerCharacter, randomCharacter());
+  else if(typeof defaultCharacter==="function") Object.assign(playerCharacter, defaultCharacter());
+  const nameEl=document.getElementById("char-name");
+  if(nameEl) nameEl.value=playerCharacter.name;
+  showMenuPanel("char");
+  if(typeof renderCharacterUI==="function") renderCharacterUI();
+  if(typeof startCharPreviewLoop==="function") startCharPreviewLoop();
+}
+function playerDeath(reason){
+  if(gamePhase==="dead"||gamePhase==="respawn") return;
+  respawnAnchor={
+    x:(mode==="car"&&typeof car!=="undefined"&&!car.dead)?car.x:ped.x,
+    y:(mode==="car"&&typeof car!=="undefined"&&!car.dead)?car.y:ped.y,
+  };
+  focusX=respawnAnchor.x; focusY=respawnAnchor.y; cam.x=respawnAnchor.x; cam.y=respawnAnchor.y;
+  if(typeof stats!=="undefined") stats.deaths=(stats.deaths||0)+1;
+  if(typeof firing!=="undefined") firing=false;
+  if(typeof invOpen!=="undefined"&&invOpen){
+    const el=document.getElementById("inventory");
+    if(el) el.classList.add("hidden");
+    document.body.classList.remove("inv-open");
+    invOpen=false;
+  }
+  mode="foot"; interior=null;
+  showDeathPanel(reason);
 }
 function startLoadedGame(){
   loadGame();
@@ -72,15 +159,32 @@ function startLoadedGame(){
   dismissMenu();
 }
 function startNewGame(){
+  respawnMode=false;
+  setCharPanelMode(false);
+  if(typeof generateNewWorld==="function" && gamePhase!=="newgame") generateNewWorld();
   if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
-  const sp=getSpawnPoint(menuState.biome, menuState.variant);
   resetNewGameState();
+  const sp=getSpawnPoint(menuState.biome, menuState.variant);
   if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
   teleportPlayer(sp.x, sp.y);
   dismissMenu();
   const who=(playerCharacter&&playerCharacter.name)||"Wędrowiec";
   showBigMsg(who+" · "+sp.district);
   saveGame();
+}
+function initDeathRespawn(){
+  document.getElementById("btn-death-random")?.addEventListener("click", ()=>{
+    if(typeof randomCharacter==="function") Object.assign(playerCharacter, randomCharacter());
+    else if(typeof defaultCharacter==="function") Object.assign(playerCharacter, defaultCharacter());
+    if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
+    finishRespawn();
+  });
+  document.getElementById("btn-death-create")?.addEventListener("click", ()=>openRespawnCreator(false));
+  document.getElementById("btn-death-menu")?.addEventListener("click", ()=>{
+    respawnMode=false;
+    setCharPanelMode(false);
+    showMenuPanel("main");
+  });
 }
 function initStartMenu(){
   const menu=document.getElementById("menu");
@@ -105,6 +209,8 @@ function initStartMenu(){
   }
   if(hint) hint.textContent=saved?"Zapis w przeglądarce (localStorage)":"Brak zapisu — tylko nowa gra";
   btnNew?.addEventListener("click", ()=>{
+    respawnMode=false;
+    setCharPanelMode(false);
     if(typeof openCharacterCreator==="function") openCharacterCreator();
     else { showMenuPanel("new"); renderSpawnChoices(); }
   });
@@ -132,6 +238,7 @@ function initStartMenu(){
       biomeBox.appendChild(el);
     }
   }
+  initDeathRespawn();
   refreshSpawnPreview();
   if(typeof initCharacterCreator==="function") initCharacterCreator();
   if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);

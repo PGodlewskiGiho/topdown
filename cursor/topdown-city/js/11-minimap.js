@@ -9,8 +9,8 @@ function initMini(){
   mini.width=MINI*DPR; mini.height=MINI*DPR;
   mini.style.width=MINI+"px"; mini.style.height=MINI+"px";
   mini.style.pointerEvents="auto";
-  mini.title="Kliknij — mapa · P — pełna mapa";
-  mini.addEventListener("click", ()=>{ if(typeof toggleBigMap==="function") toggleBigMap(true); });
+  mini.title="Kliknij — mapa (pauza) · P — mapa · Esc — menu";
+  mini.addEventListener("click", ()=>{ if(typeof openPauseTab==="function") openPauseTab("map"); else if(typeof toggleBigMap==="function") toggleBigMap(true); });
 }
 
 function drawMini(){

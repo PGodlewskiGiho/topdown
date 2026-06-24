@@ -190,7 +190,7 @@ let charPreviewRAF=0;
 function startCharPreviewLoop(){
   cancelAnimationFrame(charPreviewRAF);
   const tick=()=>{
-    if(gamePhase!=="charcreate") return;
+    if(gamePhase!=="charcreate"&&gamePhase!=="respawn") return;
     drawCharacterPreview();
     charPreviewRAF=requestAnimationFrame(tick);
   };
@@ -211,18 +211,22 @@ function initCharacterCreator(){
   });
   document.getElementById("btn-char-back")?.addEventListener("click", ()=>{
     stopCharPreviewLoop();
-    showMenuPanel("main");
+    if(typeof respawnMode!=="undefined" && respawnMode) showDeathPanel(lastDeathReason);
+    else showMenuPanel("main");
   });
   document.getElementById("btn-char-next")?.addEventListener("click", ()=>{
     syncCharacterFromUI();
     applyCharacterToPed(playerCharacter);
     stopCharPreviewLoop();
+    if(typeof respawnMode!=="undefined" && respawnMode){ finishRespawn(); return; }
     showMenuPanel("new");
     renderSpawnChoices();
   });
 }
 
 function openCharacterCreator(){
+  if(typeof respawnMode!=="undefined") respawnMode=false;
+  if(typeof setCharPanelMode==="function") setCharPanelMode(false);
   Object.assign(playerCharacter, defaultCharacter());
   const nameEl=document.getElementById("char-name");
   if(nameEl) nameEl.value=playerCharacter.name;

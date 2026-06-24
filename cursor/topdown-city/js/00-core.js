@@ -18,9 +18,13 @@ window.addEventListener("resize", resize); resize();
 window.addEventListener("wheel", e=>{ if(!e.ctrlKey) return; e.preventDefault();
   ZOOM = clamp(ZOOM*(e.deltaY<0?1.1:1/1.1), 1, 5); resize(); }, {passive:false});
 
-/* ---------- deterministic RNG so the city is stable ---------- */
+/* ---------- deterministic RNG (re-seeded per world) ---------- */
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
-const rng = mulberry32(20260616);
+let rng = mulberry32(20260616);
+function setGlobalRngSeed(seed){
+  const s=(Math.imul(seed>>>0,2246822519)^0xA5B7C9D1)>>>0||1;
+  rng=mulberry32(s);
+}
 const rand=(a,b)=>a+(b-a)*rng();
 const pick=arr=>arr[(rng()*arr.length)|0];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
