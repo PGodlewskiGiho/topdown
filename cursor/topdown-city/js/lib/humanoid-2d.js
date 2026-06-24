@@ -84,7 +84,11 @@ function resolveModel(p){
   if(p.age==="teen") md={...md, tw:0.80, th:1.04, head:0.92, swing:1.14};
   if(p.build&&typeof BUILD_MOD!=="undefined"&&BUILD_MOD[p.build]) md=mergeMods(md, BUILD_MOD[p.build]);
   if(p.age&&typeof AGE_MOD!=="undefined"&&AGE_MOD[p.age]) md=mergeMods(md, AGE_MOD[p.age]);
-  if(p.height) md.tw=(md.tw||1)*p.height; md.th=(md.th||1)*p.height; md.head=(md.head||1)*(0.98+p.height*0.02);
+  if(p.height){
+    md.tw=(md.tw||1)*p.height;
+    md.th=(md.th||1)*p.height;
+    md.head=(md.head||1)*(0.98+p.height*0.02);
+  }
   if(p.shorts) md.shorts=true;
   if(p.hairStyle==="mohawk") md.mohawk=true;
   return md;
@@ -246,7 +250,7 @@ function draw(c,p,color,down){
   const t=p.previewT!=null?p.previewT:performance.now()*0.001;
   const walk=mv>6?Math.sin(t*14*md.swing):Math.sin(t*3)*0.32;
   const limb=walk*r*0.38;
-  const hx=r*0.54, tw=r*md.tw, th=r*md.th;
+  const hx=r*0.54, tw=r*(isFinite(md.tw)?md.tw:0.90), th=r*(isFinite(md.th)?md.th:1.10);
   const frontLeg=Math.sin(t*14*md.swing)>=0;
 
   c.fillStyle="rgba(0,0,0,.34)"; c.beginPath(); c.ellipse(0,r*0.38,r*1.08,r*0.84,0,0,7); c.fill();
@@ -385,7 +389,7 @@ function draw(c,p,color,down){
   c.restore();
 }
 
-const Humanoid2D={draw,MODELS,ARCH_MODEL,resolveModel,BUILD:20260624,
+const Humanoid2D={draw,MODELS,ARCH_MODEL,resolveModel,BUILD:20260625,
   modelForArchetype(id, age, build){
     if(id==="city_elder"||age==="senior") return "civilian";
     return ARCH_MODEL[id]||"civilian";
