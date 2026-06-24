@@ -103,6 +103,7 @@ function draw(){
   if(mode==="foot") drawPerson(ped, ped.shirt||"#2f5fa0", false);
   drawLamps(ox,oy);                                     // 3D lamp posts over vehicles
   drawSignals(ox,oy);                                   // 3D traffic-light posts over vehicles
+  drawPuddleReflections(ox,oy);                           // sky + entity reflections in rain puddles
   drawCanopies(ox,oy);                                  // tree crowns over everything -> drive/walk under them
   drawTreeWildlife(ox,oy);                              // squirrels on branches (above canopy layer)
   drawBirds(ox,oy);                                     // gulls over water + city pigeons

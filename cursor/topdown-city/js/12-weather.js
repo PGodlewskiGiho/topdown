@@ -6,6 +6,185 @@ for(let i=0;i<MAXRAIN;i++) rain.push({x:Math.random()*2000, y:Math.random()*1300
 let weatherI=0, weatherTarget=0, weatherTimer=10, wetness=0, flash=0;
 let windT=0, windAmp=0.22, windGust=0;   // tree sway clock + strength (Witcher-style gusts)
 const WPRESET=[0,0.5,0.85,1]; let wIdx=0;
+const MAX_RAIN_PUDDLES=140;
+const rainPuddles=[];                    // dynamic puddles that grow during rain
+let puddleT=0;
+
+function puddleWetScale(p){
+  const sz=p.size!=null?p.size:1;
+  return (0.22+0.78*wetness)*sz;
+}
+function puddleDims(p){
+  const sc=puddleWetScale(p);
+  return {rx:(p.rx0!=null?p.rx0:p.rx)*sc, ry:(p.ry0!=null?p.ry0:p.ry)*sc};
+}
+function nearPavedSurface(x,y){
+  if(inWater(x,y)) return false;
+  const [ci,cj]=cellAt(x,y);
+  if(isMountain(ci,cj)) return false;
+  const L=getLot(ci,cj);
+  if(L.water||L.mountain||L.biome==="forest") return false;
+  if(L.parking) return true;
+  if(L.biome==="city"&&(L.zone==="downtown"||L.zone==="midrise"||L.zone==="mega")) return true;
+  if(L.biome==="city"&&!L.empty&&L.zone!=="forest") return true;
+  let best=999;
+  for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){
+    for(const[di,dj]of[[1,0],[0,1]]){
+      const e=getEdge(i,j,di,dj);
+      if(!e.exists||e.bridge) continue;
+      const g=edgeGeom(i,j,i+di,j+dj);
+      for(let t=0;t<=1.001;t+=0.12){
+        const pt=bez(g.p0,g.cp,g.p1,t);
+        const d=Math.hypot(pt[0]-x,pt[1]-y);
+        if(d<e.width*0.46&&d<best) best=d;
+      }
+    }
+  }
+  if(best<95) return true;
+  const el=terrainScore(x,y);
+  const [ci2,cj2]=cellAt(x+GAP*0.2,y), [ci3,cj3]=cellAt(x-GAP*0.2,y+GAP*0.2);
+  return el<(terrainScore(ci2*GAP,cj2*GAP)+terrainScore(ci3*GAP,cj3*GAP))*0.5+0.012;
+}
+function puddleTooClose(x,y,rx,ry){
+  const pad=10+Math.max(rx,ry);
+  for(const p of rainPuddles){
+    const d=puddleDims(p);
+    if(Math.hypot(p.x-x,p.y-y)<pad+d.rx+d.ry) return true;
+  }
+  return false;
+}
+function spawnRainPuddle(x,y){
+  const rx0=7+Math.random()*26, ry0=rx0*(0.42+Math.random()*0.32);
+  rainPuddles.push({x,y,rx0,ry0,rx:2,ry:1,a:Math.random()*Math.PI,size:0.04,ripple:Math.random()*6.28,dyn:true});
+}
+function updateRainPuddles(dt){
+  puddleT+=dt;
+  const drying=weatherI<0.14;
+  for(let i=rainPuddles.length-1;i>=0;i--){
+    const p=rainPuddles[i];
+    if(drying) p.size-=dt*(0.10+0.18*(1-weatherI));
+    else if(weatherI>0.18) p.size=Math.min(1, p.size+dt*(0.12+weatherI*0.42));
+    const d=puddleDims(p);
+    p.rx=d.rx; p.ry=d.ry;
+    if(p.size<=0.03){ rainPuddles.splice(i,1); continue; }
+    if(weatherI>0.35) p.ripple=(p.ripple||0)+dt*(2.4+weatherI*3.2);
+  }
+  if(weatherI<0.22||rainPuddles.length>=MAX_RAIN_PUDDLES) return;
+  let budget=Math.ceil(dt*(6+weatherI*28)*wetness);
+  while(budget-->0){
+    const x=focusX+(Math.random()-0.5)*VW*0.92, y=focusY+(Math.random()-0.5)*VH*0.92;
+    if(!nearPavedSurface(x,y)) continue;
+    const rx0=7+Math.random()*22, ry0=rx0*0.55;
+    if(puddleTooClose(x,y,rx0,ry0)) continue;
+    spawnRainPuddle(x,y);
+    if(rainPuddles.length>=MAX_RAIN_PUDDLES) break;
+  }
+}
+function collectPuddlesInView(ox,oy){
+  const out=[], pad=50;
+  const i0=Math.floor((ox-ROAD)/GAP)-1,i1=Math.floor((ox+VW)/GAP)+1,j0=Math.floor((oy-ROAD)/GAP)-1,j1=Math.floor((oy+VH)/GAP)+1;
+  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
+    const L=getLot(i,j);
+    for(const p of L.puddles){
+      if(p.x<ox-pad||p.x>ox+VW+pad||p.y<oy-pad||p.y>oy+VH+pad) continue;
+      out.push(p);
+    }
+  }
+  for(const p of rainPuddles){
+    if(p.x<ox-pad||p.x>ox+VW+pad||p.y<oy-pad||p.y>oy+VH+pad) continue;
+    out.push(p);
+  }
+  return out;
+}
+function drawPuddleBody(p){
+  const {rx,ry}=puddleDims(p);
+  if(rx<1.2||ry<0.8) return;
+  const a=clamp(0.35+0.65*wetness*(p.size!=null?p.size:1),0,1);
+  ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a||0);
+  const rim=ctx.createRadialGradient(0,0,Math.min(rx,ry)*0.2, 0,0, Math.max(rx,ry));
+  rim.addColorStop(0,`rgba(18,28,42,${(0.62*a).toFixed(3)})`);
+  rim.addColorStop(0.55,`rgba(10,16,26,${(0.78*a).toFixed(3)})`);
+  rim.addColorStop(1,`rgba(8,12,18,${(0.35*a).toFixed(3)})`);
+  ctx.fillStyle=rim; ctx.beginPath(); ctx.ellipse(0,0,rx,ry,0,0,7); ctx.fill();
+  ctx.strokeStyle=`rgba(130,150,175,${(0.14*a).toFixed(3)})`; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.ellipse(0,0,rx*0.98,ry*0.98,0,0,7); ctx.stroke();
+  if(weatherI>0.2&&p.ripple!=null){
+    const rip=(p.ripple+puddleT*2)%6.28, rings=2;
+    for(let k=0;k<rings;k++){
+      const ph=rip+k*1.9, r=0.35+((ph%6.28)/6.28);
+      ctx.strokeStyle=`rgba(190,210,235,${(0.07*a*(1-r)).toFixed(3)})`; ctx.lineWidth=0.8;
+      ctx.beginPath(); ctx.ellipse(0,0,rx*r*0.92,ry*r*0.92,0,0,7); ctx.stroke();
+    }
+  }
+  ctx.fillStyle=`rgba(150,175,210,${(0.11*a).toFixed(3)})`;
+  ctx.beginPath(); ctx.ellipse(-rx*0.14,-ry*0.16,rx*0.34,ry*0.24,0,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawPuddleReflections(ox,oy){
+  if(wetness<0.06) return;
+  const puddles=collectPuddlesInView(ox,oy);
+  if(!puddles.length) return;
+  const N=typeof nightFactor!=="undefined"?nightFactor(gameHour):0.35;
+  const skyTop=lerp(150,40,N)|0, skyMid=lerp(190,70,N)|0;
+  for(const p of puddles){
+    const {rx,ry}=puddleDims(p);
+    if(rx<2) continue;
+    const str=clamp(0.2+0.75*wetness*(p.size!=null?p.size:1),0,1);
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a||0);
+    ctx.beginPath(); ctx.ellipse(0,0,rx,ry,0,0,7); ctx.clip();
+    const sky=ctx.createLinearGradient(0,-ry,0,ry*0.35);
+    sky.addColorStop(0,`rgba(${skyTop},${skyMid+20},${skyMid+40},${(0.26*str).toFixed(3)})`);
+    sky.addColorStop(0.45,`rgba(${skyMid},${skyMid+10},${skyMid+30},${(0.10*str).toFixed(3)})`);
+    sky.addColorStop(1,"rgba(0,0,0,0)");
+    ctx.fillStyle=sky; ctx.beginPath(); ctx.ellipse(0,-ry*0.08,rx*0.92,ry*0.62,0,0,7); ctx.fill();
+    if(flash>0.02){
+      ctx.fillStyle=`rgba(220,235,255,${(flash*0.35*str).toFixed(3)})`;
+      ctx.beginPath(); ctx.ellipse(0,0,rx*0.7,ry*0.7,0,0,7); ctx.fill();
+    }
+    const reflectors=[];
+    const pushRef=(x,y,w,h,ang,col,kind)=>{
+      if(x<ox-120||x>ox+VW+120||y<oy-120||y>oy+VH+120) return;
+      const dx=x-p.x, dy=y-p.y;
+      if(Math.hypot(dx,dy)>rx*2.8+ry*2.2+50) return;
+      reflectors.push({x,y,w,h,ang,col,kind,dx,dy});
+    };
+    if(typeof car!=="undefined"&&!car.dead) pushRef(car.x,car.y,car.W||36,car.L||80,car.a,car.color,"veh");
+    for(const c of traffic){ if(!c.dead) pushRef(c.x,c.y,c.W||32,c.L||58,c.a,c.color,"veh"); }
+    for(const c of cops){ if(!c.dead) pushRef(c.x,c.y,c.W||40,c.L||88,c.a,c.color,"veh"); }
+    for(const ped of peds){ if(ped.state!=="down") pushRef(ped.x,ped.y,10,10,ped.a,ped.shirt||"#888","ped"); }
+    const li0=Math.floor((ox-ROAD)/GAP)-1,li1=Math.floor((ox+VW)/GAP)+1,lj0=Math.floor((oy-ROAD)/GAP)-1,lj1=Math.floor((oy+VH)/GAP)+1;
+    for(let i=li0;i<=li1;i++) for(let j=lj0;j<=lj1;j++){
+      const L=getLot(i,j); if(!L.lamps) continue;
+      for(const lm of L.lamps){ if(lm.dead) pushRef(lm.hx,lm.hy,6,6,0,"#ffd898","lamp"); }
+    }
+    reflectors.sort((a,b)=>a.y-b.y);
+    for(const r of reflectors){
+      const dist=Math.hypot(r.dx,r.dy), fall=1-dist/(rx*2.6+ry*2+48);
+      if(fall<=0) continue;
+      const fa=0.16*str*fall*fall;
+      const mx=r.dx*0.12, my=r.dy*0.55;
+      ctx.save();
+      ctx.translate(mx,my);
+      ctx.globalAlpha=fa;
+      if(r.kind==="lamp"){
+        const g=ctx.createLinearGradient(0,-ry*0.4,0,ry*0.5);
+        g.addColorStop(0,`rgba(255,220,160,${(0.9).toFixed(3)})`); g.addColorStop(1,"rgba(255,220,160,0)");
+        ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(0,0,2.8,ry*0.45,0,0,7); ctx.fill();
+      }else if(r.kind==="ped"){
+        ctx.fillStyle=r.col;
+        ctx.beginPath(); ctx.ellipse(0,0,3.2,2.2,r.ang,0,7); ctx.fill();
+      }else{
+        ctx.rotate(r.ang);
+        ctx.fillStyle=r.col;
+        ctx.beginPath(); ctx.ellipse(0,0,Math.max(4,r.w*0.34),Math.max(3,r.h*0.16),0,0,7); ctx.fill();
+        ctx.fillStyle="rgba(255,240,210,0.55)";
+        ctx.beginPath(); ctx.ellipse(r.h*0.08,0,2,1.2,0,0,7); ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
 function cycleWeather(){ wIdx=(wIdx+1)%WPRESET.length; weatherTarget=WPRESET[wIdx]; weatherTimer=60; }
 function updateWeather(dt){
   weatherTimer-=dt;
@@ -25,6 +204,7 @@ function updateWeather(dt){
   wetness=clamp(wetness,0,1);
   if(weatherI>0.8 && Math.random()<0.005){ flash=1; playThunder(); }     // lightning
   flash=Math.max(0,flash-dt*2.2);
+  updateRainPuddles(dt);
 }
 function updateRain(dt){
   const n=Math.floor(weatherI*MAXRAIN);
@@ -37,13 +217,8 @@ function updateRain(dt){
 function drawWet(ox,oy){
   if(wetness<0.02) return;
   ctx.fillStyle=`rgba(18,24,32,${(0.22*wetness).toFixed(3)})`; ctx.fillRect(ox,oy,VW,VH);
-  const i0=Math.floor((ox-ROAD)/GAP)-1,i1=Math.floor((ox+VW)/GAP)+1,j0=Math.floor((oy-ROAD)/GAP)-1,j1=Math.floor((oy+VH)/GAP)+1;
-  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ const L=getLot(i,j); for(const p of L.puddles){
-    ctx.save(); ctx.translate(p.x,p.y);
-    ctx.fillStyle=`rgba(10,14,20,${(0.5*wetness).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(0,0,p.rx,p.ry,0,0,7); ctx.fill();
-    ctx.fillStyle=`rgba(120,140,170,${(0.12*wetness).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(-p.rx*0.18,-p.ry*0.18,p.rx*0.6,p.ry*0.5,0,0,7); ctx.fill();
-    ctx.restore();
-  } }
+  const puddles=collectPuddlesInView(ox,oy);
+  for(const p of puddles) drawPuddleBody(p);
 }
 function drawRain(){
   if(weatherI<0.02) return;
