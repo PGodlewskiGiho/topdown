@@ -1,6 +1,7 @@
 {
   "frameWidth": 128,
   "frameHeight": 128,
+  "directionCount": 8,
   "framesPerDirection": 5,
   "walkFrames": [
     0,
@@ -10,17 +11,15 @@
   ],
   "attackFrame": 4,
   "directions": [
-    "south",
-    "north",
     "east",
-    "west"
+    "se",
+    "south",
+    "sw",
+    "west",
+    "nw",
+    "north",
+    "ne"
   ],
-  "directionOrder": {
-    "south": 0,
-    "north": 1,
-    "east": 2,
-    "west": 3
-  },
   "anchorX": 64,
   "anchorY": 120,
   "walkStep": 0.11,

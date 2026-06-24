@@ -3,7 +3,7 @@
 const bears=[];
 let bearTimer=0;
 const BEAR_VARIANTS=["brown","dark","cinnamon","grizzly"];
-const BEAR_ASSET_V=10;
+const BEAR_ASSET_V=11;
 const BEAR_SPRITE={ready:false,meta:null,img:{}};
 
 (function loadBearSprites(){
@@ -204,11 +204,8 @@ function updateWildlife(dt){
     if(nb) bears.push(nb);
   }
 }
-function bearDir4(a){
-  if(a>=Math.PI/4 && a<3*Math.PI/4) return 1;
-  if(a<-Math.PI/4 && a>=-3*Math.PI/4) return 0;
-  if(a>=-Math.PI/4 && a<Math.PI/4) return 2;
-  return 3;
+function bearDir8(a){
+  return Math.floor((a+Math.PI/8)/(Math.PI/4)+8)%8;
 }
 function bearAnimFrame(b){
   const m=BEAR_SPRITE.meta;
@@ -221,7 +218,12 @@ function bearAnimFrame(b){
     const step=m.walkStep??0.11;
     local=wf[Math.floor((b.walkT||0)/step)%wf.length];
   }
-  return bearDir4(b.a)*fpd+local;
+  return bearDir8(b.a)*fpd+local;
+}
+function bearDrawScale(b,m,dir){
+  const scBase=b.r*2.65*(b.scale||1)/(m.frameHeight||128);
+  const front=(dir===2)?1.08:(dir===1||dir===3)?1.04:1;
+  return scBase*front;
 }
 function drawBearFallback(b){
   ctx.fillStyle="rgba(0,0,0,.2)";
@@ -236,9 +238,9 @@ function drawBear(b){
   const fw=m.frameWidth||384, fh=m.frameHeight||320;
   const ax=m.anchorX??fw/2, ay=m.anchorY??fh-8;
   const fr=bearAnimFrame(b);
-  const worldH=b.r*2.65*(b.scale||1);
-  const sc=worldH/fh;
-  const w=fw*sc, h=fh*sc;
+  const dir=bearDir8(b.a);
+  const sc=bearDrawScale(b,m,dir);
+  const w=(m.frameWidth||128)*sc, h=(m.frameHeight||128)*sc;
   ctx.fillStyle="rgba(0,0,0,.24)";
   ctx.beginPath(); ctx.ellipse(b.x+2,b.y+4,b.r*0.95,b.r*0.46,0,0,7); ctx.fill();
   ctx.save();

@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
-"""Top-down bear sheets — 4 LPC directions baked in PNG, no runtime rotation.
+"""Top-down bear sheets — 8 directions baked in PNG + front 3D shading.
 
-LPC rows: 0=south, 1=west(side), 2=east(side), 3=north — we use row 0/3 top-down
-and rotate row 0 in PNG for east/west so the bear stays overhead (not side profile).
+Sheet order matches bearDir8 in 22-wildlife.js:
+  E, SE, S, SW, W, NW, N, NE  (indices 0–7)
 """
 from __future__ import annotations
 
 import json
-import shutil
+import math
 import zipfile
 from pathlib import Path
 from urllib.request import urlopen
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent / "topdown-city"
 OUT = ROOT / "assets" / "bears"
@@ -23,18 +23,27 @@ SRC = 64
 SCALE = 2
 FW = FH = SRC * SCALE
 N_WALK = 4
-N_DIR = 4  # south, north, east, west
 N_FRAMES = N_WALK + 1
-FRAMES_PER_DIR = N_FRAMES
-TOTAL_FRAMES = FRAMES_PER_DIR * N_DIR
+N_DIR = 8
+TOTAL_FRAMES = N_FRAMES * N_DIR
 ANCHOR_X = FW // 2
 ANCHOR_Y = FH - SCALE * 4
 
-# LPC source rows (walk / attack)
-LPC = {
-    "south": {"walk": 0, "attack": 4},
-    "north": {"walk": 3, "attack": 7},
-}
+# LPC row 3 = toward camera (front), row 0 = away (back) — matches in-game N/S fix
+FRONT = {"walk": 3, "attack": 7}
+BACK = {"walk": 0, "attack": 4}
+
+# name, lpc, rotate°, 3D frontness (1 = full front / south on screen)
+DIRS_8 = [
+    ("east", FRONT, -90, 0.38),
+    ("se", FRONT, -45, 0.72),
+    ("south", FRONT, 0, 1.00),
+    ("sw", FRONT, 45, 0.72),
+    ("west", FRONT, 90, 0.38),
+    ("nw", BACK, 45, 0.18),
+    ("north", BACK, 0, 0.06),
+    ("ne", BACK, -45, 0.18),
+]
 
 
 def ensure_lpc() -> Path:
@@ -58,10 +67,15 @@ def upscale(img: Image.Image) -> Image.Image:
 
 def fit_cell(img: Image.Image) -> Image.Image:
     out = Image.new("RGBA", (SRC, SRC), (0, 0, 0, 0))
-    ox = (SRC - img.size[0]) // 2
-    oy = (SRC - img.size[1]) // 2
-    out.paste(img, (ox, oy), img)
+    out.paste(img, ((SRC - img.size[0]) // 2, (SRC - img.size[1]) // 2), img)
     return out
+
+
+def rotate_cell(img: Image.Image, deg: float) -> Image.Image:
+    if abs(deg) < 0.01:
+        return img.copy()
+    rot = img.rotate(deg, resample=Image.Resampling.NEAREST, expand=True)
+    return fit_cell(rot)
 
 
 def shift_down(img: Image.Image, dy: int) -> Image.Image:
@@ -70,19 +84,74 @@ def shift_down(img: Image.Image, dy: int) -> Image.Image:
     return out
 
 
-def add_shadow(img: Image.Image) -> Image.Image:
+def add_shadow(img: Image.Image, frontness: float) -> Image.Image:
     w, h = img.size
     out = img.copy()
     sh = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     px = img.load()
     sp = sh.load()
+    spread = int(SCALE * (3 + frontness * 2.5))
+    alpha = int(40 + frontness * 35)
     for y in range(h):
         for x in range(w):
             if px[x, y][3] > 20:
-                sy = y + SCALE * 3
-                if sy < h:
-                    sp[x, sy] = (0, 0, 0, min(55, sp[x, sy][3] + 40))
+                for d in range(1, spread + 1):
+                    sy = y + d
+                    if sy < h:
+                        falloff = 1 - d / (spread + 1)
+                        sp[x, sy] = (0, 0, 0, min(90, sp[x, sy][3] + int(alpha * falloff)))
     return Image.alpha_composite(sh, out)
+
+
+def apply_3d_shading(img: Image.Image, frontness: float) -> Image.Image:
+    if frontness < 0.04:
+        return img
+    out = img.copy()
+    px = out.load()
+    w, h = out.size
+    cx, cy = w / 2, h / 2
+    for y in range(h):
+        for x in range(w):
+            r, g, b, a = px[x, y]
+            if a < 25:
+                continue
+            u = (x - cx) / cx
+            v = (y - cy) / cy
+            belly = max(0.0, (v - 0.08) * (1 - abs(u) * 0.55)) * frontness
+            hump = max(0.0, (-v - 0.12) * (1 - abs(u) * 0.45)) * frontness
+            side_l = max(0.0, (-u - 0.05) * (1 + v * 0.3)) * frontness * 0.35
+            side_r = max(0.0, (u - 0.05) * (1 + v * 0.3)) * frontness * 0.35
+            snout = max(0.0, (v - 0.18) * (1 - abs(u) * 0.85)) * frontness * 0.55
+
+            rf, gf, bf = r / 255, g / 255, b / 255
+            dark = belly * 0.38 + side_l * 0.12 + side_r * 0.12
+            lit = hump * 0.28 + snout * 0.1
+            rf = clamp01(rf * (1 - dark) + lit)
+            gf = clamp01(gf * (1 - dark * 0.92) + lit * 0.88)
+            bf = clamp01(bf * (1 - dark * 0.85) + lit * 0.65)
+            px[x, y] = (int(rf * 255), int(gf * 255), int(bf * 255), a)
+
+    if frontness > 0.45:
+        draw = ImageDraw.Draw(out)
+        # shoulder mass (front view)
+        for sx, sy, rw, rh, col in (
+            (cx - w * 0.22, cy - h * 0.08, w * 0.14, h * 0.11, (0, 0, 0, int(28 * frontness))),
+            (cx + w * 0.08, cy - h * 0.08, w * 0.14, h * 0.11, (0, 0, 0, int(28 * frontness))),
+        ):
+            draw.ellipse([sx, sy, sx + rw, sy + rh], fill=col)
+        # snout highlight
+        draw.ellipse(
+            [cx - w * 0.08, cy + h * 0.14, cx + w * 0.08, cy + h * 0.26],
+            fill=(255, 220, 180, int(35 * frontness)),
+        )
+        # eyes glint
+        for ex in (cx - w * 0.11, cx + w * 0.03):
+            draw.ellipse([ex, cy + h * 0.04, ex + 4, cy + h * 0.04 + 4], fill=(20, 12, 8, int(200 * frontness)))
+    return out
+
+
+def clamp01(v: float) -> float:
+    return max(0.0, min(1.0, v))
 
 
 def recolor(img: Image.Image, hue_shift: float, sat_mul: float, val_mul: float) -> Image.Image:
@@ -110,43 +179,19 @@ def crop_lpc(sheet: Image.Image, row: int, col: int) -> Image.Image:
     return sheet.crop((col * SRC, row * SRC, (col + 1) * SRC, (row + 1) * SRC))
 
 
-def process_cell(img: Image.Image) -> Image.Image:
-    return upscale(add_shadow(shift_down(fit_cell(img), SCALE)))
+def process_cell(img: Image.Image, frontness: float) -> Image.Image:
+    cell = upscale(add_shadow(shift_down(fit_cell(img), SCALE), frontness))
+    return apply_3d_shading(cell, frontness)
 
 
-def east_from_south(south: Image.Image) -> Image.Image:
-    """Top-down south frame → top-down east (rotate -90° CW in screen space)."""
-    rot = south.rotate(-90, resample=Image.Resampling.NEAREST, expand=True)
-    return fit_cell(rot)
-
-
-def west_from_south(south: Image.Image) -> Image.Image:
-    rot = south.rotate(90, resample=Image.Resampling.NEAREST, expand=True)
-    return fit_cell(rot)
-
-
-def extract_direction_set(sheet: Image.Image, walk_row: int, atk_row: int) -> list[Image.Image]:
-    south_walk = [crop_lpc(sheet, walk_row, c) for c in range(N_WALK)]
-    south_atk = crop_lpc(sheet, atk_row, 1)
-    dirs = {
-        "south": south_walk + [south_atk],
-        "north": [crop_lpc(sheet, LPC["north"]["walk"], c) for c in range(N_WALK)]
-        + [crop_lpc(sheet, LPC["north"]["attack"], 1)],
-        "east": [east_from_south(s) for s in south_walk] + [east_from_south(south_atk)],
-        "west": [west_from_south(s) for s in south_walk] + [west_from_south(south_atk)],
-    }
-    out: list[Image.Image] = []
-    for name in ("south", "north", "east", "west"):
-        out.extend(dirs[name])
+def extract_all_directions(sheet: Image.Image) -> list[tuple[Image.Image, float]]:
+    out: list[tuple[Image.Image, float]] = []
+    for _name, lpc, rot, front in DIRS_8:
+        walk = [rotate_cell(crop_lpc(sheet, lpc["walk"], c), rot) for c in range(N_WALK)]
+        atk = rotate_cell(crop_lpc(sheet, lpc["attack"], 1), rot)
+        for fr in walk + [atk]:
+            out.append((fr, front))
     return out
-
-
-def build_sheet(frames: list[Image.Image]) -> Image.Image:
-    sheet = Image.new("RGBA", (FW * len(frames), FH), (0, 0, 0, 0))
-    for i, fr in enumerate(frames):
-        cell = process_cell(fr)
-        sheet.paste(cell, (i * FW, 0), cell)
-    return sheet
 
 
 VARIANTS = {
@@ -160,10 +205,10 @@ VARIANTS = {
 def make_variant(base_dir: Path, name: str, cfg: dict) -> Image.Image:
     path = base_dir / "individual creature spritesheets" / cfg["src"]
     sheet = Image.open(path).convert("RGBA")
-    raw = extract_direction_set(sheet, LPC["south"]["walk"], LPC["south"]["attack"])
+    raw = extract_all_directions(sheet)
     out = Image.new("RGBA", (FW * TOTAL_FRAMES, FH), (0, 0, 0, 0))
-    for i, fr in enumerate(raw):
-        cell = process_cell(fr)
+    for i, (fr, front) in enumerate(raw):
+        cell = process_cell(fr, front)
         if cfg["recolor"]:
             hs, sm, vm = cfg["recolor"]
             cell = recolor(cell, hs, sm, vm)
@@ -187,11 +232,11 @@ def main():
     meta = {
         "frameWidth": FW,
         "frameHeight": FH,
+        "directionCount": N_DIR,
         "framesPerDirection": N_FRAMES,
         "walkFrames": list(range(N_WALK)),
         "attackFrame": N_WALK,
-        "directions": ["south", "north", "east", "west"],
-        "directionOrder": {"south": 0, "north": 1, "east": 2, "west": 3},
+        "directions": [d[0] for d in DIRS_8],
         "anchorX": ANCHOR_X,
         "anchorY": ANCHOR_Y,
         "walkStep": 0.11,
