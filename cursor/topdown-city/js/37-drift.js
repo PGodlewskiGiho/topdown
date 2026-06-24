@@ -180,6 +180,7 @@ function drawDriftSmoke(ox,oy){
 }
 
 function drawDriftHud(){
+  if(typeof raceSession!=="undefined"&&raceSession){ return; }
   if(typeof gamePhase==="undefined"||gamePhase!=="playing"||mode!=="car") return;
   const el=document.getElementById("drift-hud");
   if(!el) return;

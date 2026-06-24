@@ -52,6 +52,39 @@
   #drift-hud .drift-stats{margin-top:8px;font-size:10px;color:#a8adb8;gap:8px;flex-wrap:wrap}
   #drift-hud .drift-stats b{color:#ffd0a8;font-size:12px}
   #drift-hud .drift-sub{margin-top:6px;font-size:10px;color:#7f8794;letter-spacing:.06em}
+  #race-hud{position:absolute;right:22px;bottom:220px;display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:12px;
+    background:linear-gradient(145deg,rgba(12,18,28,.9),rgba(10,14,20,.94));border:1px solid rgba(90,224,255,.28);
+    box-shadow:0 8px 28px rgba(0,0,0,.45);font-family:var(--mono);min-width:150px}
+  #race-hud.hidden{display:none!important}
+  #race-hud .race-radar{display:block;border-radius:8px;background:#080a10;flex-shrink:0}
+  #race-hud .race-radar.hidden{display:none!important}
+  #race-hud .race-label{font-size:10px;letter-spacing:.2em;color:#5ae0ff;text-transform:uppercase}
+  #race-hud .race-main{font-size:26px;font-weight:700;color:#e8f4ff;margin-top:4px}
+  #race-hud .race-sub{margin-top:6px;font-size:10px;color:#8a919e;line-height:1.4}
+  .bigmap-events{position:absolute;left:18px;top:72px;bottom:72px;width:min(300px,34vw);display:flex;flex-direction:column;gap:8px;
+    padding:14px;border-radius:12px;background:rgba(8,10,16,.88);border:1px solid rgba(90,176,255,.2);pointer-events:auto;z-index:2}
+  .bigmap-events-head{font-size:11px;font-weight:600;letter-spacing:.2em;color:#5ae0ff;text-transform:uppercase}
+  #bigmap-event-search{font-family:var(--mono);font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(0,0,0,.35);color:#e8eaef;outline:none}
+  .bigmap-event-preview{border-radius:10px;overflow:hidden;background:#080a10;border:1px solid rgba(255,255,255,.08)}
+  #bigmap-event-preview-cv{display:block;width:100%;height:auto}
+  .bigmap-event-preview-label{padding:6px 8px;font-size:10px;color:#aeb4bf}
+  #bigmap-event-list{list-style:none;margin:0;padding:0;overflow-y:auto;flex:1;min-height:0}
+  #bigmap-event-list li{padding:10px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:6px;background:rgba(255,255,255,.03)}
+  #bigmap-event-list li:hover{background:rgba(90,176,255,.1);border-color:rgba(90,176,255,.25)}
+  #bigmap-event-list li.selected{background:rgba(90,176,255,.16);border-color:rgba(90,224,255,.4)}
+  #bigmap-event-list .ev-name{display:block;font-size:12px;font-weight:600;color:#ffe8d8}
+  #bigmap-event-list .ev-type-drift{color:#ffb080}
+  #bigmap-event-list .ev-type-laps{color:#9ae8ff}
+  #bigmap-event-list .ev-type-sprint{color:#9effc8}
+  #bigmap-event-list .ev-meta{display:block;margin-top:3px;font-size:10px;color:#8a919e}
+  #bigmap-event-list .bigmap-event-empty{font-size:11px;color:#7f8794;padding:12px 8px}
+  .bigmap-events-note{margin:0;font-size:9px;color:#6a717c}
+  .bigmap-events-note .tag-drift{color:#ff9a52}
+  .bigmap-events-note .tag-laps{color:#5ae0ff}
+  .bigmap-events-note .tag-sprint{color:#7fe0a8}
+  .blip-drift{background:#ff7a38;transform:rotate(45deg);border-radius:1px}
+  .blip-laps{background:#5ae0ff;transform:rotate(45deg);border-radius:1px}
+  .blip-sprint{background:#7fe0a8;transform:rotate(45deg);border-radius:1px}
   #mission{position:absolute;left:22px;top:80px;font-family:var(--mono);background:var(--panel);
     padding:11px 14px;border-radius:12px;opacity:0;transition:opacity .3s;min-width:168px}
   #mission .mt{font-size:12px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase}

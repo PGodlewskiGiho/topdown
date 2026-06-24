@@ -36,12 +36,20 @@
     </div>
     <div class="drift-sub">—</div>
   </div>
+  <div id="race-hud" class="hidden">
+    <canvas id="race-radar" class="race-radar hidden" width="88" height="88"></canvas>
+    <div class="race-hud-main">
+      <div class="race-label">WYŚCIG</div>
+      <div class="race-main">—</div>
+      <div class="race-sub">—</div>
+    </div>
+  </div>
   <div class="keys">
     <b>W / ↑</b> gaz &nbsp; <b>S / ↓</b> hamulec/wsteczny<br>
-    <b>A D / ← →</b> skręt &nbsp; <b>SPACJA</b> ręczny (drift) &nbsp; <b>V</b> run driftu (90 s)<br>
+    <b>A D / ← →</b> skręt &nbsp; <b>SPACJA</b> ręczny &nbsp; <b>V</b> run driftu &nbsp; <b>J</b> wyścig (drift/okr./sprint)<br>
     <b>F</b> wsiądź / wejdź / wysiądź (auto, łódź lub budynek) &nbsp; <b>SHIFT</b> bieg (pieszo)<br>
     <b>T</b> przewiń czas (dzień/noc) &nbsp; <b>R</b> zmień pogodę<br>
-    <b>P</b> mapa / nawigacja &nbsp; <b>klik minimapa</b> — pełna mapa<br>
+    <b>P</b> mapa / wyścigi &nbsp; <b>klik minimapa</b> — pełna mapa + lista imprez<br>
     <b>B</b> kup auto (w salonie) &nbsp; <b>U</b> tuning / naprawa (salon) &nbsp; <b>M</b> dźwięk<br>
     <b>Tab / I</b> ekwipunek &nbsp; <b>G</b> przeładuj &nbsp; <b>1–0 / Q E</b> szybki wybór broni<br>
     <b>sklep z bronią:</b> wejdź i kup klawiszami 2–0
@@ -66,8 +74,21 @@
       <button type="button" id="bigmap-clear">Usuń cel</button>
     </div>
   </div>
+  <div class="bigmap-events" id="bigmap-events">
+    <div class="bigmap-events-head">IMPREZY / WYŚCIGI</div>
+    <input type="text" id="bigmap-event-search" placeholder="Szukaj…" autocomplete="off" spellcheck="false" />
+    <div class="bigmap-event-preview" id="bigmap-event-preview">
+      <canvas id="bigmap-event-preview-cv" width="248" height="132"></canvas>
+      <div class="bigmap-event-preview-label" id="bigmap-event-preview-label">Wybierz wyścig</div>
+    </div>
+    <ul id="bigmap-event-list"></ul>
+    <p class="bigmap-events-note"><span class="tag-drift">drift</span> noc · <span class="tag-laps">okrążenia</span> dzień · <span class="tag-sprint">sprint</span> A→B</p>
+  </div>
   <div class="bigmap-legend">
     <span><i class="blip blip-nav"></i> Cel GPS</span>
+    <span><i class="blip blip-drift"></i> Drift</span>
+    <span><i class="blip blip-laps"></i> Okrążenia</span>
+    <span><i class="blip blip-sprint"></i> Sprint</span>
     <span><i class="blip blip-mission"></i> Misja</span>
     <span><i class="blip blip-you"></i> Ty</span>
   </div>
@@ -211,7 +232,8 @@
   <script src="js/19-save.js?v=3"></script>
   <script src="js/21-menu.js?v=4"></script>
   <script src="js/22-wildlife.js?v=19"></script>
-  <script src="js/37-drift.js?v=1"></script>
-  <script src="js/20-main.js?v=8"></script>
+  <script src="js/37-drift.js?v=2"></script>
+  <script src="js/40-race-events.js?v=1"></script>
+  <script src="js/20-main.js?v=9"></script>
 </body>
 </html>
