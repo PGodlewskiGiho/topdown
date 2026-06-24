@@ -1,7 +1,7 @@
 /* TOPDOWN CITY — 19-save.js */
 /* ---------- save / load (graceful: no-ops if storage blocked) ---------- */
-const SAVE_KEY="topdown_city_save_v5";
-const SAVE_KEY_LEGACY="topdown_city_save_v4";
+const SAVE_KEY="topdown_city_save_v6";
+const SAVE_KEY_LEGACY="topdown_city_save_v5";
 let stats={missionsDone:0};
 let saveTimer=4, saveFlash=0;
 const statsEl=document.getElementById("stats");
@@ -11,6 +11,7 @@ function saveGame(){
     for(const k of CAR_VIS_KEYS) carSave[k]=car[k];
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       money, missionsDone:stats.missionsDone,
+      worldSeed: typeof getWorldSeed==="function"?getWorldSeed():undefined,
       car:carSave,
       player: typeof characterFromPed==="function"?characterFromPed():null,
       inventory: typeof serializeInventory==="function"?serializeInventory():null,
@@ -25,6 +26,7 @@ function hasSaveGame(){
 }
 function resetNewGameState(){
   try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+  if(typeof clearLivingWorld==="function") clearLivingWorld();
   money=0; stats.missionsDone=0; health=100; heat=0;stars=0; bustTimer=0; prevStars=0;
   mission=null; pickup=null; saveTimer=4;
   if(typeof clearNavTarget==="function") clearNavTarget();
@@ -53,6 +55,7 @@ function loadGame(){
     if(!raw) raw=localStorage.getItem(SAVE_KEY_LEGACY);
     if(!raw) return;
     const d=JSON.parse(raw);
+    if(typeof d.worldSeed==="number" && typeof applyWorldSeed==="function") applyWorldSeed(d.worldSeed, true);
     if(typeof d.money==="number") money=d.money;
     if(typeof d.missionsDone==="number") stats.missionsDone=d.missionsDone;
     if(d.car){

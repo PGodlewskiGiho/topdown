@@ -4,6 +4,11 @@
 const railEdgeCache = new Map();
 const crossingRegistry = new Map();
 const trains = [];
+function clearRailCaches(){
+  railEdgeCache.clear();
+  crossingRegistry.clear();
+  trains.length=0;
+}
 
 function railCorridorV(i){ return ((i+7)%14+14)%14===0; }
 function railCorridorH(j){ return ((j+4)%14+14)%14===0; }

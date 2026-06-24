@@ -51,6 +51,11 @@ function showMenuPanel(id){
   document.getElementById("menu-main")?.classList.toggle("hidden", id!=="main");
   document.getElementById("menu-char")?.classList.toggle("hidden", id!=="char");
   document.getElementById("menu-new")?.classList.toggle("hidden", id!=="new");
+  if(id==="new" && typeof generateNewWorld==="function"){
+    generateNewWorld();
+    if(typeof clearLivingWorld==="function") clearLivingWorld();
+    getLot(1,2); getLot(2,1);
+  }
   gamePhase=id==="new"?"newgame":id==="char"?"charcreate":"menu";
 }
 function dismissMenu(){
@@ -72,9 +77,10 @@ function startLoadedGame(){
   dismissMenu();
 }
 function startNewGame(){
+  if(typeof generateNewWorld==="function" && gamePhase!=="newgame") generateNewWorld();
   if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
-  const sp=getSpawnPoint(menuState.biome, menuState.variant);
   resetNewGameState();
+  const sp=getSpawnPoint(menuState.biome, menuState.variant);
   if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
   teleportPlayer(sp.x, sp.y);
   dismissMenu();

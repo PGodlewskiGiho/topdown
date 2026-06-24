@@ -4,6 +4,21 @@ const LANE = ROAD*0.22;
 const traffic = [];           // AI cars: state "drive" (on road graph) or "loose" (free physics)
 const peds = [];              // NPC pedestrians: state "walk" or "down"
 const leaving = [];           // cars NPCs have boarded and are driving away
+function clearLivingWorld(){
+  traffic.length=0; peds.length=0; leaving.length=0;
+  if(typeof boats!=="undefined") boats.length=0;
+  if(typeof bullets!=="undefined") bullets.length=0;
+  if(typeof muzzles!=="undefined") muzzles.length=0;
+  if(typeof explosions!=="undefined") explosions.length=0;
+  if(typeof slashes!=="undefined") slashes.length=0;
+  if(typeof wrecks!=="undefined") wrecks.length=0;
+  if(typeof scorches!=="undefined") scorches.length=0;
+  if(typeof blastQ!=="undefined") blastQ.length=0;
+  if(typeof blood!=="undefined") blood.length=0;
+  if(typeof debris!=="undefined") debris.length=0;
+  if(typeof skid!=="undefined") skid.length=0;
+  if(typeof clearAllLaw==="function") clearAllLaw();
+}
 const CARCOL = ["#c9c9cf","#3f5b86","#b5483b","#d8a93f","#3f7d5a","#6c6f78","#7a4d6b"];
 const PEDCOL = ["#3a6ea5","#a4513f","#4f7d4a","#7a5fa0","#b59a3f","#5a5e66","#a85a7a"];
 const HATCOL=["#b5483b","#3f5b86","#d8a93f","#3f7d5a","#222222","#e0e0e0","#7a4d6b"];

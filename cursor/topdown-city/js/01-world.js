@@ -203,7 +203,12 @@ function shade(hex,amt){
   const r=Math.max(0,Math.min(255,(n>>16)+amt)), g=Math.max(0,Math.min(255,((n>>8)&255)+amt)), b=Math.max(0,Math.min(255,(n&255)+amt));
   return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
 }
-function hsh(i,j,s){ let h=(Math.imul(i|0,374761393)^Math.imul(j|0,668265263)^Math.imul(s|0,2246822519))|0; h=Math.imul(h^(h>>>13),1274126177); return ((h^(h>>>16))>>>0)/4294967296; }
+let worldSeed=20260616;
+function hsh(i,j,s){
+  let h=(Math.imul(i|0,374761393)^Math.imul(j|0,668265263)^Math.imul(s|0,2246822519)^Math.imul(worldSeed|0,3266489917))|0;
+  h=Math.imul(h^(h>>>13),1274126177);
+  return ((h^(h>>>16))>>>0)/4294967296;
+}
 
 /* ============ organic road network (single source of truth) ============
    Nodes sit on a jittered lattice; edges between orthogonal neighbours are
@@ -687,7 +692,10 @@ function drawRoads(ox,oy){
     }
   }
 }
-function lotRng(i,j){ let s=(Math.imul(i|0,374761393)^Math.imul(j|0,668265263))>>>0; return mulberry32(s||1); }
+function lotRng(i,j){
+  const s=(Math.imul(i|0,374761393)^Math.imul(j|0,668265263)^Math.imul(worldSeed|0,1597334677))>>>0;
+  return mulberry32(s||1);
+}
 const BIOMES={
   city:   {name:"MIASTO",   ground:"#43663b", walk:"#6c727b", build:["#8a5a44","#5f6f8a","#7a7d83","#6f8a5f","#8a7d4e","#705a7a"], density:0.84, prop:"tree"},
   desert: {name:"PUSTYNIA", ground:"#caa86a", walk:"#cbb079", build:["#b08a5a","#9a7448","#c4a06a","#8a6a40"],                  density:0.42, prop:"cactus"},
@@ -1970,4 +1978,26 @@ function getLot(i,j){
   if(lot.zone==="suburb" && lot.buildings.length) addGardens(lot, r);
   lotCache.set(key,lot); return lot;
 }
+
+function clearWorldCaches(){
+  lotCache.clear(); plotCache.clear(); megaCellCache.clear();
+  edgeCache.clear(); ncCache.clear();
+  _csCache.clear(); _rvCache.clear(); _elCache.clear();
+  if(typeof clearRailCaches==="function") clearRailCaches();
+}
+function applyWorldSeed(seed, clearCaches=true){
+  seed=(seed>>>0)||1;
+  if(worldSeed===seed && !clearCaches) return seed;
+  worldSeed=seed;
+  setGlobalRngSeed(seed);
+  if(clearCaches) clearWorldCaches();
+  return seed;
+}
+function randomWorldSeed(){
+  return ((Date.now()^((Math.random()*0xFFFFFFFF)|0))^((performance.now()*1000)|0))>>>0||1;
+}
+function generateNewWorld(seed){
+  return applyWorldSeed(seed!=null?seed:randomWorldSeed(), true);
+}
+function getWorldSeed(){ return worldSeed; }
 
