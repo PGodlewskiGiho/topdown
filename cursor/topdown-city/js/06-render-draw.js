@@ -102,6 +102,7 @@ function draw(){
   drawSignals(ox,oy);                                   // 3D traffic-light posts over vehicles
   drawCanopies(ox,oy);                                  // tree crowns over everything -> drive/walk under them
   drawBirds(ox,oy);                                     // gulls over water + city pigeons
+  drawWindLeaves(ox,oy);                                // forest leaves on the wind (scales with gusts)
   drawMissionWorld();
   drawBullets();
   drawSlashes();
