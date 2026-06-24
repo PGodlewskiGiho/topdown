@@ -1,6 +1,7 @@
 {
   "name": "topdown-city",
   "private": true,
+  "description": "TOPDOWN CITY — bundled puddle-water-sim (js/lib) for WebGL rain puddles",
   "scripts": {
     "dev": "python3 -m http.server 8080"
   }
