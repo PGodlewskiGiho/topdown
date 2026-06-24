@@ -219,6 +219,41 @@ function computeRoadBendOff(i,j,di,dj,klass,len,h2){
   let off=(h2*2-1)*len*roadBendFrac(klass,i,j,di,dj);
   return Math.max(-cap,Math.min(cap,off));
 }
+function blendRoadColors(entries){
+  let r=0,g=0,b=0,t=0;
+  for(const {col,w} of entries){
+    const n=parseInt(col.slice(1),16);
+    r+=((n>>16)&255)*w; g+=((n>>8)&255)*w; b+=(n&255)*w; t+=w;
+  }
+  if(t<=0) return ROADCLR.st;
+  return "#"+((1<<24)+((r/t|0)<<16)+((g/t|0)<<8)+(b/t|0)).toString(16).slice(1);
+}
+function junctionStyle(i,j){
+  const edges=[];
+  for(const[di,dj]of EDIRS){
+    const e=getEdge(i,j,di,dj);
+    if(e.exists) edges.push(e);
+  }
+  if(!edges.length) return {col:nodeIsCity(i,j)?ROADCLR.st:ROADCLR.rural, tex:"asphalt"};
+  let best=edges[0];
+  for(const e of edges) if(e.width>best.width) best=e;
+  const totalW=edges.reduce((s,e)=>s+e.width,0);
+  const col=best.width>=totalW*0.58?best.col:blendRoadColors(edges.map(e=>({col:e.col,w:e.width})));
+  const tex=(best.klass==="dirt"||best.klass==="rural"||best.klass==="trail")?"dirt":"asphalt";
+  return {col, tex, main:best};
+}
+function fillRoadSurface(x,y,r,texKey,solid){
+  ctx.fillStyle=solid;
+  ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill();
+  const tp=getTex(texKey);
+  if(tp){ ctx.fillStyle=tp; ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fill(); }
+}
+function fillRoadRing(x,y,rOut,rIn,texKey,solid){
+  ctx.fillStyle=solid;
+  ctx.beginPath(); ctx.arc(x,y,rOut,0,7); ctx.arc(x,y,rIn,0,7,true); ctx.fill("evenodd");
+  const tp=getTex(texKey);
+  if(tp){ ctx.fillStyle=tp; ctx.beginPath(); ctx.arc(x,y,rOut,0,7); ctx.arc(x,y,rIn,0,7,true); ctx.fill("evenodd"); }
+}
 function junctionRadius(i,j,mw){
   let bulge=0;
   for(const[di,dj]of EDIRS){
@@ -415,11 +450,9 @@ function drawRoundaboutIsland(ax,ay,Rin,i,j,rbType){
 function drawRoundabout(i,j,A,mw){
   const R=roundaboutR(i,j), rw=Math.max(20,mw*0.62), Rout=R+rw*0.40, Rin=roundaboutIslandR(i,j);
   const rbType=roundaboutType(i,j);
-  const asphalt=nodeIsCity(i,j)?"#33363c":"#4a4438";
+  const js=junctionStyle(i,j);
   ctx.fillStyle="#8a9099"; ctx.beginPath(); ctx.arc(A[0],A[1],Rout+5,0,7); ctx.fill();
-  ctx.fillStyle=asphalt;
-  ctx.beginPath(); ctx.arc(A[0],A[1],Rout,0,7); ctx.arc(A[0],A[1],Rin,0,7,true); ctx.fill("evenodd");
-  { const at=getTex("asphalt"); if(at){ ctx.fillStyle=at; ctx.beginPath(); ctx.arc(A[0],A[1],Rout,0,7); ctx.arc(A[0],A[1],Rin,0,7,true); ctx.fill("evenodd"); } }
+  fillRoadRing(A[0],A[1],Rout,Rin,js.tex,js.col);
   ctx.strokeStyle="#969ca4"; ctx.lineWidth=2.5;
   ctx.beginPath(); ctx.arc(A[0],A[1],Rout-1,0,7); ctx.stroke();
   ctx.strokeStyle="#8a9098"; ctx.lineWidth=2;
@@ -465,7 +498,9 @@ function drawRoads(ox,oy){
       strokeEdge(i,j,di,dj); } }
   const _at=getTex("asphalt"), _dt=getTex("dirt");
   if(_at||_dt){ for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge||e.klass==="trail") continue;
-    const tp=(e.klass==="dirt"||e.klass==="rural")?_dt:_at; if(tp) strokeEdge(i,j,di,dj,e.width,tp); } } }
+    const tp=(e.klass==="dirt"||e.klass==="rural"||e.klass==="trail")?_dt:_at; if(tp){ ctx.strokeStyle=tp; ctx.lineWidth=e.width;
+      const A=node(i,j), B=node(i+di,j+dj), C=e.cp;
+      ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.quadraticCurveTo(C[0],C[1],B[0],B[1]); ctx.stroke(); } } } }
   drawForestTrails(ox,oy);
   if(typeof drawForestBridges==="function") drawForestBridges(ox,oy);
   // intersections (roundabouts get a ring + island)
@@ -477,9 +512,8 @@ function drawRoads(ox,oy){
       /* organic trail junction drawn in drawForestTrails */
     } else {
       const jr=junctionRadius(i,j,mw);
-      ctx.fillStyle=nodeIsCity(i,j)?"#33363c":"#4a4438";
-      ctx.beginPath(); ctx.arc(A[0],A[1],jr,0,7); ctx.fill();
-      { const at=getTex("asphalt"); if(at){ ctx.fillStyle=at; ctx.beginPath(); ctx.arc(A[0],A[1],jr,0,7); ctx.fill(); } }
+      const js=junctionStyle(i,j);
+      fillRoadSurface(A[0],A[1],jr,js.tex,js.col);
     }
   }
   // centre-line markings (yellow) + white dashed lane dividers (one per lane, ~3.5 m)

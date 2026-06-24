@@ -1977,7 +1977,7 @@ function drawCrosswalks(ox,oy){
     const mw=nodeMaxWidth(i,j); if(mw<40) continue;
     const cx=nX(i,j), cy=nY(i,j), half=mw*0.52;
     for(const[di,dj]of[[1,0],[0,1]]){
-      const e=getEdge(i,j,di,dj); if(!e.exists||e.col!=="#33363c") continue;
+      const e=getEdge(i,j,di,dj); if(!e.exists||!e.markings) continue;
       const ang=Math.atan2(nY(i+di,j+dj)-cy, nX(i+di,j+dj)-cx);
       ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
       const hw=e.width*0.5;
