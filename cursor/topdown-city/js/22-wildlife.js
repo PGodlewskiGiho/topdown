@@ -1,11 +1,13 @@
 /* TOPDOWN CITY — 22-wildlife.js */
-/* Forest wildlife — bears, deer, wolves, boars + forest birds. Wildlife kills ≠ wanted. */
+/* Forest wildlife — bears, deer, wolves, boars, small critters, tree squirrels + forest birds. Wildlife kills ≠ wanted. */
 const bears=[], bearFamilies=[];
 const deer=[], deerHerds=[];
 const wolves=[], wolfPacks=[];
 const boars=[];
+const forestCritters=[], treeSquirrels=[];
 const forestBirds=[];
 let bearTimer=0, deerTimer=0, wolfTimer=0, boarTimer=0, forestBirdTimer=0;
+let critterTimer=0, squirrelTimer=0;
 let nextFamilyId=1, nextHerdId=1, nextPackId=1;
 
 const BEAR_VARIANTS=["brown","dark","cinnamon","grizzly"];
@@ -18,7 +20,14 @@ const BEAR_SPRITE={ready:false,meta:null,img:{}};
 const WILD_SPRITE={ready:false,meta:null,img:{}};
 
 const MAX_BEAR_FAMILIES=2, MAX_DEER_HERDS=3, MAX_WOLF_PACKS=2, MAX_BOAR_GROUPS=3;
+const MAX_FOREST_CRITTERS=26, MAX_TREE_SQUIRRELS=18;
 const HOME_R=380;
+
+const CRITTER_DEF={
+  hedgehog:{r:8, speed:20, run:46, flee:95, nightish:true},
+  rabbit:  {r:10, speed:34, run:118, flee:130, nightish:false},
+  mouse:   {r:5, speed:28, run:92, flee:78, nightish:false},
+};
 
 (function loadBearSprites(){
   fetch("assets/bears/meta.json?v="+BEAR_ASSET_V).then(r=>r.json()).then(meta=>{
@@ -712,6 +721,342 @@ function updateBoar(b,dt){
   }
 }
 
+/* ── small forest critters + tree squirrels ── */
+function forEachForestTreeNear(wx,wy,radius,fn){
+  const ci=Math.floor((wx-ROAD)/GAP), cj=Math.floor((wy-ROAD)/GAP);
+  const cells=Math.ceil(radius/GAP)+1;
+  for(let i=ci-cells;i<=ci+cells;i++) for(let j=cj-cells;j<=cj+cells;j++){
+    const L=getLot(i,j); if(!L.props.length) continue;
+    for(const p of L.props){
+      if(p.t!=="tree"||!p.forest||!p.outline) continue;
+      if(Math.hypot(p.x-wx,p.y-wy)>radius) continue;
+      fn(p);
+    }
+  }
+}
+function findForestTreeNear(wx,wy,radius){
+  let best=null, bestD=Infinity;
+  forEachForestTreeNear(wx,wy,radius,p=>{
+    if(p.kind==="bush") return;
+    const d=Math.hypot(p.x-wx,p.y-wy);
+    if(d<bestD){ best=p; bestD=d; }
+  });
+  return best;
+}
+function findForestTreeAt(tx,ty,tol){
+  tol=tol||12;
+  let best=null, bestD=tol;
+  forEachForestTreeNear(tx,ty,tol+40,p=>{
+    const d=Math.hypot(p.x-tx,p.y-ty);
+    if(d<bestD){ best=p; bestD=d; }
+  });
+  return best;
+}
+function squirrelTreePos(sq,tree){
+  if(!tree) return {x:sq.x,y:sq.y,z:0};
+  const H=tree.H||tree.s*0.6, u=sq.u||0.72;
+  const [vx,vy]=typeof treeLean==="function"?treeLean(tree):[0,-H*0.65];
+  const R=(tree.crownR||tree.s*0.32)*0.52;
+  const ox=Math.cos(sq.orbit||0)*R, oy=Math.sin(sq.orbit||0)*R*0.62;
+  return {x:tree.x+vx*u+ox, y:tree.y+vy*u+oy, z:H*u*0.28};
+}
+function critterAtBurrow(c,d){ return Math.hypot(c.x-d.x,c.y-d.y)<(d.r||14)+6; }
+function critterGoBurrow(c){ c.tx=c.homeX+rand(-5,5); c.ty=c.homeY+rand(-5,5); c.state="return"; }
+function critterWander(c,hx,hy,hr){
+  hr=hr||90;
+  for(let t=0;t<14;t++){
+    const ang=rng()*6.283, d=rand(18,hr);
+    const tx=hx+Math.cos(ang)*d, ty=hy+Math.sin(ang)*d;
+    if(inForestAt(tx,ty)&&!inWater(tx,ty)&&!terrainSteepAt(tx,ty,TERRAIN_SLOPE_WALK)&&!inBuilding(tx,ty,10)){
+      c.tx=tx; c.ty=ty; return;
+    }
+  }
+  c.tx=c.x+rand(-40,40); c.ty=c.y+rand(-40,40);
+}
+function critterMove(c,dt,spd){
+  if(c.state==="sleep"||c.state==="curl"){ c.moving=false; return; }
+  const dx=c.tx-c.x, dy=c.ty-c.y, d=Math.hypot(dx,dy)||1;
+  if(d>5){
+    c.a=Math.atan2(dy,dx);
+    const mv=Math.min(1,d/60);
+    c.x+=dx/d*spd*mv*dt;
+    c.y+=dy/d*spd*mv*dt;
+    c.moving=true;
+    c.walkT=(c.walkT||0)+dt;
+  } else c.moving=false;
+  pushWildFromBuildings(c);
+  collideTrees(c);
+  if(inWater(c.x,c.y)){ c.x-=Math.cos(c.a)*spd*dt; c.y-=Math.sin(c.a)*spd*dt; critterWander(c,c.homeX,c.homeY); }
+}
+function critterScared(c,pp,dist){
+  if(!pp) return false;
+  const d=Math.hypot(pp.x-c.x,pp.y-c.y);
+  if(d>dist) return false;
+  if(c.kind==="hedgehog"){
+    c.state="curl"; c.curlT=rand(2.5,5); c.moving=false; c.fleeT=0;
+    return true;
+  }
+  c.state="flee"; c.fleeT=Math.max(c.fleeT||0,2);
+  const ang=Math.atan2(c.y-pp.y,c.x-pp.x)+(rng()-0.5)*0.5;
+  c.tx=c.x+Math.cos(ang)*rand(90,170); c.ty=c.y+Math.sin(ang)*rand(90,170);
+  return true;
+}
+function critterDayRhythm(c,dt){
+  if(c.fleeT>0||c.state==="flee"||c.state==="curl") return false;
+  const phase=wildDayPhase(), h=wildHour(), def=CRITTER_DEF[c.kind]||CRITTER_DEF.rabbit;
+  const den={x:c.homeX,y:c.homeY,r:c.denR||14};
+  if(def.nightish){
+    if(phase==="day"&&h>7.8&&h<18.2){
+      if(!critterAtBurrow(c,den)){ critterGoBurrow(c); return false; }
+      c.state="sleep"; c.moving=false; return true;
+    }
+    if((phase==="night"||phase==="dawn"||phase==="dusk")&&c.state==="sleep"){
+      c.state="forage"; critterWander(c,c.homeX,c.homeY,70); c.repick=rand(1.5,3.5);
+    }
+  } else {
+    if(phase==="night"||h<6||h>21){
+      if(!critterAtBurrow(c,den)){ critterGoBurrow(c); return false; }
+      c.state="sleep"; c.moving=false; return true;
+    }
+    if(c.state==="sleep"){ c.state="forage"; critterWander(c,c.homeX,c.homeY,80); c.repick=rand(1.2,2.8); }
+  }
+  if(c.state==="forage"||c.state==="return"){
+    c.repick=(c.repick||0)-dt;
+    if(c.repick<=0){ critterWander(c,c.homeX,c.homeY,c.kind==="mouse"?55:95); c.repick=rand(1.5,4); }
+    if(c.kind!=="mouse"&&rng()<dt*0.06){ c.state="eat"; c.eatT=rand(1.2,3); c.moving=false; }
+    if(c.state==="eat"){ c.eatT=(c.eatT||0)-dt; if(c.eatT<=0){ c.state="forage"; c.repick=0.4; } return true; }
+  }
+  return false;
+}
+function spawnForestCritter(type){
+  const ang=rng()*6.283, dist=rand(60,480);
+  const hx=focusX+Math.cos(ang)*dist, hy=focusY+Math.sin(ang)*dist;
+  if(!inForestAt(hx,hy)||inWater(hx,hy)||inBuilding(hx,hy,12)) return null;
+  for(const c of forestCritters){
+    if(c.kind===type&&Math.hypot(c.homeX-hx,c.homeY-hy)<120) return null;
+  }
+  const def=CRITTER_DEF[type]; if(!def) return null;
+  const x=hx+rand(-16,16), y=hy+rand(-16,16);
+  if(!inForestAt(x,y)) return null;
+  return {
+    kind:type, x,y, a:rng()*6.283, r:def.r,
+    homeX:hx, homeY:hy, denR:type==="hedgehog"?12+rand(0,6):10+rand(0,4),
+    tx:x, ty:y, state:"forage", repick:rand(1,3), fleeT:0, curlT:0, eatT:rand(1,2),
+    walkT:rng()*2, moving:false, tailT:rng()*6.28,
+  };
+}
+function spawnTreeSquirrel(){
+  const ang=rng()*6.283, dist=rand(70,520);
+  const x=focusX+Math.cos(ang)*dist, y=focusY+Math.sin(ang)*dist;
+  const tree=findForestTreeNear(x,y,140);
+  if(!tree||tree.kind==="bush") return null;
+  for(const s of treeSquirrels) if(Math.hypot(s.treeX-tree.x,s.treeY-tree.y)<36) return null;
+  return {
+    kind:"squirrel", treeX:tree.x, treeY:tree.y,
+    state:"tree", u:rand(0.52,0.9), orbit:rng()*6.283,
+    x:tree.x, y:tree.y, a:rng()*6.283, tx:tree.x, ty:tree.y,
+    tailT:rng()*6.28, repick:rand(1.2,2.8), fleeT:0, climbT:0,
+    activity:"forage", eatT:rand(1.5,3), walkT:0, moving:false,
+  };
+}
+function updateForestCritters(dt){
+  const pp=playerPos();
+  for(let i=forestCritters.length-1;i>=0;i--){
+    const c=forestCritters[i], def=CRITTER_DEF[c.kind]||CRITTER_DEF.rabbit;
+    if(c.fleeT>0) c.fleeT=Math.max(0,c.fleeT-dt);
+    if(c.curlT>0){
+      c.curlT=Math.max(0,c.curlT-dt);
+      if(c.curlT<=0&&c.state==="curl") c.state="forage";
+    }
+    if(Math.hypot(c.x-focusX,c.y-focusY)>Math.max(VW,VH)*0.9+220){ forestCritters.splice(i,1); continue; }
+    if(critterScared(c,pp,def.flee)) continue;
+    if(critterDayRhythm(c,dt)) continue;
+    let spd=def.speed;
+    if(c.state==="flee") spd=def.run;
+    else if(c.state==="return") spd=def.speed*0.85;
+    critterMove(c,dt,spd);
+  }
+  if(!inForestAt(focusX,focusY)) return;
+  critterTimer-=dt;
+  if(forestCritters.length<MAX_FOREST_CRITTERS&&critterTimer<=0){
+    critterTimer=rand(0.25,0.75);
+    const roll=rng();
+    const type=roll<0.28?"hedgehog":roll<0.62?"rabbit":"mouse";
+    const nc=spawnForestCritter(type); if(nc) forestCritters.push(nc);
+  }
+}
+function updateTreeSquirrels(dt){
+  const pp=playerPos();
+  for(let i=treeSquirrels.length-1;i>=0;i--){
+    const s=treeSquirrels[i];
+    s.tailT=(s.tailT||0)+dt*9;
+    s.repick=(s.repick||0)-dt;
+    if(s.fleeT>0) s.fleeT=Math.max(0,s.fleeT-dt);
+    if(s.climbT>0) s.climbT=Math.max(0,s.climbT-dt);
+    const tree=findForestTreeAt(s.treeX,s.treeY,18);
+    if(!tree&&s.state==="tree"){ s.state="ground"; s.x=s.treeX; s.y=s.treeY; }
+
+    const phase=wildDayPhase();
+    const pos0=s.state==="tree"&&tree?squirrelTreePos(s,tree):{x:s.x,y:s.y};
+    const nearPlayer=pp&&Math.hypot(pp.x-pos0.x,pp.y-pos0.y)<130;
+    if(!nearPlayer&&s.fleeT<=0&&phase==="night"&&s.state!=="sleep"){
+      s.state="sleep"; s.u=Math.max(0.62,s.u||0.7); s.moving=false;
+    } else if(phase!=="night"&&s.state==="sleep"&&s.fleeT<=0){
+      s.state=tree?"tree":"ground"; s.repick=0.3;
+    }
+
+    if(pp){
+      const pos=s.state==="tree"&&tree?squirrelTreePos(s,tree):{x:s.x,y:s.y};
+      const d=Math.hypot(pp.x-pos.x,pp.y-pos.y);
+      if(d<125){
+        s.fleeT=Math.max(s.fleeT||0,2.4);
+        if(s.state==="tree"&&tree&&rng()<0.55){
+          s.state="ground"; s.x=tree.x+rand(-8,8); s.y=tree.y+rand(-4,4); s.climbT=0.5;
+        }
+        const ang=Math.atan2(pos.y-pp.y,pos.x-pp.x)+(rng()-0.5)*0.7;
+        s.tx=pos.x+Math.cos(ang)*rand(120,220); s.ty=pos.y+Math.sin(ang)*rand(120,220);
+        s.state="flee";
+      }
+    }
+
+    if(s.state==="sleep"){
+      s.moving=false;
+      if(tree) s.orbit=(s.orbit||0)+dt*0.15;
+      continue;
+    }
+
+    if(s.state==="tree"&&tree){
+      s.orbit=(s.orbit||0)+dt*(0.55+Math.sin(s.tailT*0.3)*0.12);
+      if(s.repick<=0){
+        s.u=clamp((s.u||0.7)+rand(-0.12,0.12),0.48,0.94);
+        s.orbit+=(rng()-0.5)*1.2;
+        s.repick=rand(1.4,3.6);
+        if(rng()<0.22){ s.state="ground"; s.x=tree.x+rand(-10,10); s.y=tree.y+rand(-2,6); s.eatT=rand(1.5,3.5); }
+      }
+      if(s.fleeT<=0&&rng()<dt*0.012){
+        const nt=findForestTreeNear(tree.x,tree.y,tree.crownR*2.8);
+        if(nt&&Math.hypot(nt.x-tree.x,nt.y-tree.y)>20){
+          s.treeX=nt.x; s.treeY=nt.y; s.u=rand(0.55,0.85); s.orbit=rng()*6.28;
+        }
+      }
+      s.moving=true;
+      continue;
+    }
+
+    if(s.state==="ground"||s.state==="flee"||s.state==="forage"){
+      if(s.eatT>0&&s.state!=="flee"){ s.eatT-=dt; s.moving=false; continue; }
+      if(s.repick<=0&&s.state!=="flee"){
+        critterWander(s,s.x,s.y,55);
+        s.repick=rand(1,2.5);
+        if(rng()<0.35&&tree){ s.state="tree"; s.climbT=0.8; s.u=Math.max(0.35,(s.u||0.5)-0.25); continue; }
+      }
+      const spd=s.state==="flee"?108:42;
+      critterMove(s,dt,spd);
+      if(s.climbT>0&&tree&&Math.hypot(s.x-tree.x,s.y-tree.y)<22){
+        s.state="tree"; s.u=clamp((s.u||0.4)+dt*0.9,0.4,0.88); s.climbT=0;
+      }
+      if(s.fleeT<=0&&s.state==="flee") s.state="ground";
+    }
+
+    if(Math.hypot((s.x||s.treeX)-focusX,(s.y||s.treeY)-focusY)>Math.max(VW,VH)*0.95+260) treeSquirrels.splice(i,1);
+  }
+  if(!inForestAt(focusX,focusY)) return;
+  squirrelTimer-=dt;
+  if(treeSquirrels.length<MAX_TREE_SQUIRRELS&&squirrelTimer<=0){
+    squirrelTimer=rand(0.35,0.95);
+    const ns=spawnTreeSquirrel(); if(ns) treeSquirrels.push(ns);
+  }
+}
+function drawSmallBurrow(d){
+  if(!d) return;
+  const r=d.r||12;
+  ctx.fillStyle="rgba(16,12,8,0.22)"; ctx.beginPath(); ctx.ellipse(d.x+1,d.y+2,r*1.05,r*0.55,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(38,30,22,0.55)"; ctx.beginPath(); ctx.ellipse(d.x,d.y,r,r*0.48,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(22,16,10,0.88)"; ctx.beginPath(); ctx.ellipse(d.x,d.y,r*0.42,r*0.26,0,0,7); ctx.fill();
+}
+function drawForestCritter(c){
+  const bob=c.moving?Math.sin((c.walkT||0)*14)*0.6:0;
+  ctx.save(); ctx.translate(c.x,c.y+bob);
+  if(c.kind==="hedgehog"){
+    if(c.state==="curl"||c.state==="sleep"){
+      ctx.fillStyle="#4a4038"; ctx.beginPath(); ctx.arc(0,0,c.r*0.92,0,7); ctx.fill();
+      for(let i=0;i<14;i++){
+        const a=i/14*6.283;
+        ctx.strokeStyle="#2a2820"; ctx.lineWidth=1.1;
+        ctx.beginPath(); ctx.moveTo(Math.cos(a)*c.r*0.45,Math.sin(a)*c.r*0.45);
+        ctx.lineTo(Math.cos(a)*c.r*1.08,Math.sin(a)*c.r*1.08); ctx.stroke();
+      }
+      ctx.restore(); return;
+    }
+    ctx.rotate(c.a);
+    ctx.fillStyle="#6a5848"; ctx.beginPath(); ctx.ellipse(0,0,c.r*0.9,c.r*0.62,0,0,7); ctx.fill();
+    ctx.strokeStyle="#3a3830"; ctx.lineWidth=0.9;
+    for(let i=-4;i<=4;i++){ ctx.beginPath(); ctx.moveTo(i*1.4,-c.r*0.35); ctx.lineTo(i*1.4,-c.r*0.92); ctx.stroke(); }
+    ctx.fillStyle="#5a4838"; ctx.beginPath(); ctx.arc(c.r*0.75,0,c.r*0.32,0,7); ctx.fill();
+    ctx.fillStyle="#1a1814"; ctx.beginPath(); ctx.arc(c.r*0.95,-0.5,0.7,0,7); ctx.fill();
+    ctx.restore(); return;
+  }
+  if(c.kind==="rabbit"){
+    ctx.rotate(c.a);
+    ctx.fillStyle="#b0a090"; ctx.beginPath(); ctx.ellipse(0,0,c.r*0.85,c.r*0.58,0,0,7); ctx.fill();
+    ctx.fillStyle="#d8ccc0"; ctx.beginPath(); ctx.ellipse(0,c.r*0.15,c.r*0.45,c.r*0.28,0,0,7); ctx.fill();
+    ctx.fillStyle="#c8b8a8"; ctx.beginPath(); ctx.arc(c.r*0.65,0,c.r*0.38,0,7); ctx.fill();
+    ctx.fillStyle="#e8e0d8"; ctx.beginPath(); ctx.ellipse(c.r*0.72,c.r*0.55,c.r*0.14,c.r*0.38,-0.25,0,7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(c.r*0.72,-c.r*0.55,c.r*0.14,c.r*0.38,0.25,0,7); ctx.fill();
+    ctx.fillStyle="#1a1814"; ctx.beginPath(); ctx.arc(c.r*0.92,0,0.8,0,7); ctx.fill();
+    ctx.restore(); return;
+  }
+  /* mouse */
+  ctx.rotate(c.a);
+  ctx.fillStyle="#6a5a48"; ctx.beginPath(); ctx.ellipse(0,0,c.r*0.95,c.r*0.62,0,0,7); ctx.fill();
+  ctx.fillStyle="#8a7868"; ctx.beginPath(); ctx.arc(c.r*0.75,0,c.r*0.42,0,7); ctx.fill();
+  ctx.fillStyle="#5a5048"; ctx.beginPath(); ctx.ellipse(-c.r*0.85,0,c.r*0.55,c.r*0.22,0,0,7); ctx.fill();
+  ctx.fillStyle="#1a1814"; ctx.beginPath(); ctx.arc(c.r*0.98,-0.4,0.55,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawTreeSquirrel(sq){
+  const tree=findForestTreeAt(sq.treeX,sq.treeY,20);
+  let sx,sy;
+  if((sq.state==="tree"||sq.state==="sleep")&&tree){
+    const p=squirrelTreePos(sq,tree);
+    sx=p.x; sy=p.y;
+  } else { sx=sq.x; sy=sq.y; }
+  if(sq.state!=="tree"&&sq.state!=="sleep"){
+    ctx.fillStyle="rgba(0,0,0,0.14)"; ctx.beginPath(); ctx.ellipse(sx,sy,4,2,0,0,7); ctx.fill();
+  }
+  ctx.save(); ctx.translate(sx,sy);
+  const flip=Math.cos(sq.a||0)<0?-1:1;
+  ctx.scale(flip,1);
+  const sc=sq.state==="sleep"?0.92:1;
+  ctx.scale(sc,sc);
+  if(sq.state==="sleep"){
+    ctx.fillStyle="#8a5830"; ctx.beginPath(); ctx.ellipse(0,1,5.5,3.2,0,0,7); ctx.fill();
+    ctx.strokeStyle="#a06838"; ctx.lineWidth=2.8; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(-2,1); ctx.quadraticCurveTo(-8,-2,-10,2); ctx.stroke();
+    ctx.restore(); return;
+  }
+  ctx.fillStyle="#8a5830"; ctx.beginPath(); ctx.ellipse(0,0,5.2,3.6,0,0,7); ctx.fill();
+  ctx.fillStyle="#c8a078"; ctx.beginPath(); ctx.ellipse(0,1.2,3,1.8,0,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(4.2,-0.8,2.6,0,7); ctx.fillStyle="#8a5830"; ctx.fill();
+  ctx.fillStyle="#6a4020"; ctx.beginPath(); ctx.moveTo(3.2,-2.8); ctx.lineTo(4.2,-4.8); ctx.lineTo(5.2,-2.8); ctx.fill();
+  ctx.fillStyle="#1a1410"; ctx.beginPath(); ctx.arc(5.8,-0.6,0.55,0,7); ctx.fill();
+  const tw=Math.sin(sq.tailT||0)*0.35;
+  ctx.strokeStyle="#a06838"; ctx.lineWidth=3.2; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(-3,0.2); ctx.quadraticCurveTo(-9+tw,-8,-12,-1.5); ctx.stroke();
+  ctx.restore();
+}
+function drawSmallBurrows(ox,oy){
+  const seen=new Set();
+  for(const c of forestCritters){
+    if(c.kind!=="hedgehog"&&c.kind!=="rabbit"&&c.kind!=="mouse") continue;
+    const k=(c.homeX|0)+","+(c.homeY|0);
+    if(seen.has(k)) continue;
+    if(c.homeX<ox-40||c.homeX>ox+VW+40||c.homeY<oy-40||c.homeY>oy+VH+40) continue;
+    seen.add(k);
+    drawSmallBurrow({x:c.homeX,y:c.homeY,r:c.denR});
+  }
+}
+
 /* ── forest birds ── */
 const FOREST_BIRD_DEF={
   crow:    {col:"#222228",wing:7, v:48, z:16, flap:6.5, behavior:"fly"},
@@ -876,6 +1221,8 @@ function updateWildlife(dt){
   for(let i=bearFamilies.length-1;i>=0;i--) if(!bears.some(b=>b.familyId===bearFamilies[i].id)) bearFamilies.splice(i,1);
   for(let i=deerHerds.length-1;i>=0;i--) if(!deer.some(d=>d.herdId===deerHerds[i].id)) deerHerds.splice(i,1);
   for(let i=wolfPacks.length-1;i>=0;i--) if(!wolves.some(w=>w.packId===wolfPacks[i].id)) wolfPacks.splice(i,1);
+  updateForestCritters(dt);
+  updateTreeSquirrels(dt);
   updateForestBirds(dt);
   if(!forest) return;
   if(bearFamilies.length<MAX_BEAR_FAMILIES&&bearTimer<=0){ bearTimer=rand(2.5,5.5); const g=spawnBearFamily(); if(g) bears.push(...g); }
@@ -923,9 +1270,21 @@ function drawWildDens(ox,oy){
 
 function drawWildlife(ox,oy){
   drawWildDens(ox,oy);
+  drawSmallBurrows(ox,oy);
+  for(const c of forestCritters) if(c.x>=ox-30&&c.x<=ox+VW+30&&c.y>=oy-30&&c.y<=oy+VH+30) drawForestCritter(c);
   for(const d of deer) if(d.x>=ox-60&&d.x<=ox+VW+60&&d.y>=oy-60&&d.y<=oy+VH+60) drawForestMammal(d);
   for(const b of boars) if(b.x>=ox-60&&b.x<=ox+VW+60&&b.y>=oy-60&&b.y<=oy+VH+60) drawForestMammal(b);
   for(const w of wolves) if(w.x>=ox-60&&w.x<=ox+VW+60&&w.y>=oy-60&&w.y<=oy+VH+60) drawForestMammal(w);
   for(const b of bears) if(b.x>=ox-60&&b.x<=ox+VW+60&&b.y>=oy-60&&b.y<=oy+VH+60) drawForestMammal(b);
   for(const fb of forestBirds) if(fb.x>=ox-40&&fb.x<=ox+VW+40&&fb.y-(fb.z||0)>=oy-40&&fb.y<=oy+VH+40) drawForestBird(fb);
+}
+function drawTreeWildlife(ox,oy){
+  for(const s of treeSquirrels){
+    const tree=findForestTreeAt(s.treeX,s.treeY,20);
+    let sx,sy;
+    if((s.state==="tree"||s.state==="sleep")&&tree){ const p=squirrelTreePos(s,tree); sx=p.x; sy=p.y; }
+    else { sx=s.x; sy=s.y; }
+    if(sx<ox-50||sx>ox+VW+50||sy<oy-80||sy>oy+VH+50) continue;
+    drawTreeSquirrel(s);
+  }
 }
