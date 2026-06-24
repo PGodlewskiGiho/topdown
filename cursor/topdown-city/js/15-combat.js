@@ -197,6 +197,7 @@ window.addEventListener("wheel", e=>{ if(typeof invOpen!=="undefined"&&invOpen) 
 function fireWeapon(w,x,y,ang,owner){
   const ox=x+Math.cos(ang)*14, oy=y+Math.sin(ang)*14;
   if(typeof alertPeds==="function") alertPeds(x,y,200);
+  if(owner==="player" && w.kind!=="melee") notifyGunfire(x,y);
   if(w.kind==="melee"){ meleeHit(x,y,ang,w); slashFx(ox,oy,ang,w.range); playSwoosh(); return; }
   if(w.kind==="pellets"){ for(let i=0;i<w.pellets;i++) spawnBullet(ox,oy,ang+(rng()-0.5)*w.spread,w.spd,owner,w.dmg,"bullet"); muzzle(ox,oy,ang); playShot(); return; }
   if(w.kind==="rocket"){ spawnBullet(ox,oy,ang,w.spd,owner,w.dmg,"rocket"); muzzle(ox,oy,ang); playBoom(0.35); return; }
@@ -209,6 +210,7 @@ function meleeHit(x,y,ang,w){
   for(const p of peds){ if(p.state==="down") continue; const dx=p.x-x,dy=p.y-y,d=Math.hypot(dx,dy); if(d<w.range && dx*ca+dy*sa>d*0.3){ pedHit(p, w.dmg, ca*120, sa*120, 0.5); } }
   for(const c of cops){ const dx=c.x-x,dy=c.y-y,d=Math.hypot(dx,dy); if(d<w.range+8 && dx*ca+dy*sa>d*0.3){ c.hp-=w.dmg; spawnBlood(c.x,c.y,ca,sa,0.3); if(c.hp<=0) killCop(c); } }
   for(const c of footcops){ const dx=c.x-x,dy=c.y-y,d=Math.hypot(dx,dy); if(d<w.range+6 && dx*ca+dy*sa>d*0.3){ c.hp-=w.dmg; spawnBlood(c.x,c.y,ca,sa,0.3); if(c.hp<=0) killFootCop(c); } }
+  for(const h of helis){ const dx=h.x-x,dy=h.y-y,d=Math.hypot(dx,dy); if(d<w.range+14 && dx*ca+dy*sa>d*0.2){ h.hp-=w.dmg*0.85; spawnBlood(h.x,h.y,ca,sa,0.25); if(h.hp<=0) killHeli(h); } }
   for(const m of allForestMammals()){ const dx=m.x-x,dy=m.y-y,d=Math.hypot(dx,dy); if(d<w.range+m.r && dx*ca+dy*sa>d*0.2){ forestMammalHit(m,w.dmg*1.35,ca*130,sa*130,0.55); } }
 }
 function explode(x,y){
@@ -216,6 +218,7 @@ function explode(x,y){
   for(const p of peds){ if(p.state!=="down" && Math.hypot(p.x-x,p.y-y)<R){ const a=Math.atan2(p.y-y,p.x-x); pedHit(p, 200, Math.cos(a)*210, Math.sin(a)*210, 1.2); } }
   for(const c of cops){ if(Math.hypot(c.x-x,c.y-y)<R){ c.hp-=130; spawnBlood(c.x,c.y,0,0,1.2); if(c.hp<=0) killCop(c); } }
   for(let i=footcops.length-1;i>=0;i--){ const c=footcops[i]; if(Math.hypot(c.x-x,c.y-y)<R){ c.hp-=130; spawnBlood(c.x,c.y,0,0,1.2); if(c.hp<=0) killFootCop(c); } }
+  for(let i=helis.length-1;i>=0;i--){ const h=helis[i]; if(Math.hypot(h.x-x,h.y-y)<R){ h.hp-=95; spawnBlood(h.x,h.y,0,0,1); if(h.hp<=0) killHeli(h); } }
   for(const m of allForestMammals().slice()){ if(Math.hypot(m.x-x,m.y-y)<R){ const a=Math.atan2(m.y-y,m.x-x); forestMammalHit(m,95,Math.cos(a)*160,Math.sin(a)*160,1); } }
   for(const c of traffic.slice()){ const d=Math.hypot(c.x-x,c.y-y); if(d<R){ const a=Math.atan2(c.y-y,c.x-x); if(c.state==="drive"){ c.state="loose"; c.vx=Math.cos(a)*260; c.vy=Math.sin(a)*260; c.spin=(rng()-0.5)*8; c.downT=0; } damageCar(c, 130*(1-d/R), x, y, "explosion"); } }
   damageParkedNear(x,y,R,130);
@@ -249,10 +252,9 @@ function playerAim(){
 function damage(x){ health=Math.max(0,health-x); const px=mode==="car"?car.x:ped.x, py=mode==="car"?car.y:ped.y;
   if(mode==="foot") stainCharacter(ped,0.4);
   spawnBlood(px,py,0,0,0.38,rng()*6.283); if(health<=0) wasted(); }
-function killCop(c){ const i=cops.indexOf(c); if(i>=0) cops.splice(i,1); addHeat(0.6); }
 function wasted(){
   showBigMsg("WYELIMINOWANY");
-  health=100; heat=0; stars=0; cops.length=0; bullets.length=0; firing=false;
+  health=100; heat=0; stars=0; clearAllLaw(); bullets.length=0; firing=false;
   const p=roadPoint(); ped.x=p.x; ped.y=p.y; mode="foot";
 }
 function updateBullets(dt){
@@ -266,6 +268,7 @@ function updateBullets(dt){
         let hit=false;
         for(const c of cops) if(Math.hypot(b.x-c.x,b.y-c.y)<c.R+5){ hit=true; break; }
         if(!hit) for(const c of footcops) if(Math.hypot(b.x-c.x,b.y-c.y)<c.r+5){ hit=true; break; }
+        if(!hit) for(const h of helis) if(Math.hypot(b.x-h.x,b.y-h.y)<28){ hit=true; break; }
         if(!hit) for(const p of peds) if(p.state!=="down"&&Math.hypot(b.x-p.x,b.y-p.y)<p.r+5){ hit=true; break; }
         if(!hit) for(const m of allForestMammals()) if(Math.hypot(b.x-m.x,b.y-m.y)<m.r+6){ hit=true; break; }
         if(!hit) for(const c of traffic) if(Math.hypot(b.x-c.x,b.y-c.y)<c.R+5){ hit=true; break; }
@@ -273,12 +276,14 @@ function updateBullets(dt){
         if(hit){ explode(b.x,b.y); dead=true; }
       } else if(b.type==="flame"){
         for(const c of cops){ if(Math.hypot(b.x-c.x,b.y-c.y)<c.R+3){ c.hp-=b.dmg; if(c.hp<=0){ spawnBlood(c.x,c.y,0,0,1); killCop(c);} dead=true; break; } }
+        if(!dead) for(const h of helis){ if(Math.hypot(b.x-h.x,b.y-h.y)<22){ h.hp-=b.dmg; if(h.hp<=0){ spawnBlood(h.x,h.y,0,0,1); killHeli(h);} dead=true; break; } }
         if(!dead) for(const p of peds){ if(p.state!=="down"&&Math.hypot(b.x-p.x,b.y-p.y)<p.r+4){ pedHit(p, b.dmg*4, b.vx*0.02, b.vy*0.02, 0.7); dead=true; break; } }
         if(!dead) for(const m of allForestMammals()){ if(Math.hypot(b.x-m.x,b.y-m.y)<m.r+4){ forestMammalHit(m,b.dmg*3,b.vx*0.02,b.vy*0.02,0.6); dead=true; break; } }
         if(!dead) for(const c of traffic){ if(Math.hypot(b.x-c.x,b.y-c.y)<c.R){ damageCar(c, b.dmg*4, b.x, b.y, "fire"); dead=true; break; } }
         if(!dead){ const ci=Math.floor(b.x/GAP),cj=Math.floor(b.y/GAP); for(let i=ci-1;i<=ci+1&&!dead;i++)for(let j=cj-1;j<=cj+1&&!dead;j++){ const L=getLot(i,j); for(let k=0;k<L.parked.length;k++){ const pc=L.parked[k]; if(Math.hypot(b.x-pc.x,b.y-pc.y)<pc.cr+3){ damageCar(pc,b.dmg*4,b.x,b.y,"fire"); if(pc.dead)L.parked.splice(k,1); dead=true; break; } } } }
       } else {
         for(const c of cops){ if(Math.hypot(b.x-c.x,b.y-c.y)<c.R){ c.hp-=b.dmg; spawnBlood(c.x,c.y,b.vx,b.vy,c.hp<=0?1.2:0.3); dead=true; if(c.hp<=0) killCop(c); break; } }
+        if(!dead) for(const h of helis){ if(Math.hypot(b.x-h.x,b.y-h.y)<24){ h.hp-=b.dmg; spawnBlood(h.x,h.y,b.vx,b.vy,h.hp<=0?1:0.3); dead=true; if(h.hp<=0) killHeli(h); break; } }
         if(!dead) for(const c of footcops){ if(Math.hypot(b.x-c.x,b.y-c.y)<c.r+2){ c.hp-=b.dmg; spawnBlood(c.x,c.y,b.vx,b.vy,c.hp<=0?1:0.3); dead=true; if(c.hp<=0) killFootCop(c); break; } }
         if(!dead) for(const p of peds){ if(p.state!=="down" && Math.hypot(b.x-p.x,b.y-p.y)<p.r+2){ pedHit(p, b.dmg, b.vx*0.04, b.vy*0.04, 0.8); dead=true; break; } }
         if(!dead) for(const m of allForestMammals()){ if(Math.hypot(b.x-m.x,b.y-m.y)<m.r+3){ forestMammalHit(m,b.dmg,b.vx*0.04,b.vy*0.04,0.75); dead=true; break; } }
@@ -309,15 +314,6 @@ function updateCombat(dt){
       playerFireCd=w.cd;
     } else { if(typeof syncCurWeaponFromEquip==="function") syncCurWeaponFromEquip(); else curWeapon=0; playerFireCd=0.1; }
   }
-  for(const c of cops){
-    c.fireCd-=dt;
-    const ax=mode==="car"?car.x:ped.x, ay=mode==="car"?car.y:ped.y;
-    if(c.fireCd<=0 && stars>=2 && Math.hypot(ax-c.x,ay-c.y)<280){
-      const ang=Math.atan2(ay-c.y,ax-c.x)+(Math.random()-0.5)*0.2, ox=c.x+Math.cos(ang)*22, oy=c.y+Math.sin(ang)*22;
-      spawnBullet(ox,oy,ang,640,"cop",7,"bullet"); muzzle(ox,oy,ang); playShot(); c.fireCd=rand(0.9,1.8);
-    }
-  }
-  if(cops.length===0 && health<100) health=Math.min(100, health+dt*3);
   updateBullets(dt); updateExplosions(dt); updateSlashes(dt);
 }
 function drawBullets(){

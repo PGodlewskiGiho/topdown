@@ -361,10 +361,11 @@ function updateAudio(){
     const moto=car.kind==="moto", f=(moto?80:50)+sp*(moto?0.26:0.16); engOsc.frequency.value=f; engOsc2.frequency.value=f*1.01;
     engGain.gain.value=(moto?0.04:0.05)+Math.min(0.12,sp*0.0004); engFilt.frequency.value=(moto?900:500)+sp*0.8;
   } else engGain.gain.value*=0.85;
-  if(cops.length){
+  if(lawActive()){
     const ax=mode==="car"?car.x:ped.x, ay=mode==="car"?car.y:ped.y; let dmin=1e9;
     for(const c of cops) dmin=Math.min(dmin,Math.hypot(c.x-ax,c.y-ay));
-    sirenGain.gain.value=0.12*Math.max(0,1-dmin/700);
+    for(const h of helis) dmin=Math.min(dmin,Math.hypot(h.x-ax,h.y-ay));
+    sirenGain.gain.value=0.12*Math.max(0,1-dmin/700)+helis.length*0.03;
     sirenOsc.frequency.value=650+250*(0.5+0.5*Math.sin(performance.now()/180));
   } else sirenGain.gain.value*=0.9;
   rainGain.gain.value=weatherI*0.25;

@@ -203,6 +203,8 @@ function drawLights(ox,oy,N){
   carLights(car,N);
   for(const c of traffic){ if(c.x<ox-80||c.x>ox+VW+80||c.y<oy-80||c.y>oy+VH+80) continue; carLights(c,N); }
   for(const c of cops){ if(c.x<ox-80||c.x>ox+VW+80||c.y<oy-80||c.y>oy+VH+80) continue; carLights(c,N); sirenGlow(c,N); }
+  for(const h of helis){ if(h.x<ox-120||h.x>ox+VW+120||h.y<oy-120||h.y>oy+VH+120) continue;
+    ctx.fillStyle="rgba(255,60,60,.12)"; ctx.beginPath(); ctx.arc(h.x,h.y,18,0,7); ctx.fill(); }
   for(const b of boats){ if(b.x<ox-60||b.x>ox+VW+60||b.y<oy-60||b.y>oy+VH+60) continue; waterReflect(b.x, b.y+5, "230,240,255", 24, 0.34*N, tt); }
 }
 const clockEl=document.getElementById("clock");

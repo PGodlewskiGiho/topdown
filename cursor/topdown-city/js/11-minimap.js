@@ -52,6 +52,8 @@ function drawMini(){
   }
   mctx.fillStyle="#dadee5"; for(const c of traffic) mctx.fillRect(tx(c.x)-1,ty(c.y)-1,2.2,2.2);
   mctx.fillStyle="#4f8bff"; for(const c of cops) mctx.fillRect(tx(c.x)-1.4,ty(c.y)-1.4,2.8,2.8);
+  mctx.fillStyle="#ff5555"; for(const h of helis) mctx.fillRect(tx(h.x)-1.6,ty(h.y)-1.6,3.2,3.2);
+  mctx.fillStyle="#8a4"; for(const fc of footcops) if(fc.type==="swat"||fc.type==="soldier") mctx.fillRect(tx(fc.x)-1,ty(fc.y)-1,2,2);
   const _t = mission ? ((mission.type==="deliver"||mission.type==="taxi")?mission.target:null) : pickup;
   if(_t){ mctx.fillStyle = mission?"#ffd23b":"#39d98a"; mctx.beginPath(); mctx.arc(tx(_t.x),ty(_t.y),3.4,0,7); mctx.fill(); }
   if(salon){ mctx.fillStyle="#5ab0ff"; mctx.fillRect(tx(salon.cx)-2.4,ty(salon.cy)-2.4,4.8,4.8); }

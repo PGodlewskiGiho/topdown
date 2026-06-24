@@ -97,6 +97,7 @@ function draw(){
   for(const c of traffic){ if(c.x<ox-50||c.x>ox+VW+50||c.y<oy-50||c.y>oy+VH+50) continue; drawVehicle(c,c.color); }
   // police (culled)
   for(const c of cops){ if(c.x<ox-50||c.x>ox+VW+50||c.y<oy-50||c.y>oy+VH+50) continue; drawCop(c); }
+  for(const h of helis){ if(h.x<ox-80||h.x>ox+VW+80||h.y<oy-80||h.y>oy+VH+80) continue; drawHeli(h); }
   drawFootCops(ox,oy);
   // player on top
   if(!car.dead) drawVehicle(car, car.color);
