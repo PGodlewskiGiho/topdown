@@ -41,6 +41,8 @@ function pedHit(p,dmg,kx,ky,bloodAmt,noHeat){
   if(p._hp>0){ spawnBlood(p.x,p.y,kx,ky,0.35,ang); return; }
   p.state="down"; p.vx=kx*0.5; p.vy=ky*0.5; p.downT=0;
   if(!noHeat) addHeat(p.armed?0.5:0.8);
+  const sev=clamp((bloodAmt||0.5)*1.1+(dmg||10)/40, 0.35, 1.5);
+  if(typeof spawnPedGore==="function") spawnPedGore(p, kx, ky, sev);
   spawnBlood(p.x,p.y,kx,ky,bloodAmt,ang);
   spawnBlood(p.x,p.y,kx*0.15,ky*0.15,bloodAmt*0.85,ang);
   if(p.armed && p.weapon!=null) dropWeapon(p.x,p.y,p.weapon);

@@ -79,7 +79,10 @@ function carVsPeds(){
     if(d>=R) continue;
     const nx=d>0.001?dx/d:Math.cos(car.a), ny=d>0.001?dy/d:Math.sin(car.a);
     if(psp>40){ p.state="down"; p.vx=nx*(psp*0.7+60)+car.vx*0.4; p.vy=ny*(psp*0.7+60)+car.vy*0.4; p.downT=0; addHeat(0.7);
-      stainCharacter(p,1.2); spawnBlood(p.x,p.y,car.vx,car.vy,1.35,Math.atan2(ny,nx));
+      stainCharacter(p,1.2);
+      const kx=nx*(psp*0.7+60)+car.vx*0.4, ky=ny*(psp*0.7+60)+car.vy*0.4;
+      if(typeof spawnPedGore==="function") spawnPedGore(p, kx, ky, clamp(psp/90, 0.7, 1.5));
+      spawnBlood(p.x,p.y,car.vx,car.vy,1.35,Math.atan2(ny,nx));
       spawnBlood(p.x,p.y,car.vx*0.1,car.vy*0.1,0.9,Math.atan2(ny,nx));
       if(p.armed&&p.weapon!=null) dropWeapon(p.x,p.y,p.weapon); }
     else { p.x+=nx*(R-d); p.y+=ny*(R-d); }

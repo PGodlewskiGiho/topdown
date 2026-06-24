@@ -16,6 +16,7 @@ function clearLivingWorld(){
   if(typeof blastQ!=="undefined") blastQ.length=0;
   if(typeof blood!=="undefined") blood.length=0;
   if(typeof debris!=="undefined") debris.length=0;
+  if(typeof pedGore!=="undefined") pedGore.length=0;
   if(typeof skid!=="undefined") skid.length=0;
   if(typeof clearAllLaw==="function") clearAllLaw();
 }

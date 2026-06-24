@@ -21,7 +21,7 @@ function frame(now){
   maintainTraffic();
   maintainPeds();
   for(let k=0;k<peds.length;k++) updateNpcPed(peds[k],dt);
-  updateLeaving(dt); updateDebris(dt); updateFalling(dt); updateSparks(dt);
+  updateLeaving(dt); updateDebris(dt); updatePedGore(dt); updateFalling(dt); updateSparks(dt);
   updateBoats(dt);
   updateBirds(dt);
   if(mode==="car") updateCar(dt); else if(mode==="boat") updateBoatDrive(dt); else if(mode==="inside") updateInside(dt); else updatePed(dt);

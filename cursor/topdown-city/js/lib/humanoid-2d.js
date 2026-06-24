@@ -32,18 +32,36 @@ const MODELS={
 };
 
 const ARCH_MODEL={
-  city_casual:"civilian", city_worker:"worker", city_business:"business", city_elder:"elder",
-  city_teen:"teen", city_punk:"punk", forest_hiker:"hiker", forest_local:"hardy",
+  city_casual:"civilian", city_worker:"worker", city_business:"business",
+  city_teen:"teen", city_punk:"punk", city_jogger:"runner", city_sporty:"teen",
+  city_parent:"civilian", city_artist:"civilian", city_delivery:"worker",
+  forest_hiker:"hiker", forest_local:"hardy",
   desert_nomad:"nomad", desert_worker:"worker", sea_tourist:"tourist", sea_fisher:"fisher",
   armed_thug:"thug",
 };
 
+function mergeMods(base, extra){
+  const o={...base};
+  if(!extra) return o;
+  for(const k of Object.keys(extra)) if(extra[k]!=null) o[k]=extra[k];
+  return o;
+}
+
 function resolveModel(p){
-  if(p.model&&MODELS[p.model]) return MODELS[p.model];
-  if(p.archetypeId&&ARCH_MODEL[p.archetypeId]) return MODELS[ARCH_MODEL[p.archetypeId]];
-  if(p.body==="female") return MODELS.female;
-  if(p.body==="hardy") return MODELS.hardy;
-  return MODELS.civilian;
+  let md;
+  if(p.model&&MODELS[p.model]) md={...MODELS[p.model]};
+  else if(p.archetypeId&&ARCH_MODEL[p.archetypeId]) md={...MODELS[ARCH_MODEL[p.archetypeId]]};
+  else if(p.body==="female") md={...MODELS.female};
+  else if(p.body==="hardy") md={...MODELS.hardy};
+  else md={...MODELS.civilian};
+  if(p.archetypeId==="city_elder"||p.age==="senior"){ md.hunch=Math.max(md.hunch||0,0.10); md.swing=(md.swing||1)*0.82; }
+  if(p.age==="teen") md={...md, tw:0.80, th:1.04, head:0.92, swing:1.14};
+  if(p.build&&typeof BUILD_MOD!=="undefined"&&BUILD_MOD[p.build]) md=mergeMods(md, BUILD_MOD[p.build]);
+  if(p.age&&typeof AGE_MOD!=="undefined"&&AGE_MOD[p.age]) md=mergeMods(md, AGE_MOD[p.age]);
+  if(p.height) md.tw=(md.tw||1)*p.height; md.th=(md.th||1)*p.height; md.head=(md.head||1)*(0.98+p.height*0.02);
+  if(p.shorts) md.shorts=true;
+  if(p.hairStyle==="mohawk") md.mohawk=true;
+  return md;
 }
 
 function sunLit(){
@@ -83,6 +101,49 @@ function drawHardhat(c,hx,r){
 function drawBucketHat(c,hx,r,col){
   c.fillStyle=col; c.beginPath(); c.ellipse(hx,r*0.08,r*0.62,r*0.18,0,0,7); c.fill();
   c.fillStyle=shade(col,-12); c.beginPath(); c.arc(hx,-r*0.02,r*0.48,0,7); c.fill();
+}
+
+function drawCurlyHair(c,hx,r,hair,headR){
+  c.fillStyle=hair;
+  for(let i=0;i<7;i++){
+    const a=i/7*6.283, rad=r*0.46;
+    c.beginPath(); c.arc(hx+Math.cos(a)*rad*0.5, Math.sin(a)*rad*0.5, r*0.18, 0, 7); c.fill();
+  }
+  c.fillStyle=shade(hair,-14); c.beginPath(); c.arc(hx,0,headR*0.92,0,7); c.fill();
+}
+
+function drawBuzzHair(c,hx,r,hair){
+  c.fillStyle=hair; c.beginPath(); c.arc(hx,0,r*0.52,0,7); c.fill();
+  c.fillStyle=shade(hair,-20); c.beginPath(); c.arc(hx+r*0.06,0,r*0.44,2.2,5.6); c.fill();
+}
+
+function drawBunHair(c,hx,r,hair){
+  c.fillStyle=hair; c.beginPath(); c.arc(hx,0,r*0.50,0,7); c.fill();
+  c.beginPath(); c.arc(hx-r*0.42,-r*0.18,r*0.22,0,7); c.fill();
+}
+
+function drawDownPose(c,p,r,shirt,skin,pants,shoe){
+  const lost=p.lostParts||{};
+  c.fillStyle="rgba(0,0,0,.28)"; c.beginPath(); c.ellipse(0,1,r*1.75,r*0.78,0,0,7); c.fill();
+  if(!lost.leg){
+    c.fillStyle=pants; c.beginPath(); c.ellipse(-r*0.35,r*0.15,r*0.42,r*0.28,0.2,0,7); c.fill();
+    c.beginPath(); c.ellipse(r*0.2,r*0.2,r*0.38,r*0.26,-0.1,0,7); c.fill();
+    c.fillStyle=shoe; c.beginPath(); c.ellipse(-r*0.55,r*0.22,r*0.22,r*0.14,0.3,0,7); c.fill();
+  }
+  if(!lost.torso){
+    c.fillStyle=shirt; c.beginPath(); c.roundRect(-r*1.55,-r*0.5,r*3.1,r*1.05,r*0.5); c.fill();
+  } else {
+    c.fillStyle=shirt; c.beginPath(); c.roundRect(-r*0.9,-r*0.42,r*1.8,r*0.82,r*0.4); c.fill();
+    c.fillStyle="#6a0808"; c.beginPath(); c.ellipse(r*0.2,0,r*0.35,r*0.28,0,0,7); c.fill();
+  }
+  if(!lost.arm_l){ c.fillStyle=skin; c.beginPath(); c.ellipse(-r*0.95,-r*0.08,r*0.38,r*0.16,0.5,0,7); c.fill(); }
+  if(!lost.arm_r){ c.fillStyle=skin; c.beginPath(); c.ellipse(r*0.55,-r*0.12,r*0.36,r*0.15,-0.2,0,7); c.fill(); }
+  if(!lost.head){
+    c.fillStyle=skin; c.beginPath(); c.arc(r*1.22,0,r*0.48,0,7); c.fill();
+    if(p.hair){ c.fillStyle=p.hair; c.beginPath(); c.arc(r*1.22,0,r*0.52,0,7); c.fill(); c.fillStyle=skin; c.beginPath(); c.arc(r*1.22,0,r*0.44,0,7); c.fill(); }
+  } else {
+    c.fillStyle="#7a1018"; c.beginPath(); c.ellipse(r*1.05,0,r*0.28,r*0.22,0,0,7); c.fill();
+  }
 }
 
 function drawMohawk(c,hx,r,hair){
@@ -127,14 +188,13 @@ function draw(c,p,color,down){
   const r=(p.r||9)*br;
   const lit=sunLit();
   const roundRect=(x,y,w,h,rad)=>{ c.beginPath(); c.roundRect(x,y,w,h,rad); };
+  const shoe=p.shoes||shade(pants,-42);
 
   c.save(); c.translate(p.x,p.y); c.rotate(p.a);
   if(md.hunch) c.translate(-r*md.hunch,0);
 
   if(down){
-    c.fillStyle="rgba(0,0,0,.28)"; c.beginPath(); c.ellipse(0,1,r*1.75,r*0.78,0,0,7); c.fill();
-    c.fillStyle=shirt; roundRect(-r*1.55,-r*0.5,r*3.1,r*1.05,r*0.5); c.fill();
-    c.fillStyle=skin; c.beginPath(); c.arc(r*1.22,0,r*0.48,0,7); c.fill();
+    drawDownPose(c,p,r,shirt,skin,pants,shoe);
     paintBlood(c,p,true,r); c.restore(); return;
   }
 
@@ -151,7 +211,6 @@ function draw(c,p,color,down){
   const walk=mv>6?Math.sin(t*14*md.swing):Math.sin(t*3)*0.32;
   const limb=walk*r*0.38;
   const hx=r*0.54, tw=r*md.tw, th=r*md.th;
-  const shoe=p.shoes||shade(pants,-42);
   const frontLeg=Math.sin(t*14*md.swing)>=0;
 
   c.fillStyle="rgba(0,0,0,.34)"; c.beginPath(); c.ellipse(0,r*0.38,r*1.08,r*0.84,0,0,7); c.fill();
@@ -219,23 +278,33 @@ function draw(c,p,color,down){
   }
 
   const headR=r*0.47*md.head;
-  if(md.mohawk&&hair&&!hat) drawMohawk(c,hx,r,hair);
-  else if(hairStyle!=="bald"&&hair&&!hat){
-    c.fillStyle=hair; c.beginPath(); c.arc(hx,0,r*0.58*md.head,0,7); c.fill();
-    c.fillStyle=shade(hair,-16); c.beginPath(); c.arc(hx-r*0.04,0,r*0.48*md.head,2.4,5.5); c.fill();
-  }
-  if(hairStyle==="ponytail"&&hair&&!hat){
-    c.fillStyle=hair; c.beginPath(); c.ellipse(-r*0.62,-r*0.06,r*0.24,r*0.46,-0.55,0,7); c.fill();
-  }
-  if(hairStyle==="long"&&hair&&!hat){
-    c.fillStyle=hair; c.beginPath(); c.ellipse(hx-r*0.04,r*0.1,r*0.46,r*0.62,0.12,0,7); c.fill();
+  const lost=p.lostParts||{};
+  if(!lost.hat){
+    if(hairStyle==="mohawk"&&hair&&!hat) drawMohawk(c,hx,r,hair);
+    else if(hairStyle==="buzz"&&hair&&!hat) drawBuzzHair(c,hx,r,hair);
+    else if(hairStyle==="curly"&&hair&&!hat) drawCurlyHair(c,hx,r,hair,headR);
+    else if(hairStyle==="bun"&&hair&&!hat) drawBunHair(c,hx,r,hair);
+    else if(hairStyle!=="bald"&&hair&&!hat){
+      c.fillStyle=hair; c.beginPath(); c.arc(hx,0,r*0.58*md.head,0,7); c.fill();
+      c.fillStyle=shade(hair,-16); c.beginPath(); c.arc(hx-r*0.04,0,r*0.48*md.head,2.4,5.5); c.fill();
+    }
+    if(hairStyle==="ponytail"&&hair&&!hat){
+      c.fillStyle=hair; c.beginPath(); c.ellipse(-r*0.62,-r*0.06,r*0.24,r*0.46,-0.55,0,7); c.fill();
+    }
+    if(hairStyle==="long"&&hair&&!hat){
+      c.fillStyle=hair; c.beginPath(); c.ellipse(hx-r*0.04,r*0.1,r*0.46,r*0.62,0.12,0,7); c.fill();
+    }
   }
 
+  if(!lost.head){
   c.fillStyle=skin; c.beginPath(); c.arc(hx,0,headR,0,7); c.fill();
   c.fillStyle=shade(skin,lit*14); c.beginPath(); c.arc(hx+r*0.1,-r*0.1,r*0.15,0,7); c.fill();
   c.fillStyle="#1a1410";
   c.beginPath(); c.arc(hx+r*0.16,-r*0.11,r*0.055,0,7); c.fill();
   c.beginPath(); c.arc(hx+r*0.16,r*0.11,r*0.055,0,7); c.fill();
+  } else {
+    c.fillStyle="#7a1018"; c.beginPath(); c.ellipse(hx,0,r*0.32,r*0.26,0,0,7); c.fill();
+  }
 
   if(p.accessory==="glasses"){
     c.strokeStyle="rgba(28,32,40,.88)"; c.lineWidth=1.1;
@@ -250,12 +319,12 @@ function draw(c,p,color,down){
   if(md.helmet||hat==="helmet") drawHelmet(c,hx,r,hatC);
   else if(md.hardhat) drawHardhat(c,hx,r);
   else if(md.bucketHat) drawBucketHat(c,hx,r,hatC);
-  else if(hat==="cap"){
+  else if(!lost.hat&&hat==="cap"){
     c.fillStyle=hatC; c.beginPath(); c.arc(hx,-r*0.04,r*0.56,-2.1,2.1); c.fill();
     c.fillStyle=shade(hatC,-18); c.fillRect(hx+r*0.38,-r*0.4,r*0.58,r*0.12);
-  } else if(hat==="beanie"){
+  } else if(!lost.hat&&hat==="beanie"){
     c.fillStyle=hatC; c.beginPath(); c.arc(hx,0,r*0.58,0,7); c.fill();
-  } else if(hat==="hood"){
+  } else if(!lost.hat&&hat==="hood"){
     c.fillStyle=hatC; c.beginPath(); c.arc(hx,0,r*0.64,0,7); c.fill();
     c.fillStyle=skin; c.beginPath(); c.arc(hx+r*0.4,0,r*0.22,0,7); c.fill();
   }
@@ -264,13 +333,13 @@ function draw(c,p,color,down){
     c.fillStyle="#2a2a30"; roundRect(hx+r*0.08,-r*0.22,r*0.22,r*0.16,2); c.fill();
     c.fillStyle="#6a8090"; c.beginPath(); c.arc(hx+r*0.19,-r*0.14,r*0.05,0,7); c.fill();
   }
-  if(p.prop==="bag"){ c.fillStyle=p.propColor||"#8a6838"; roundRect(-r*0.02+limb*0.08,r*0.62,r*0.24,r*0.3,2); c.fill(); }
-  else if(p.prop==="briefcase"||md.business){
+  if(!lost.prop&&p.prop==="bag"){ c.fillStyle=p.propColor||"#8a6838"; roundRect(-r*0.02+limb*0.08,r*0.62,r*0.24,r*0.3,2); c.fill(); }
+  else if(!lost.prop&&(p.prop==="briefcase"||md.business)){
     c.fillStyle=p.propColor||"#3a3028"; roundRect(-r*0.04-limb*0.12,r*0.58,r*0.34,r*0.2,1); c.fill();
-  } else if(p.prop==="stick"||md.cane){
+  } else if(!lost.prop&&(p.prop==="stick"||md.cane)){
     c.strokeStyle=p.propColor||"#6a5038"; c.lineWidth=md.cane?2.6:2.2;
     c.beginPath(); c.moveTo(-r*0.02-limb*0.1,r*0.5); c.lineTo(-r*0.02-limb*0.1,r*(md.cane?1.05:0.95)); c.stroke();
-  } else if(p.prop==="bucket"){
+  } else if(!lost.prop&&p.prop==="bucket"){
     c.fillStyle=p.propColor||"#586878"; c.beginPath(); c.ellipse(-r*0.02+limb*0.12,r*0.72,r*0.16,r*0.12,0,0,7); c.fill();
   }
 
@@ -281,7 +350,10 @@ function draw(c,p,color,down){
 }
 
 const Humanoid2D={draw,MODELS,ARCH_MODEL,resolveModel,
-  modelForArchetype(id){ return ARCH_MODEL[id]||"civilian"; },
+  modelForArchetype(id, age, build){
+    if(id==="city_elder"||age==="senior") return "civilian";
+    return ARCH_MODEL[id]||"civilian";
+  },
   modelForCop(type){ return type==="swat"?"swat":type==="soldier"?"soldier":"officer"; },
 };
 global.Humanoid2D=Humanoid2D;
