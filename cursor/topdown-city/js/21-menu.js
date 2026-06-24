@@ -7,6 +7,7 @@ const BIOMES_UI=[
   {id:"forest", label:"Las"},
   {id:"desert", label:"Pustynia"},
   {id:"sea", label:"Wybrzeże"},
+  {id:"lake", label:"Jezioro"},
 ];
 function spawnOptionsForBiome(biome){
   if(biome==="city") return CITY_SPAWN_PRESETS.map((p,variant)=>({variant, label:p.label}));
