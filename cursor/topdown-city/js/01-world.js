@@ -198,6 +198,40 @@ function isMountain(i,j){
 }
 function elevation(i,j){ return cellElev(i,j); }                   // legacy alias
 const ROADCLR={ hwy:"#3a3d44", art:"#34373d", st:"#33363c", rural:"#4a4438", dirt:"#5a4f3c", trail:"#5a4838" };
+function roadBendFrac(klass,i,j,di,dj){
+  const base={hwy:0.034, art:0.062, st:0.098, rural:0.17, dirt:0.24, trail:0.30}[klass];
+  const roll=hsh(i*5+di*2,j*3+dj*4,31);
+  let mul=1;
+  if(roll<0.30) mul=1.9+roll*0.85;
+  else if(roll<0.65) mul=1.28+roll*0.38;
+  else mul=0.78+roll*0.28;
+  if(isInterchange(i,j)||isInterchange(i+di,j+dj)) mul*=1.18;
+  else if(biomeOf(i,j)==="city"&&biomeOf(i+di,j+dj)==="city"){
+    const hub=hsh(i,j,41)*hsh(i+di,j+dj,42);
+    if(hub<0.26) mul*=1.14;
+    else if(hub<0.52) mul*=1.08;
+  }
+  return base*mul;
+}
+function roadBendCap(klass){ return {hwy:108, art:128, st:132, rural:96, dirt:90, trail:84}[klass]; }
+function computeRoadBendOff(i,j,di,dj,klass,len,h2){
+  const cap=roadBendCap(klass);
+  let off=(h2*2-1)*len*roadBendFrac(klass,i,j,di,dj);
+  return Math.max(-cap,Math.min(cap,off));
+}
+function junctionRadius(i,j,mw){
+  let bulge=0;
+  for(const[di,dj]of EDIRS){
+    const e=getEdge(i,j,di,dj);
+    if(e.exists) bulge=Math.max(bulge,e.bulge||0);
+  }
+  const deg=nodeDegree(i,j);
+  let r=mw*0.50+bulge*0.42;
+  if(deg>=4) r+=10;
+  else if(deg===3) r+=6;
+  else if(deg===2) r+=4;
+  return r;
+}
 const edgeCache=new Map();
 function getEdge(i,j,di,dj){
   if(di<0||(di===0&&dj<0)) return getEdge(i+di,j+dj,-di,-dj);   // canonical E or S
@@ -220,9 +254,8 @@ function getEdge(i,j,di,dj){
   else klass = (bA==="forest"||bB==="forest") ? "rural" : (h2<0.5?"rural":"dirt");
   const WR={hwy:[230,290], art:[160,210], st:[120,156], rural:[70,104], dirt:[52,80], trail:[40,58]}[klass];
   const width=Math.round(WR[0]+h3*(WR[1]-WR[0]));
-  const offFrac={hwy:0.015, art:0.022, st:0.04, rural:0.13, dirt:0.19, trail:0.24}[klass];
   const dx=x2-x1,dy=y2-y1, len=Math.hypot(dx,dy)||1;
-  let off=(h2*2-1)*len*offFrac; const CAP=60; off=Math.max(-CAP,Math.min(CAP,off));
+  let off=computeRoadBendOff(i,j,di,dj,klass,len,h2);
   const cp=[(x1+x2)/2+(-dy/len)*off, (y1+y2)/2+(dx/len)*off];
   let bridge=false;
   if(!isHwy && exists){
@@ -443,9 +476,10 @@ function drawRoads(ox,oy){
     } else if(forestTrailNode(i,j)){
       /* organic trail junction drawn in drawForestTrails */
     } else {
+      const jr=junctionRadius(i,j,mw);
       ctx.fillStyle=nodeIsCity(i,j)?"#33363c":"#4a4438";
-      ctx.beginPath(); ctx.arc(A[0],A[1],mw*0.52,0,7); ctx.fill();
-      { const at=getTex("asphalt"); if(at){ ctx.fillStyle=at; ctx.beginPath(); ctx.arc(A[0],A[1],mw*0.52,0,7); ctx.fill(); } }
+      ctx.beginPath(); ctx.arc(A[0],A[1],jr,0,7); ctx.fill();
+      { const at=getTex("asphalt"); if(at){ ctx.fillStyle=at; ctx.beginPath(); ctx.arc(A[0],A[1],jr,0,7); ctx.fill(); } }
     }
   }
   // centre-line markings (yellow) + white dashed lane dividers (one per lane, ~3.5 m)
@@ -691,11 +725,11 @@ function plotBuilding(i,j){
   // point from pure hashes (no getEdge call).
   const edgeReachSpan = (ci,cj,di,dj,axis,sign,spanLo,spanHi) => {
     const isHwy = (di===1&&dj===0&&hwCorridorH(cj)) || (di===0&&dj===1&&hwCorridorV(ci));
-    const offFrac = isHwy ? 0.015 : 0.04;
     const x1=nX(ci,cj), y1=nY(ci,cj), x2=nX(ci+di,cj+dj), y2=nY(ci+di,cj+dj);
     const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy)||1;
     const h2=hsh(ci+dj,cj+di,13);
-    let off=(h2*2-1)*len*offFrac; const CAP=60; off=Math.max(-CAP,Math.min(CAP,off));
+    const klass=isHwy?"hwy":"art";
+    let off=computeRoadBendOff(ci,cj,di,dj,klass,len,h2);
     const cpx=(x1+x2)/2+(-dy/len)*off, cpy=(y1+y2)/2+(dx/len)*off;
     // running axis is perpendicular to the tracked axis: for vertical edges (dir 0,1)
     // we track x and run along y; for horizontal edges (dir 1,0) we track y, run along x.
@@ -746,9 +780,9 @@ function plotBuilding(i,j){
   const maybeRoundaboutR = (ni,nj) => {
     const inter = isInterchange(ni,nj);
     // pure gate: interchanges are always roundabouts; city nodes only when hash passes
-    const cityRB = (biomeOf(ni,nj)==="city" && hsh(ni,nj,91)<=0.17);
+    const cityRB = (biomeOf(ni,nj)==="city" && hsh(ni,nj,91)<=0.22);
     if(!inter && !cityRB) return 0;
-    const R = inter ? RB_NODE_W*1.25+44 : RB_NODE_W*0.95+18;
+    const R = inter ? RB_NODE_W*1.15+36 : RB_NODE_W*0.88+14;
     return R + 16;                                // +16 matches getLot's roundabout setback
   };
   // clamp the rect out of any roundabout circle sitting on one of the 4 corner nodes
@@ -1366,7 +1400,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=27;
+const LOT_CACHE_VER=28;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 
 const FOREST_MUSHROOMS=["shroom_red","shroom_brown","shroom_tan","shroom_puff","shroom_lilac","shroom_shelf"];
