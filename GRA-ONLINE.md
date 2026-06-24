@@ -1,39 +1,29 @@
-# Jak uruchomić grę online (GitHub Pages)
+# TOPDOWN CITY — gra online (GitHub Pages)
 
-## Dlaczego 404?
+## Adres gry
 
-404 = repo jest publiczne, ale **Pages nie ma jeszcze włączonego źródła**.
-Sam kod na gałęzi `gh-pages` nie wystarczy — trzeba **jednorazowo** wybrać gałąź w ustawieniach.
+**https://pgodlewskigiho.github.io/topdown/**
 
-## Włączenie (telefon lub komputer)
+Po wdrożeniu odśwież stronę twardo (Ctrl+F5), żeby wczytać nowe pliki JS.
+
+## Jak włączyć Pages (jednorazowo)
 
 1. Otwórz: **https://github.com/PGodlewskiGiho/topdown/settings/pages**
 
-2. W sekcji **Build and deployment** → **Source** wybierz:
-   - **Deploy from a branch** ← ważne, NIE „GitHub Actions”
+2. W **Build and deployment** → **Source** wybierz jedną z opcji:
 
-3. Ustaw:
-   - **Branch:** `gh-pages`
-   - **Folder:** `/ (root)`
-   - Kliknij **Save**
+### Opcja A — GitHub Actions (zalecane)
 
-4. Odśwież stronę Settings → Pages — po ~1–2 min powinno być:
-   > *Your site is live at https://pgodlewskigiho.github.io/topdown/*
+- **Source:** `GitHub Actions`
+- Każdy push do gałęzi **`main`** automatycznie wdraża grę (workflow `.github/workflows/deploy-pages.yml`).
+- Po pierwszym pushu na `main` wejdź w **Actions** → ostatni workflow **Deploy TOPDOWN CITY** → poczekaj na zielony status.
 
-5. Otwórz grę (Ctrl+F5 / wyczyść cache):
-   **https://pgodlewskigiho.github.io/topdown/**
+### Opcja B — gałąź gh-pages
 
-## Co już jest gotowe
+- **Source:** `Deploy from a branch`
+- **Branch:** `gh-pages` → folder **`/ (root)`** → **Save**
 
-- Gałąź **`gh-pages`** — pełna gra + niedźwiedzie + plik `.nojekyll`
-- Nie trzeba nic budować ani płacić
-
-## Jeśli nadal 404
-
-- Poczekaj 2–5 minut po Save
-- Sprawdź, czy repo jest **Public** (Settings → General → Visibility)
-- Upewnij się, że wybrałeś gałąź **`gh-pages`**, nie `main`
-- Sprawdź dokładny URL z zielonego komunikatu na stronie Pages
+Obie opcje serwują tę samą grę z katalogu `cursor/topdown-city`.
 
 ## Lokalnie (bez GitHub)
 
@@ -43,3 +33,10 @@ python3 -m http.server 8080
 ```
 
 → http://localhost:8080
+
+## Jeśli widzisz 404
+
+- Poczekaj 2–5 minut po pierwszym wdrożeniu
+- Sprawdź, czy repozytorium jest **Public**
+- Upewnij się, że źródło Pages wskazuje **GitHub Actions** albo gałąź **`gh-pages`**
+- Wyczyść cache przeglądarki (Ctrl+F5)
