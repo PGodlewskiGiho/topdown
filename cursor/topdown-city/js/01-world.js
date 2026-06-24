@@ -488,11 +488,6 @@ function isRoundabout(i,j){
     if(biomeOf(ni,nj)==="city"&&nodeDegree(ni,nj)>=3&&hsh(ni,nj,91)<=0.22&&(ni<i||(ni===i&&nj<j))) return false; }
   return true;
 }
-function roundaboutCenter(i,j){
-  if(!isRoundabout(i,j)) return "none";
-  if(isInterchange(i,j)) return "grass";
-  return hsh(i,j,92)<0.36 ? "fountain" : "grass";   // city mini-fountains are decorative/passable
-}
 function roundaboutR(i,j){ return isInterchange(i,j) ? nodeMaxWidth(i,j)*1.15+36 : nodeMaxWidth(i,j)*0.88+14; }
 function roundaboutType(i,j){
   if(!isRoundabout(i,j)) return "none";
@@ -1938,7 +1933,7 @@ function getLot(i,j){
   if(biome==="city" && !lot.mega && !lot.water && !lot.mountain && !lot.parking && !lot.salon && !lot.gunshop && !lot.motodealer && !lot.cemetery) addStreetTrees(lot,i,j,r);
   if(!lot.mega && !lot.water && !lot.mountain) addLamps(lot,i,j,r);
   if(!lot.mega) addSignals(lot,i,j);
-  if(typeof addRailCrossings==="function") addRailCrossings(lot,i,j);
+  Game.onLot(lot,i,j);
   if(lot.buildings.length) lot.buildings=lot.buildings.filter(b=>!inPlaza(b.x+b.w/2,b.y+b.h/2));
   // ---- surface detail (visual only; stable per lot) ----
   lot.tufts=[]; lot.flowers=[]; lot.ripples=[]; lot.pebbles=[];

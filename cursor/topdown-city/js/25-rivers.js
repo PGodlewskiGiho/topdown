@@ -29,11 +29,6 @@ function collectWaterPolys(scoreFn, ox, oy, step){
   return {polys,bnd};
 }
 
-function clipWaterPolys(polys){
-  ctx.beginPath();
-  for(const q of polys){ ctx.moveTo(q[0][0],q[0][1]); for(let k=1;k<q.length;k++) ctx.lineTo(q[k][0],q[k][1]); ctx.closePath(); }
-}
-
 function drawRiverFlowTexture(ox,oy,t){
   const step=14, x0=ox-step, y0=oy-step, x1=ox+VW+step, y1=oy+VH+step;
   const spd=38;

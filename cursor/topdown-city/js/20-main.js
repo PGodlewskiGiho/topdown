@@ -24,8 +24,6 @@ function frame(now){
   updateLeaving(dt); updateDebris(dt); updateFalling(dt); updateSparks(dt);
   updateBoats(dt);
   updateBirds(dt);
-  updateWildlife(dt);
-  if(typeof updateTrains==="function") updateTrains(dt);
   if(mode==="car") updateCar(dt); else if(mode==="boat") updateBoatDrive(dt); else if(mode==="inside") updateInside(dt); else updatePed(dt);
   updateMission(dt);
   updateWanted(dt);
@@ -43,7 +41,7 @@ function frame(now){
   pruneT+=dt; if(pruneT>3){ pruneT=0; pruneCaches(); }
   updateAudio();
   tickSave(dt);
-  if(typeof updateMap==="function") updateMap(dt);
+  Game.update(dt, mapPause);
   if(mode!=="inside"){ updateCam(dt); focusX=cam.x; focusY=cam.y; }
   draw(); updateHUD(); drawMini(); checkBiome(); drawClock(); drawStars(); drawMissionHUD(); drawMoney(); drawHealth(); drawShopHUD(); drawWeaponHUD(); drawGunShopHUD();
   requestAnimationFrame(frame);

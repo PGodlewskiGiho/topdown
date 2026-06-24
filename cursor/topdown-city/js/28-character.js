@@ -1,9 +1,6 @@
 /* TOPDOWN CITY — 28-character.js */
-/* Skyrim-style 2D character creator */
+/* Skyrim-style 2D character creator — palettes in 00-palettes.js */
 
-const CHAR_SKINS=["#f5d0b0","#e8b888","#c89068","#9a6848","#6a4830","#4a3020","#d8a878","#b87858"];
-const CHAR_HAIRS=["#1a1410","#3a2a18","#5a4030","#8a6838","#c8a048","#686868","#a03028","#e8e8e8"];
-const CHAR_SHIRTS=["#2f5fa0","#3a6ea5","#2a5848","#6a3848","#8a2828","#5a5088","#c87838","#384858","#286848","#704838"];
 const CHAR_PANTS=["#2a3444","#1a2430","#3a3a48","#283828","#4a4038","#222228"];
 const CHAR_HATS=["#444","#2a3444","#5a4030","#286848","#8a2828","#686868"];
 

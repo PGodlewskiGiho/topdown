@@ -38,7 +38,7 @@ function draw(){
   drawForestRivers(ox,oy);
   // organic bezier roads drawn on top of ground
   drawRoads(ox,oy);
-  if(typeof drawRails==="function") drawRails(ox,oy);
+  Game.drawAfterRoads(ox,oy);
   drawPlazas(ox,oy);
   drawCrosswalks(ox,oy);
 
@@ -96,10 +96,10 @@ function draw(){
 
   // NPC pedestrians (culled) — drawn under vehicles so run-overs read correctly
   for(const p of peds){ if(p.x<ox-30||p.x>ox+VW+30||p.y<oy-30||p.y>oy+VH+30) continue; drawPerson(p,p.color,p.state==="down"); if(p.act==="chat"&&p.talking&&p.state!=="down") drawSpeech(p); }
-  drawWildlife(ox,oy);
+  Game.drawActors(ox,oy,"beforeTraffic");
   // traffic (culled)
   for(const c of traffic){ if(c.x<ox-50||c.x>ox+VW+50||c.y<oy-50||c.y>oy+VH+50) continue; drawVehicle(c,c.color); }
-  if(typeof drawTrains==="function") drawTrains(ox,oy);
+  Game.drawActors(ox,oy,"afterTraffic");
   // police (culled)
   for(const c of cops){ if(c.x<ox-50||c.x>ox+VW+50||c.y<oy-50||c.y>oy+VH+50) continue; drawCop(c); }
   for(const h of helis){ if(h.x<ox-80||h.x>ox+VW+80||h.y<oy-80||h.y>oy+VH+80) continue; drawHeli(h); }
@@ -115,7 +115,7 @@ function draw(){
   drawBirds(ox,oy);                                     // gulls over water + city pigeons
   drawWindLeaves(ox,oy);                                // forest leaves on the wind (scales with gusts)
   drawMissionWorld();
-  if(typeof drawNavRouteWorld==="function") drawNavRouteWorld(ox,oy);
+  Game.drawWorldOverlay(ox,oy);
   drawBullets();
   drawSlashes();
   drawExplosions();

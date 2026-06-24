@@ -1584,3 +1584,11 @@ function drawTreeWildlife(ox,oy){
     drawTreeSquirrel(s);
   }
 }
+
+Game.register({
+  id:"wildlife",
+  order:22,
+  update:updateWildlife,
+  drawActors:drawWildlife,
+  actorLayer:"beforeTraffic",
+});

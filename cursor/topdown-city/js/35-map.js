@@ -340,14 +340,9 @@ function drawBigMap(){
   const span=Math.max(W,H)/MS;
   const i0=Math.floor((cxw-span/2-GAP)/GAP)-1, i1=Math.floor((cxw+span/2)/GAP)+1;
   const j0=Math.floor((cyw-span/2-GAP)/GAP)-1, j1=Math.floor((cyw+span/2)/GAP)+1;
-  const opts={tx,ty,i0,i1,j0,j1,scale:MS,fog:true,cxw,cyw,w2};
+  const opts={tx,ty,i0,i1,j0,j1,scale:MS,fog:true,cxw,cyw,w2,routeWidth:4,showPlayer:"fixed"};
 
-  mapDrawTerrain(bctx,opts);
-  mapDrawRoads(bctx,opts);
-  if(typeof mapDrawRails==="function") mapDrawRails(bctx,tx,ty,i0,i1,j0,j1,MS);
-  mapDrawRoute(bctx,tx,ty,4);
-  mapDrawBlips(bctx,tx,ty,"fixed");
-  mapDrawFogOverlay(bctx,i0,i1,j0,j1,tx,ty);
+  Game.drawMap(bctx, opts);
 
   bctx.strokeStyle="rgba(255,255,255,.08)"; bctx.lineWidth=1;
   bctx.strokeRect(0.5,0.5,W-1,H-1);
@@ -425,3 +420,19 @@ function updateMap(dt){
 }
 
 initBigMapEvents();
+
+Game.register({
+  id:"map",
+  order:35,
+  update:updateMap,
+  updateAlways:true,
+  drawWorldOverlay:drawNavRouteWorld,
+  drawMap(mctx, opts){
+    mapDrawTerrain(mctx, opts);
+    mapDrawRoads(mctx, opts);
+    mapDrawRoute(mctx, opts.tx, opts.ty, opts.routeWidth||3.2);
+    if(opts.showPlayer!==undefined) mapDrawBlips(mctx, opts.tx, opts.ty, opts.showPlayer);
+    else mapDrawBlips(mctx, opts.tx, opts.ty, false);
+    if(opts.fog) mapDrawFogOverlay(mctx, opts.i0, opts.i1, opts.j0, opts.j1, opts.tx, opts.ty);
+  },
+});

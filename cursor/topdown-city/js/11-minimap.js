@@ -34,39 +34,9 @@ function drawMini(){
 
   const i0=Math.floor((cxw-span/2-GAP)/GAP)-1, i1=Math.floor((cxw+span/2)/GAP)+1;
   const j0=Math.floor((cyw-span/2-GAP)/GAP)-1, j1=Math.floor((cyw+span/2)/GAP)+1;
-  const opts={tx,ty,i0,i1,j0,j1,scale:MS,fog:false,cxw,cyw,w2};
+  const opts={tx,ty,i0,i1,j0,j1,scale:MS,fog:false,cxw,cyw,w2,routeWidth:2.8,showPlayer:false};
 
-  if(typeof mapDrawTerrain==="function") mapDrawTerrain(mctx,opts);
-  else {
-    for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
-      const L=getLot(i,j);
-      mctx.fillStyle=L.water?"#163d5c":(L.empty?L.B.ground:L.B.walk);
-      const p=L.poly;
-      mctx.beginPath(); mctx.moveTo(tx(p[0][0]),ty(p[0][1])); mctx.lineTo(tx(p[1][0]),ty(p[1][1]));
-      mctx.lineTo(tx(p[2][0]),ty(p[2][1])); mctx.lineTo(tx(p[3][0]),ty(p[3][1])); mctx.closePath(); mctx.fill();
-    }
-  }
-
-  if(typeof mapDrawRoads==="function") mapDrawRoads(mctx,opts);
-  else {
-    mctx.lineCap="round";
-    for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
-      const A=node(i,j);
-      for(const[di,dj]of[[1,0],[0,1]]){
-        const e=getEdge(i,j,di,dj); if(!e.exists) continue; const B=node(i+di,j+dj);
-        mctx.strokeStyle="#aeb4c0"; mctx.lineWidth=Math.max(1.1,e.width*MS*0.85);
-        mctx.beginPath(); mctx.moveTo(tx(A[0]),ty(A[1])); mctx.quadraticCurveTo(tx(e.cp[0]),ty(e.cp[1]),tx(B[0]),ty(B[1])); mctx.stroke();
-      }
-    }
-  }
-  if(typeof mapDrawRails==="function") mapDrawRails(mctx,tx,ty,i0,i1,j0,j1,MS);
-
-  if(typeof mapDrawRoute==="function") mapDrawRoute(mctx,tx,ty,2.8);
-  if(typeof mapDrawBlips==="function") mapDrawBlips(mctx,tx,ty,false);
-  else {
-    const _t=mission?((mission.type==="deliver"||mission.type==="taxi")?mission.target:null):pickup;
-    if(_t){ mctx.fillStyle=mission?"#ffd23b":"#39d98a"; mctx.beginPath(); mctx.arc(tx(_t.x),ty(_t.y),3.4,0,7); mctx.fill(); }
-  }
+  Game.drawMap(mctx, opts);
 
   mctx.restore();
 

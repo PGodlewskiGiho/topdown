@@ -387,3 +387,16 @@ function mapDrawRails(mctx, tx, ty, i0,i1,j0,j1, scale){
     }
   }
 }
+
+Game.register({
+  id:"railways",
+  order:36,
+  onLot:addRailCrossings,
+  update:updateTrains,
+  drawAfterRoads:drawRails,
+  drawActors:drawTrains,
+  actorLayer:"afterTraffic",
+  drawMap(mctx, opts){
+    mapDrawRails(mctx, opts.tx, opts.ty, opts.i0, opts.i1, opts.j0, opts.j1, opts.scale);
+  },
+});

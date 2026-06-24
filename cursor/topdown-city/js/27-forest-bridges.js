@@ -3,7 +3,7 @@
 
 function isForestBridgeEdge(i,j,di,dj){
   if(di<0||(di===0&&dj<0)) return isForestBridgeEdge(i+di,j+dj,-di,-dj);
-  const e=edgeCache.get(i+","+j+","+di+","+dj);
+  const e=getEdge(i,j,di,dj);
   return !!(e&&e.exists&&e.bridge&&(e.klass==="trail"||e.klass==="rural"));
 }
 
@@ -27,7 +27,7 @@ function bridgeDeckPoints(p0,cp,p1, deckW, i,j,di,dj){
 
 function distToBridgeEdge(x,y,i,j,di,dj){
   if(di<0||(di===0&&dj<0)) return distToBridgeEdge(x,y,i+di,j+dj,-di,-dj);
-  const e=edgeCache.get(i+","+j+","+di+","+dj);
+  const e=getEdge(i,j,di,dj);
   if(!e||!e.exists||!e.bridge) return Infinity;
   const p0=node(i,j), p1=node(i+di,j+dj), cp=e.cp;
   let best=Infinity;
@@ -43,7 +43,7 @@ function onForestBridgeAt(x,y){
   for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){
     for(const[di,dj] of [[1,0],[0,1]]){
       if(!isForestBridgeEdge(i,j,di,dj)) continue;
-      const e=edgeCache.get(i+","+j+","+di+","+dj);
+      const e=getEdge(i,j,di,dj);
       if(distToBridgeEdge(x,y,i,j,di,dj)<e.width*0.58) return true;
     }
   }
