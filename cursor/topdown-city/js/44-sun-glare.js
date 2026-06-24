@@ -25,11 +25,7 @@ function drawSunGlintsWorld(ox,oy){
   const sg=getSunGlare();
   if(!sg) return;
   const st=sunGlareState();
-  if(!st.active||st.intensity<0.18||(st.weatherI||0)>0.25) return;
-  if(typeof lakeScore==="function")
-    sg.drawWaterGlints(ctx,ox,oy,VW,VH,lakeScore,st,58);
-  if(typeof riverScore==="function")
-    sg.drawWaterGlints(ctx,ox,oy,VW,VH,riverScore,st,50);
+  if(!st.active||st.intensity<0.28||(st.weatherI||0)>0.18) return;
 }
 
 function drawSunFlareScreen(){}

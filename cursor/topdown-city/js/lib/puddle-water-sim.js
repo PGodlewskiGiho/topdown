@@ -85,8 +85,8 @@ void main(){
 
 const PRESETS={
   puddle:{deep:[0.10,0.20,0.30],shallow:[0.40,0.62,0.80],tint:[0.42,0.58,0.72],spec:1.0,fres:0.45,caust:0.04,alpha:0.92},
-  lake:{deep:[0.08,0.22,0.38],shallow:[0.30,0.54,0.74],tint:[0.20,0.46,0.66],spec:0.82,fres:0.38,caust:0.05,alpha:0.74},
-  river:{deep:[0.06,0.24,0.22],shallow:[0.34,0.60,0.54],tint:[0.16,0.50,0.44],spec:0.70,fres:0.34,caust:0.06,alpha:0.70},
+  lake:{deep:[0.08,0.22,0.38],shallow:[0.30,0.54,0.74],tint:[0.20,0.46,0.66],spec:0.55,fres:0.28,caust:0.015,alpha:0.74},
+  river:{deep:[0.06,0.24,0.22],shallow:[0.34,0.60,0.54],tint:[0.16,0.50,0.44],spec:0.48,fres:0.24,caust:0.018,alpha:0.70},
   wet:{deep:[0.12,0.16,0.22],shallow:[0.36,0.46,0.56],tint:[0.30,0.36,0.44],spec:1.15,fres:0.52,caust:0.02,alpha:0.42},
 };
 

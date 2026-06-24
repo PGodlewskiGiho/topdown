@@ -225,7 +225,7 @@ const node=(i,j)=>[nX(i,j), nY(i,j)];
 const EDIRS=[[1,0],[-1,0],[0,1],[0,-1]];               // planar: orthogonal only
 
 // terrain fields (pure hashes -> no lot lookups -> no recursion)
-function waterLevel(i,j){ return hsh(Math.floor(i/4),Math.floor(j/4),211)*0.55 + hsh(Math.floor(i/2),Math.floor(j/2),213)*0.30 + hsh(i,j,217)*0.15; }
+function waterLevel(i,j){ return smoothNoise(i*0.11+3,j*0.11+3)*0.62 + smoothNoise(i*0.04+19,j*0.04+19)*0.38; }
 function isWaterCell(i,j){ return isLakeCell(i,j)||isRiverCell(i,j); }   // lakes + forest rivers
 function cellAt(x,y){ return [Math.floor(x/GAP), Math.floor(y/GAP)]; }
 function smoothNoise(x,y){                                       // bilinear value noise (smoothstep)
@@ -245,14 +245,24 @@ function lakeAllowed(i,j){
 }
 function lakeThreshold(i,j){
   const b=biomeOf(i,j);
-  if(b==="sea") return 0.42;
-  if(b==="desert") return 0.90+hsh(i,j,219)*0.05;                   // rzadkie oazy
-  return 0.92;
+  if(b==="sea") return 0.26;
+  if(b==="desert") return 0.68+hsh(i,j,219)*0.04;
+  return 0.86;
+}
+function lakeBlobField(i,j){
+  const bx=Math.floor(i/6), by=Math.floor(j/6);
+  const cx=bx*6+3+(hsh(bx,by,210)-0.5)*2.2;
+  const cy=by*6+3+(hsh(bx,by,211)-0.5)*2.2;
+  const dist=Math.hypot(i-cx,j-cy);
+  const rad=3.6+hsh(bx,by,212)*2.4;
+  const t=clamp(1-dist/rad,0,1);
+  const blob=t*t*(3-2*t);
+  return blob*0.94+waterLevel(i,j)*0.18;
 }
 function lakeCellSigned(i,j){
   const k=i+","+j; let v=_csCache.get(k); if(v!==undefined) return v;
   if(!lakeAllowed(i,j)){ v=-1; _csCache.set(k,v); return v; }
-  v=waterLevel(i,j)-lakeThreshold(i,j);
+  v=lakeBlobField(i,j)-lakeThreshold(i,j);
   if(_csCache.size>9000) _csCache.clear(); _csCache.set(k,v); return v;
 }
 function riverCellSigned(i,j){
@@ -274,18 +284,24 @@ function riverCellSigned(i,j){
   if(_rvCache.size>9000) _rvCache.clear(); _rvCache.set(k,v); return v;
 }
 function cellSigned(i,j){ return Math.max(lakeCellSigned(i,j), riverCellSigned(i,j)); }   // legacy alias (combined)
+function softenWaterEdge(s, gain){
+  if(s<=0) return 0;
+  const t=clamp(s*(gain||1.25),0,1);
+  return t*t*(3-2*t);
+}
 function lakeScore(x,y){
   const fx=x/GAP-0.5, fy=y/GAP-0.5, xi=Math.floor(fx), yi=Math.floor(fy);
   if(!lakeAllowed(xi,yi)) return 0;
   const xf=fx-xi, yf=fy-yi, u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
   const a=lakeCellSigned(xi,yi), b=lakeCellSigned(xi+1,yi), cc=lakeCellSigned(xi,yi+1), d=lakeCellSigned(xi+1,yi+1);
   const s=a+(b-a)*u+(cc-a)*v+(a-b-cc+d)*u*v;
-  return s>0?s:0;
+  return softenWaterEdge(s,1.35);
 }
 function riverScore(x,y){
   const fx=x/GAP-0.5, fy=y/GAP-0.5, xi=Math.floor(fx), yi=Math.floor(fy), xf=fx-xi, yf=fy-yi, u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
   const a=riverCellSigned(xi,yi), b=riverCellSigned(xi+1,yi), cc=riverCellSigned(xi,yi+1), d=riverCellSigned(xi+1,yi+1);
-  return a+(b-a)*u+(cc-a)*v+(a-b-cc+d)*u*v;
+  const raw=a+(b-a)*u+(cc-a)*v+(a-b-cc+d)*u*v;
+  return softenWaterEdge(raw,1.15);
 }
 function waterScore(x,y){ return Math.max(lakeScore(x,y), riverScore(x,y), typeof canalScore==="function"?canalScore(x,y):0); }
 function isLakeCell(i,j){ return lakeAllowed(i,j)&&lakeCellSigned(i,j)>0; }

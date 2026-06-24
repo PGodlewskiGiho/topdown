@@ -938,40 +938,25 @@ function getTex(key){
         t.fillStyle=rr()<0.55?"rgba(52,48,40,0.35)":"rgba(78,88,62,0.28)"; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); }
       for(let i=0;i<24;i++){ t.strokeStyle="rgba(30,38,26,0.18)"; t.lineWidth=0.8+rr()*1.2; t.lineCap="round";
         const x=rr()*S,y=rr()*S; t.beginPath(); t.moveTo(x,y); t.lineTo(x+(rr()-0.5)*12,y+(rr()-0.5)*8); t.stroke(); } t.lineCap="butt"; }
-    else if(key==="water_lake"){
+    else if(key==="water_lake"||key==="water_lake_v2"){
       const bg=t.createLinearGradient(0,0,0,S); bg.addColorStop(0,"#2a6a90"); bg.addColorStop(0.55,"#256080"); bg.addColorStop(1,"#1c5270");
       t.fillStyle=bg; t.fillRect(0,0,S,S);
-      grain(2200,"6,18,32","120,190,230",0.85);
-      for(let i=0;i<38;i++){ const x=rr()*S,y=rr()*S,r=10+rr()*28;
-        const g=t.createRadialGradient(x,y,0,x,y,r);
-        g.addColorStop(0,`rgba(180,230,255,${(0.06+rr()*0.10).toFixed(3)})`);
-        g.addColorStop(0.45,`rgba(90,170,210,${(0.03+rr()*0.06).toFixed(3)})`);
-        g.addColorStop(1,"rgba(20,60,90,0)");
-        t.fillStyle=g; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); }
-      t.strokeStyle="rgba(8,28,48,0.14)"; t.lineWidth=1.1; t.lineCap="round";
-      for(let i=0;i<16;i++){ t.beginPath(); const y=rr()*S; t.moveTo(0,y);
-        for(let x=0;x<=S;x+=10) t.lineTo(x, y+Math.sin(x*0.11+i*1.3)*2.8+Math.sin(x*0.04+i)*1.6); t.stroke(); }
-      t.strokeStyle="rgba(210,240,255,0.10)"; t.lineWidth=0.8;
-      for(let i=0;i<10;i++){ t.beginPath(); const y=rr()*S; t.moveTo(0,y);
-        for(let x=0;x<=S;x+=12) t.lineTo(x, y+Math.sin(x*0.09+i*1.7)*2.2); t.stroke(); }
+      grain(2400,"6,18,32","120,190,230",0.75);
+      t.strokeStyle="rgba(8,28,48,0.12)"; t.lineWidth=1.0; t.lineCap="round";
+      for(let i=0;i<12;i++){ t.beginPath(); const y=rr()*S; t.moveTo(0,y);
+        for(let x=0;x<=S;x+=12) t.lineTo(x, y+Math.sin(x*0.09+i*1.2)*2.4+Math.sin(x*0.035+i)*1.2); t.stroke(); }
+      t.strokeStyle="rgba(210,240,255,0.08)"; t.lineWidth=0.7;
+      for(let i=0;i<8;i++){ t.beginPath(); const y=rr()*S; t.moveTo(0,y);
+        for(let x=0;x<=S;x+=14) t.lineTo(x, y+Math.sin(x*0.07+i*1.5)*1.8); t.stroke(); }
       t.lineCap="butt";
-      for(let i=0;i<55;i++){ const x=rr()*S,y=rr()*S; t.fillStyle=`rgba(${rr()<0.5?"14,36,58":"40,88,118"},${(0.05+rr()*0.12).toFixed(3)})`;
-        t.fillRect(x,y,1.2+rr()*2.4,1+rr()*2); }
     }
-    else if(key==="water_river"){
+    else if(key==="water_river"||key==="water_river_v2"){
       const bg=t.createLinearGradient(0,0,S,0); bg.addColorStop(0,"#2e8270"); bg.addColorStop(0.5,"#287060"); bg.addColorStop(1,"#2e8270");
       t.fillStyle=bg; t.fillRect(0,0,S,S);
-      grain(1800,"8,28,24","130,210,190",0.75);
-      t.strokeStyle="rgba(180,240,230,0.12)"; t.lineWidth=1.2; t.lineCap="round";
-      for(let i=0;i<22;i++){ const y=8+rr()*(S-16); t.beginPath(); t.moveTo(0,y);
-        for(let x=0;x<=S;x+=8) t.lineTo(x, y+Math.sin(x*0.08+i*0.9)*1.4+(rr()-0.5)*0.6); t.stroke(); }
-      for(let i=0;i<28;i++){ const x=rr()*S,y=rr()*S,r=6+rr()*18;
-        const g=t.createRadialGradient(x,y,0,x,y,r);
-        g.addColorStop(0,`rgba(200,255,245,${(0.05+rr()*0.09).toFixed(3)})`);
-        g.addColorStop(1,"rgba(30,80,70,0)");
-        t.fillStyle=g; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); }
-      for(let i=0;i<32;i++){ const x=rr()*S,y=rr()*S,r=0.8+rr()*2.2;
-        t.fillStyle=rr()<0.5?"rgba(52,48,40,0.22)":"rgba(72,82,58,0.18)"; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); }
+      grain(2000,"8,28,24","130,210,190",0.7);
+      t.strokeStyle="rgba(180,240,230,0.11)"; t.lineWidth=1.0; t.lineCap="round";
+      for(let i=0;i<18;i++){ const y=8+rr()*(S-16); t.beginPath(); t.moveTo(0,y);
+        for(let x=0;x<=S;x+=9) t.lineTo(x, y+Math.sin(x*0.07+i*0.85)*1.2+(rr()-0.5)*0.4); t.stroke(); }
       t.lineCap="butt";
     }
     else if(key==="water_shallow"){
@@ -1135,20 +1120,9 @@ function tintWaterDepth(polys,scoreFn,deep,shallow){
     ctx.beginPath(); ctx.moveTo(q[0][0],q[0][1]); for(let k=1;k<q.length;k++) ctx.lineTo(q[k][0],q[k][1]); ctx.closePath(); ctx.fill();
   }
 }
-function drawShallowWater(polys,scoreFn,ox,oy,t){
-  const step=32, x0=ox-16, y0=oy-16, x1=ox+VW+16, y1=oy+VH+16;
-  ctx.save(); ctx.globalCompositeOperation="lighter";
-  for(let gy=y0; gy<y1; gy+=step) for(let gx=x0; gx<x1; gx+=step){
-    const cx=gx+step*0.5, cy=gy+step*0.5, s=scoreFn(cx,cy);
-    if(s<=0||s>0.42) continue;
-    const shallow=1-s/0.42, pulse=0.5+0.5*Math.sin(t*1.6+cx*0.04+cy*0.03);
-    ctx.fillStyle=`rgba(120,210,200,${(shallow*0.14*pulse).toFixed(3)})`;
-    ctx.beginPath(); ctx.arc(cx,cy,step*0.55*(0.7+shallow*0.3),0,7); ctx.fill();
-  }
-  ctx.restore();
-}
+function drawShallowWater(){}
 function drawWaterGlobal(ox,oy){
-  const step=26, x0=ox-step, y0=oy-step, x1=ox+VW+step, y1=oy+VH+step, t=performance.now()/1000;
+  const step=34, x0=ox-step, y0=oy-step, x1=ox+VW+step, y1=oy+VH+step, t=performance.now()/1000;
   const polys=[], bnd=[];                                                       // ONE marching-squares pass over the whole view -> seamless across lots
   for(let gy=y0; gy<y1; gy+=step) for(let gx=x0; gx<x1; gx+=step){
     const v0=lakeScore(gx,gy), v1=lakeScore(gx+step,gy), v2=lakeScore(gx+step,gy+step), v3=lakeScore(gx,gy+step);
@@ -1164,24 +1138,17 @@ function drawWaterGlobal(ox,oy){
     clipWaterPolys(polys);
     const wg=ctx.createLinearGradient(0,oy,0,oy+VH); wg.addColorStop(0,"#2c6c97"); wg.addColorStop(0.55,"#286888"); wg.addColorStop(1,"#1f5278"); ctx.fillStyle=wg; ctx.fill();
     ctx.save(); ctx.clip();
-    applyWaterPattern("water_lake",ox,oy,t,0.62);
-    if(typeof applyWaterSimInClip==="function") applyWaterSimInClip("lake",0.58,0.006);
+    applyWaterPattern("water_lake_v2",ox,oy,t,0.58);
+    if(typeof applyWaterSimInClip==="function") applyWaterSimInClip("lake",0.42,0.006);
     tintWaterDepth(polys,lakeScore,[8,28,48],[40,100,130]);
-    drawShallowWater(polys,lakeScore,ox,oy,t);
     const wy=(x,ry)=> ry + Math.sin(x*0.10 - t*1.4 + ry*0.05)*2.6 + Math.sin(x*0.045 + ry*0.09 + t*0.8)*2.0;
-    const ry0=Math.floor(oy/20)*20, x0w=Math.floor(ox/18)*18;
-    ctx.strokeStyle="rgba(13,40,66,.28)"; ctx.lineWidth=1.8; ctx.beginPath();
-    for(let ry=ry0;ry<oy+VH+20;ry+=20){ let f=true; for(let x=x0w;x<=ox+VW+18;x+=18){ const yy=wy(x,ry)+1.9; if(f){ctx.moveTo(x,yy);f=false;}else ctx.lineTo(x,yy);} } ctx.stroke();
-    ctx.strokeStyle="rgba(206,234,255,.14)"; ctx.lineWidth=1.1; ctx.beginPath();
-    for(let ry=ry0;ry<oy+VH+20;ry+=20){ let f=true; for(let x=x0w;x<=ox+VW+18;x+=18){ const yy=wy(x,ry); if(f){ctx.moveTo(x,yy);f=false;}else ctx.lineTo(x,yy);} } ctx.stroke();
+    const ry0=Math.floor(oy/24)*24, x0w=Math.floor(ox/22)*22;
+    ctx.strokeStyle="rgba(13,40,66,.22)"; ctx.lineWidth=1.5; ctx.beginPath();
+    for(let ry=ry0;ry<oy+VH+24;ry+=24){ let f=true; for(let x=x0w;x<=ox+VW+22;x+=22){ const yy=wy(x,ry)+1.6; if(f){ctx.moveTo(x,yy);f=false;}else ctx.lineTo(x,yy);} } ctx.stroke();
+    ctx.strokeStyle="rgba(206,234,255,.10)"; ctx.lineWidth=0.9; ctx.beginPath();
+    for(let ry=ry0;ry<oy+VH+24;ry+=24){ let f=true; for(let x=x0w;x<=ox+VW+22;x+=22){ const yy=wy(x,ry); if(f){ctx.moveTo(x,yy);f=false;}else ctx.lineTo(x,yy);} } ctx.stroke();
     const Sun=sunShadow(gameHour), warm=Sun?(1-Math.sin(Math.PI*((gameHour-6.2)/13.1))):0;
-    if(Sun&&warm>0.08){ ctx.fillStyle=`rgba(255,168,86,${(0.14*warm).toFixed(3)})`; ctx.fillRect(ox,oy,VW,VH); }
-    const gl=warm>0.3?"255,206,150":"255,255,255"; ctx.globalCompositeOperation="lighter";
-    const sg=46;
-    for(let sy=Math.floor(oy/sg)*sg; sy<oy+VH; sy+=sg) for(let sx=Math.floor(ox/sg)*sg; sx<ox+VW; sx+=sg){
-      const gi=Math.floor(sx/sg), gj=Math.floor(sy/sg), px=sx+hsh(gi,gj,33)*sg, py=sy+hsh(gi,gj,34)*sg;
-      if(lakeScore(px,py)<=0) continue;
-      const tw=0.5+0.5*Math.sin(t*2.4+px*0.3+py*0.2); if(tw>0.58){ const gy=wy(px,py); ctx.fillStyle=`rgba(${gl},${(0.06+0.14*tw).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(px,gy,2.6,1.1,0,0,7); ctx.fill(); } }
+    if(Sun&&warm>0.08){ ctx.fillStyle=`rgba(255,168,86,${(0.12*warm).toFixed(3)})`; ctx.fillRect(ox,oy,VW,VH); }
     ctx.restore();
     if(bnd.length){
       ctx.save(); ctx.globalCompositeOperation="source-over";

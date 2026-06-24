@@ -2,10 +2,16 @@
 
 let puddleWaterSim=null;
 
+function waterSimShouldRun(){
+  const w=typeof weatherI!=="undefined"?weatherI:0;
+  const wet=typeof wetness!=="undefined"?wetness:0;
+  return w>=0.22 || wet>=0.32;
+}
+
 function getWaterSim(){
   if(puddleWaterSim!==null) return puddleWaterSim.ok?puddleWaterSim:null;
   if(typeof PuddleWaterSim==="undefined"){ puddleWaterSim={ok:false}; return null; }
-  puddleWaterSim=new PuddleWaterSim({size:256});
+  puddleWaterSim=new PuddleWaterSim({size:192});
   if(!puddleWaterSim.ok){ puddleWaterSim={ok:false}; return null; }
   return puddleWaterSim;
 }
@@ -21,10 +27,10 @@ function waterSimCrop(sim,wx,wy,uScale,vScale){
 
 function drawWaterSimTiled(ox,oy,ww,hh,preset,alpha,uScale){
   const sim=getWaterSim();
-  if(!sim) return;
+  if(!sim||!waterSimShouldRun()) return;
   sim.setPreset(preset||"lake");
   const a=alpha!=null?alpha:0.7;
-  const tile=96, S=sim.size, crop=S*0.82;
+  const tile=144, S=sim.size, crop=S*0.82;
   const us=uScale!=null?uScale:0.007;
   ctx.save();
   ctx.globalAlpha=a;
@@ -39,6 +45,7 @@ function drawWaterSimTiled(ox,oy,ww,hh,preset,alpha,uScale){
 }
 
 function applyWaterSimInClip(preset,alpha,uScale,ox,oy,ww,hh){
+  if(!waterSimShouldRun()) return;
   const sim=getWaterSim();
   if(!sim) return;
   sim.setPreset(preset||"lake");
@@ -53,23 +60,12 @@ function drawWetRoadReflections(ox,oy){}
 
 function updatePuddleWaterSim(dt){
   const sim=getWaterSim();
-  if(!sim) return;
+  if(!sim||!waterSimShouldRun()) return;
   const N=typeof nightFactor!=="undefined"?nightFactor(gameHour):0.35;
   sim.setNight(N);
   sim.setPreset("puddle");
   sim.step(dt);
-
-  if(weatherI>0.08&&Math.random()<dt*5*weatherI) sim.randomRipple();
-  if(weatherI>0.22){
-    for(const p of rainPuddles){
-      if(Math.random()<dt*0.38*weatherI) sim.splashAtWorld(p.x,p.y,0.05+weatherI*0.06,0.016);
-    }
-  }
-  if(weatherI>0.12&&Math.random()<dt*3.5*weatherI){
-    const wx=focusX+(Math.random()-0.5)*VW*0.9, wy=focusY+(Math.random()-0.5)*VH*0.9;
-    if(typeof lakeScore==="function"&&lakeScore(wx,wy)>0) sim.splashAtWorld(wx,wy,0.06+weatherI*0.05,0.006);
-    else if(typeof riverScore==="function"&&riverScore(wx,wy)>0) sim.splashAtWorld(wx,wy,0.07+weatherI*0.06,0.008);
-  }
+  if(weatherI>0.22&&Math.random()<dt*4*weatherI) sim.randomRipple();
 }
 
 function drawPuddleBodySim(sim,p,rx,ry,a){
@@ -95,11 +91,6 @@ function drawPuddleBodySim(sim,p,rx,ry,a){
   ctx.fillStyle=`rgba(${gr},${gg},${gb},0.18)`;
   ctx.fillRect(-rx,-ry,rx*2,ry*2);
   ctx.globalCompositeOperation="source-over";
-
-  ctx.globalAlpha=a*0.9;
-  ctx.strokeStyle=`rgba(190,225,248,${0.32.toFixed(3)})`;
-  ctx.lineWidth=1.0;
-  ctx.beginPath(); ctx.ellipse(0,0,rx*0.98,ry*0.98,0,0,7); ctx.stroke();
   ctx.restore();
 }
 
@@ -111,10 +102,10 @@ Game.register({
   order:43,
   update(dt){
     if(typeof gamePhase!=="undefined"&&gamePhase!=="playing") return;
-    if((typeof wetness==="undefined"||wetness<0.02)&&(typeof weatherI==="undefined"||weatherI<0.06)) return;
+    if(!waterSimShouldRun()) return;
     _waterSimFrame++;
-    const heavy=(typeof wetness!=="undefined"&&wetness>=0.45)||(typeof weatherI!=="undefined"&&weatherI>=0.35);
-    if(!heavy&&_waterSimFrame%2) return;
+    const heavy=(typeof weatherI!=="undefined"&&weatherI>=0.45)||(typeof wetness!=="undefined"&&wetness>=0.5);
+    if(!heavy&&_waterSimFrame%4) return;
     const sim=getWaterSim();
     if(sim) sim.step(heavy?dt:dt*2);
   },

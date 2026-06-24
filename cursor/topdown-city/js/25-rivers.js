@@ -152,7 +152,7 @@ function collectWaterPolys(scoreFn, ox, oy, step){
 }
 
 function drawRiverFlowTexture(ox,oy,t){
-  const step=14, x0=ox-step, y0=oy-step, x1=ox+VW+step, y1=oy+VH+step;
+  const step=24, x0=ox-step, y0=oy-step, x1=ox+VW+step, y1=oy+VH+step;
   const spd=52;
   ctx.save();
   ctx.globalCompositeOperation="lighter";
@@ -166,10 +166,10 @@ function drawRiverFlowTexture(ox,oy,t){
       const depth=clamp(riverScore(cx,cy)*2.5,0.2,1);
       const ph=(cx*fx+cy*fy)*0.045 - t*spd;
       const band=0.5+0.5*Math.sin(ph);
-      if(band<0.38) continue;
-      const al=(0.05+0.18*band*depth).toFixed(3);
+      if(band<0.42) continue;
+      const al=(0.04+0.12*band*depth).toFixed(3);
       ctx.strokeStyle=`rgba(210,248,255,${al})`;
-      ctx.lineWidth=1.2+1.8*band*depth;
+      ctx.lineWidth=1.0+1.2*band*depth;
       ctx.lineCap="round";
       ctx.beginPath();
       ctx.moveTo(cx-fx*step*0.55, cy-fy*step*0.55);
@@ -179,46 +179,10 @@ function drawRiverFlowTexture(ox,oy,t){
   }
   ctx.globalCompositeOperation="source-over";
   ctx.lineCap="butt";
-
-  // pebble bed — scrolls downstream with the current
-  ctx.globalAlpha=0.42;
-  const peb=getTex("riverbed");
-  if(peb){
-    const S=160;
-    const [cfx,cfy]=riverFlowAt(ox+VW*0.5,oy+VH*0.5);
-    const dx=-((t*22*cfx)%S), dy=-((t*22*cfy)%S);
-    ctx.save(); ctx.translate(dx,dy); ctx.fillStyle=peb;
-    for(let gy=Math.floor(y0/48)*48; gy<y1; gy+=48){
-      for(let gx=Math.floor(x0/48)*48; gx<x1; gx+=48){
-        if(riverScore(gx+24,gy+24)<=0.05) continue;
-        ctx.fillRect(gx,gy,48,48);
-      }
-    }
-    ctx.restore();
-  }
-  ctx.globalAlpha=1;
   ctx.restore();
 }
 
-function drawRiverSparkles(ox,oy,t){
-  const sg=34;
-  ctx.save(); ctx.globalCompositeOperation="lighter";
-  for(let sy=Math.floor(oy/sg)*sg; sy<oy+VH; sy+=sg){
-    for(let sx=Math.floor(ox/sg)*sg; sx<ox+VW; sx+=sg){
-      const px=sx+hsh(Math.floor(sx/sg),Math.floor(sy/sg),441)*sg*0.7;
-      const py=sy+hsh(Math.floor(sx/sg),Math.floor(sy/sg),442)*sg*0.7;
-      if(riverScore(px,py)<=0.08) continue;
-      const [fx,fy]=riverFlowAt(px,py);
-      const drift=(t*42)%sg;
-      const qx=px+fx*drift, qy=py+fy*drift;
-      const tw=0.5+0.5*Math.sin(t*3.8+px*0.08+py*0.06);
-      if(tw<0.55) continue;
-      ctx.fillStyle=`rgba(230,255,250,${(0.06+0.18*tw).toFixed(3)})`;
-      ctx.beginPath(); ctx.ellipse(qx,qy,2.2,1,Math.atan2(fy,fx),0,7); ctx.fill();
-    }
-  }
-  ctx.restore();
-}
+function drawRiverSparkles(){}
 
 function drawRiverBanks(bnd,t){
   if(!bnd.length) return;
@@ -238,7 +202,7 @@ function drawRiverBanks(bnd,t){
 }
 
 function drawForestRivers(ox,oy){
-  const step=22, t=performance.now()/1000;
+  const step=30, t=performance.now()/1000;
   const {polys,bnd}=collectWaterPolys(riverScore, ox, oy, step);
   if(!polys.length) return;
 
@@ -248,28 +212,21 @@ function drawForestRivers(ox,oy){
   ctx.fillStyle=wg; ctx.fill();
 
   ctx.save(); ctx.clip();
-  if(typeof applyWaterPattern==="function") applyWaterPattern("water_river",ox,oy,t,0.68,1.35);
-  if(typeof applyWaterSimInClip==="function") applyWaterSimInClip("river",0.52,0.008);
+  if(typeof applyWaterPattern==="function") applyWaterPattern("water_river_v2",ox,oy,t,0.62,1.2);
+  if(typeof applyWaterSimInClip==="function") applyWaterSimInClip("river",0.38,0.008);
   if(typeof tintWaterDepth==="function") tintWaterDepth(polys,riverScore,[6,30,26],[50,120,100]);
-  else for(const q of polys){
-    let cx=0,cy=0; for(const p of q){ cx+=p[0]; cy+=p[1]; } cx/=q.length; cy/=q.length;
-    const depth=clamp(riverScore(cx,cy)*2.2, 0.15, 1);
-    ctx.fillStyle=`rgba(8,32,28,${(0.12+depth*0.18).toFixed(3)})`;
-    ctx.beginPath(); ctx.moveTo(q[0][0],q[0][1]); for(let k=1;k<q.length;k++) ctx.lineTo(q[k][0],q[k][1]); ctx.closePath(); ctx.fill();
-  }
   drawRiverFlowTexture(ox,oy,t);
   drawRiverCurrentChevrons(ox,oy,t);
-  drawRiverSparkles(ox,oy,t);
   drawRiverDrift(ox,oy,t);
 
-  ctx.strokeStyle="rgba(14,48,42,0.22)"; ctx.lineWidth=1.4; ctx.lineCap="round";
-  const rs=26, x0=ox-rs, y0=oy-rs, x1=ox+VW+rs, y1=oy+VH+rs;
+  ctx.strokeStyle="rgba(14,48,42,0.18)"; ctx.lineWidth=1.2; ctx.lineCap="round";
+  const rs=34, x0=ox-rs, y0=oy-rs, x1=ox+VW+rs, y1=oy+VH+rs;
   for(let gy=y0; gy<y1; gy+=rs){
     for(let gx=x0; gx<x1; gx+=rs){
       const cx=gx+rs*0.5, cy=gy+rs*0.5;
       if(riverScore(cx,cy)<=0) continue;
       const [fx,fy]=riverFlowAt(cx,cy), px=-fy, py=fx;
-      const wave=Math.sin((cx*fx+cy*fy)*0.06 - t*2.8)*3.2;
+      const wave=Math.sin((cx*fx+cy*fy)*0.06 - t*2.8)*2.6;
       ctx.beginPath();
       ctx.moveTo(cx-px*rs*0.5+fx*wave, cy-py*rs*0.5+fy*wave);
       ctx.lineTo(cx+px*rs*0.5+fx*wave, cy+py*rs*0.5+fy*wave);

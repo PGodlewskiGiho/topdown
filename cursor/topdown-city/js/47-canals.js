@@ -432,13 +432,16 @@ function drawCanalWaterSeg(s, ox, oy, t){
   ctx.closePath();
   ctx.fillStyle = "#3a4a42";
   ctx.fill();
-  if(typeof applyWaterSimInClip === "function"){
+  if(typeof applyWaterSimInClip === "function" && typeof waterSimShouldRun === "function" && waterSimShouldRun()){
     ctx.save(); ctx.clip();
-    applyWaterSimInClip("river", 0.48, 0.018);
+    applyWaterSimInClip("river", 0.38, 0.018);
     ctx.restore();
   } else {
-    ctx.fillStyle = "rgba(50,80,70,.35)";
-    ctx.fill();
+    ctx.save(); ctx.clip();
+    const g=ctx.createLinearGradient(p0[0],p0[1],p2[0],p2[1]);
+    g.addColorStop(0,"rgba(42,72,64,0.35)"); g.addColorStop(0.5,"rgba(50,88,78,0.28)"); g.addColorStop(1,"rgba(42,72,64,0.35)");
+    ctx.fillStyle=g; ctx.fill();
+    ctx.restore();
   }
   const[fx, fy] = canalFlowAt((s.x1 + s.x2) * 0.5, (s.y1 + s.y2) * 0.5);
   ctx.strokeStyle = "rgba(120,150,130,.12)"; ctx.lineWidth = 1.2;
