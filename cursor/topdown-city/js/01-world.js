@@ -254,9 +254,9 @@ function nodeIsCity(i,j){ if(biomeOf(i,j)==="city") return true; for(const[di,dj
 // roundabouts at occasional busy city intersections (spaced out)
 function isRoundabout(i,j){
   if(isInterchange(i,j)&&nodeDegree(i,j)>=3) return true;          // highway crossings = roundabout interchange
-  if(biomeOf(i,j)!=="city"||nodeDegree(i,j)<3||hsh(i,j,91)>0.17) return false;
+  if(biomeOf(i,j)!=="city"||nodeDegree(i,j)<3||hsh(i,j,91)>0.22) return false;
   for(const[di,dj]of EDIRS){ const ni=i+di,nj=j+dj;
-    if(biomeOf(ni,nj)==="city"&&nodeDegree(ni,nj)>=3&&hsh(ni,nj,91)<=0.17&&(ni<i||(ni===i&&nj<j))) return false; }
+    if(biomeOf(ni,nj)==="city"&&nodeDegree(ni,nj)>=3&&hsh(ni,nj,91)<=0.22&&(ni<i||(ni===i&&nj<j))) return false; }
   return true;
 }
 function roundaboutCenter(i,j){
@@ -264,7 +264,7 @@ function roundaboutCenter(i,j){
   if(isInterchange(i,j)) return "grass";
   return hsh(i,j,92)<0.36 ? "fountain" : "grass";   // city mini-fountains are decorative/passable
 }
-function roundaboutR(i,j){ return isInterchange(i,j) ? nodeMaxWidth(i,j)*1.25+44 : nodeMaxWidth(i,j)*0.95+18; }
+function roundaboutR(i,j){ return isInterchange(i,j) ? nodeMaxWidth(i,j)*1.15+36 : nodeMaxWidth(i,j)*0.88+14; }
 function roundaboutType(i,j){
   if(!isRoundabout(i,j)) return "none";
   if(isInterchange(i,j)){
@@ -274,19 +274,19 @@ function roundaboutType(i,j){
     return "grass";
   }
   const t=hsh(i,j,92);
-  if(t<0.13) return "fountain";
-  if(t<0.22) return "statue";
-  if(t<0.30) return "planter";
-  if(t<0.38) return "tree";
-  if(t<0.52) return "flower";
-  if(t<0.68) return "meadow";
+  if(t<0.07) return "fountain";
+  if(t<0.11) return "statue";
+  if(t<0.15) return "planter";
+  if(t<0.19) return "tree";
+  if(t<0.28) return "flower";
+  if(t<0.42) return "meadow";
   return "grass";
 }
 function roundaboutCenter(i,j){ return roundaboutType(i,j); }
 function roundaboutPassable(t){ return t==="grass"||t==="meadow"||t==="flower"||t==="cobble"; }
 function roundaboutIslandR(i,j){
-  const mw=nodeMaxWidth(i,j), R=roundaboutR(i,j), rw=Math.max(22,mw*0.68);
-  return Math.max(6,R-rw*0.48);
+  const mw=nodeMaxWidth(i,j), R=roundaboutR(i,j), rw=Math.max(20,mw*0.62);
+  return Math.max(6,R-rw*0.42);
 }
 function roundaboutObstacleR(i,j){
   const t=roundaboutType(i,j);
@@ -307,26 +307,26 @@ function drawRoundaboutIsland(ax,ay,Rin,i,j,rbType){
   const seed=hsh(i,j,93);
   if(rbType==="grass"||rbType==="meadow"){
     rbFillGrass(ax,ay,Rin);
-    const n=rbType==="meadow"?10:6;
+    const n=rbType==="meadow"?6:4;
     for(let k=0;k<n;k++){
-      const ang=seed*6.283+k*2.09, rad=Rin*(0.15+(hsh(i,j,940+k)*0.55));
-      const fx=ax+Math.cos(ang)*rad, fy=ay+Math.sin(ang)*rad*0.88, sz=1.2+hsh(i,j,950+k)*2.2;
+      const ang=seed*6.283+k*2.09, rad=Rin*(0.18+(hsh(i,j,940+k)*0.48));
+      const fx=ax+Math.cos(ang)*rad, fy=ay+Math.sin(ang)*rad*0.88, sz=1.2+hsh(i,j,950+k)*1.8;
       ctx.fillStyle=rbType==="meadow"?(k%3?"#c8d858":"#e8b848"):"#8ec868";
       ctx.beginPath(); ctx.arc(fx,fy,sz,0,7); ctx.fill();
     }
-    if(rbType==="meadow") for(let k=0;k<5;k++){ const ang=k*1.256+seed, rad=Rin*0.35;
-      ctx.fillStyle="#2a5028"; ctx.beginPath(); ctx.arc(ax+Math.cos(ang)*rad,ay+Math.sin(ang)*rad*0.9,2.5,0,7); ctx.fill(); }
+    if(rbType==="meadow") for(let k=0;k<3;k++){ const ang=k*2.09+seed, rad=Rin*0.32;
+      ctx.fillStyle="#2a5028"; ctx.beginPath(); ctx.arc(ax+Math.cos(ang)*rad,ay+Math.sin(ang)*rad*0.9,2,0,7); ctx.fill(); }
     return;
   }
   if(rbType==="flower"){
     rbFillGrass(ax,ay,Rin);
-    const petals=8+(seed*5|0);
+    const petals=5+(seed*3|0);
     for(let k=0;k<petals;k++){
-      const ang=(k/petals)*6.283+seed*0.4, rad=Rin*(0.28+(k%3)*0.12);
+      const ang=(k/petals)*6.283+seed*0.4, rad=Rin*(0.26+(k%3)*0.10);
       ctx.fillStyle=["#e85a72","#f0b830","#c96ad8","#5ab0e8","#ff9060"][k%5];
-      ctx.beginPath(); ctx.ellipse(ax+Math.cos(ang)*rad,ay+Math.sin(ang)*rad*0.88, Rin*0.11, Rin*0.07, ang, 0, 7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(ax+Math.cos(ang)*rad,ay+Math.sin(ang)*rad*0.88, Rin*0.09, Rin*0.06, ang, 0, 7); ctx.fill();
     }
-    ctx.fillStyle="#ffd858"; ctx.beginPath(); ctx.arc(ax,ay,Math.max(3,Rin*0.12),0,7); ctx.fill();
+    ctx.fillStyle="#ffd858"; ctx.beginPath(); ctx.arc(ax,ay,Math.max(3,Rin*0.10),0,7); ctx.fill();
     return;
   }
   if(rbType==="cobble"){
@@ -380,22 +380,17 @@ function drawRoundaboutIsland(ax,ay,Rin,i,j,rbType){
   }
 }
 function drawRoundabout(i,j,A,mw){
-  const R=roundaboutR(i,j), rw=Math.max(22,mw*0.68), Rout=R+rw*0.52, Rin=roundaboutIslandR(i,j);
+  const R=roundaboutR(i,j), rw=Math.max(20,mw*0.62), Rout=R+rw*0.40, Rin=roundaboutIslandR(i,j);
   const rbType=roundaboutType(i,j);
   const asphalt=nodeIsCity(i,j)?"#33363c":"#4a4438";
-  ctx.fillStyle="#8a9099"; ctx.beginPath(); ctx.arc(A[0],A[1],Rout+6,0,7); ctx.fill();
+  ctx.fillStyle="#8a9099"; ctx.beginPath(); ctx.arc(A[0],A[1],Rout+5,0,7); ctx.fill();
   ctx.fillStyle=asphalt;
   ctx.beginPath(); ctx.arc(A[0],A[1],Rout,0,7); ctx.arc(A[0],A[1],Rin,0,7,true); ctx.fill("evenodd");
   { const at=getTex("asphalt"); if(at){ ctx.fillStyle=at; ctx.beginPath(); ctx.arc(A[0],A[1],Rout,0,7); ctx.arc(A[0],A[1],Rin,0,7,true); ctx.fill("evenodd"); } }
-  ctx.strokeStyle="#a0a6ae"; ctx.lineWidth=3.5;
-  ctx.beginPath(); ctx.arc(A[0],A[1],Rout-1,0,7); ctx.stroke();
   ctx.strokeStyle="#969ca4"; ctx.lineWidth=2.5;
+  ctx.beginPath(); ctx.arc(A[0],A[1],Rout-1,0,7); ctx.stroke();
+  ctx.strokeStyle="#8a9098"; ctx.lineWidth=2;
   ctx.beginPath(); ctx.arc(A[0],A[1],Rin+1,0,7); ctx.stroke();
-  const Rmid=(Rin+Rout)*0.5;
-  ctx.strokeStyle="rgba(225,228,233,.48)"; ctx.lineWidth=1.6; ctx.setLineDash([12,14]);
-  ctx.beginPath(); ctx.arc(A[0],A[1],Rmid,0,7); ctx.stroke(); ctx.setLineDash([]);
-  ctx.strokeStyle="rgba(216,197,74,.58)"; ctx.lineWidth=2.5; ctx.setLineDash([9,11]);
-  ctx.beginPath(); ctx.arc(A[0],A[1],R,0,7); ctx.stroke(); ctx.setLineDash([]);
   drawRoundaboutIsland(A[0],A[1],Rin,i,j,rbType);
 }
 
@@ -457,6 +452,7 @@ function drawRoads(ox,oy){
   const LANE_W=78;
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
     for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||!e.markings||e.bridge) continue;
+      if(isRoundabout(i,j)||isRoundabout(i+di,j+dj)) continue;
       // white lane dividers between the centre line and each curb
       const halfLanes=Math.max(1,Math.round((e.width*0.5-6)/LANE_W));
       for(let k=1;k<=halfLanes;k++){ const off=k*LANE_W;
@@ -991,13 +987,14 @@ function addCurbside(lot,i,j,r){
 // tiny hitboxes on the sidewalk; canopies overhang the road.
 function addStreetTrees(lot,i,j,r){
   const A=node(i,j),Bn=node(i+1,j),D=node(i,j+1);
-  const edges=[ {ex:getEdge(i,j,1,0),P0:A,P1:Bn,nx:0,ny:1}, {ex:getEdge(i,j,0,1),P0:A,P1:D,nx:1,ny:0} ];
+  const edges=[ {ex:getEdge(i,j,1,0),P0:A,P1:Bn,nx:0,ny:1,di:1,dj:0}, {ex:getEdge(i,j,0,1),P0:A,P1:D,nx:1,ny:0,di:0,dj:1} ];
   const zone=lot.zone||"", dens=(zone==="suburb"||zone==="transition")?0.6:0.4;
   for(const e of edges){ if(!e.ex.exists||e.ex.bridge||e.ex.klass==="hwy") continue;
+    if(edgeAtRoundabout(i,j,e.di,e.dj)) continue;
     const dx=e.P1[0]-e.P0[0], dy=e.P1[1]-e.P0[1], off=e.ex.width/2+15;
     for(let t=0.18;t<0.9;t+=0.24){ if(r()>dens) continue;
       const cx=e.P0[0]+dx*t+e.nx*off, cy=e.P0[1]+dy*t+e.ny*off;
-      if(inRoundabout(cx,cy)||inPlaza(cx,cy)) continue;
+      if(inRoundabout(cx,cy)||inPlaza(cx,cy)||nearRoundabout(cx,cy,12)) continue;
       let blocked=false; for(const b of lot.buildings){ if(cx>b.x-12&&cx<b.x+b.w+12&&cy>b.y-12&&cy<b.y+b.h+12){ blocked=true; break; } }
       if(blocked) continue;
       const s=118+r()*72, kd=r()<0.70?"deciduous":(r()<0.55?"oak":"bush");
@@ -1008,12 +1005,14 @@ function addStreetTrees(lot,i,j,r){
 function addLamps(lot,i,j,r){
   lot.lamps=[];
   const A=node(i,j),Bn=node(i+1,j),D=node(i,j+1);
-  const edges=[ {ex:getEdge(i,j,1,0),P0:A,P1:Bn,nx:0,ny:1}, {ex:getEdge(i,j,0,1),P0:A,P1:D,nx:1,ny:0} ];
+  const edges=[ {ex:getEdge(i,j,1,0),P0:A,P1:Bn,nx:0,ny:1,di:1,dj:0}, {ex:getEdge(i,j,0,1),P0:A,P1:D,nx:1,ny:0,di:0,dj:1} ];
   const dens=lot.biome==="city"?0.92:0.4, ts=lot.biome==="city"?[0.22,0.5,0.78]:[0.5];
   for(const e of edges){ if(!e.ex.exists||e.ex.bridge) continue;
+    if(edgeAtRoundabout(i,j,e.di,e.dj)) continue;
     const dx=e.P1[0]-e.P0[0], dy=e.P1[1]-e.P0[1], off=e.ex.width/2+9, arm=20;
     for(const t of ts){ if(r()>dens) continue;
-      const bx=e.P0[0]+dx*t+e.nx*off, by=e.P0[1]+dy*t+e.ny*off; if(inRoundabout(bx,by)||inPlaza(bx,by)) continue;
+      const bx=e.P0[0]+dx*t+e.nx*off, by=e.P0[1]+dy*t+e.ny*off;
+      if(inRoundabout(bx,by)||inPlaza(bx,by)||nearRoundabout(bx,by,14)) continue;
       lot.lamps.push({x:bx, y:by, hx:bx-e.nx*arm, hy:by-e.ny*arm, dead:false, fall:null, fdx:0, fdy:0});
     }
   }
@@ -1101,10 +1100,21 @@ function collideSignals(e){
       if(postHit(e,s.x,s.y,3)){ const sp=Math.hypot(e.vx||0,e.vy||0); if(sp>34){ topple(s, e.vx||0.5, e.vy||0.5, 26); playThud(0.5); } } }
   }
 }
-function inRoundabout(x,y){
+function edgeAtRoundabout(i,j,di,dj){
+  return isRoundabout(i,j)||isRoundabout(i+di,j+dj);
+}
+function nearRoundabout(x,y,pad){
+  pad=pad||0;
   const ci=Math.floor((x-ROAD)/GAP), cj=Math.floor((y-ROAD)/GAP);
-  for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){ if(!isRoundabout(i,j)) continue; const A=node(i,j), R=roundaboutR(i,j)+18; if((x-A[0])**2+(y-A[1])**2 < R*R) return true; }
+  for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){
+    if(!isRoundabout(i,j)) continue;
+    const A=node(i,j), R=roundaboutR(i,j)+22+pad;
+    if((x-A[0])**2+(y-A[1])**2 < R*R) return true;
+  }
   return false;
+}
+function inRoundabout(x,y){
+  return nearRoundabout(x,y,0);
 }
 function collideRoundabouts(e){
   const eR=e.R!==undefined?e.R:e.r, ci=Math.floor((e.x-ROAD)/GAP), cj=Math.floor((e.y-ROAD)/GAP);
@@ -1356,7 +1366,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=26;
+const LOT_CACHE_VER=27;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 
 const FOREST_MUSHROOMS=["shroom_red","shroom_brown","shroom_tan","shroom_puff","shroom_lilac","shroom_shelf"];
