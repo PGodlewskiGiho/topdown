@@ -33,7 +33,7 @@ function getRailEdge(i,j,di,dj){
   off=Math.max(-48,Math.min(48,off));
   const cp=[(x1+x2)/2+(-dy/len)*off,(y1+y2)/2+(dx/len)*off];
 
-  let bridge=false, tunnel=false;
+  let bridge=false;
   if(exists){
     for(let t=0.05;t<0.95;t+=0.09){
       const p=bez([x1,y1],cp,[x2,y2],t);
@@ -43,14 +43,14 @@ function getRailEdge(i,j,di,dj){
     if(terrainSlope((x1+x2)/2,(y1+y2)/2)>0.0042 && hsh(i,j,914)<0.55) exists=false;
   }
 
+  e={exists,width:56,cp,col:"#4a4038",len,bridge,tunnel:false,klass:"rail"};
+  railEdgeCache.set(key,e);   // cache before crossingKindAt (it calls getRailEdge again)
+
   const roadE=getEdge(i,j,di,dj);
   if(exists && roadE.exists){
     const kind=crossingKindAt(i,j,di,dj);
-    if(kind==="tunnel") tunnel=true;
+    if(kind==="tunnel") e.tunnel=true;
   }
-
-  e={exists,width:56,cp,col:"#4a4038",len,bridge,tunnel,klass:"rail"};
-  railEdgeCache.set(key,e);
   return e;
 }
 
