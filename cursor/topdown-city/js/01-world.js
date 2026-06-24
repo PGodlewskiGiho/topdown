@@ -1015,11 +1015,30 @@ function genCemetery(lot, r){
 function genParkingLot(lot,r){
   const x=lot.x,y=lot.y,w=lot.w,h=lot.h, cw=46, ch=70;
   const cols=Math.max(1,Math.floor((w-12)/cw)), rows=Math.max(1,Math.floor((h-10)/ch));
+  const fill=lot.zone==="downtown"?0.88:lot.zone==="midrise"?0.78:0.62;
   lot.stalls=[];
   for(let cI=0;cI<cols;cI++) for(let rI=0;rI<rows;rI++){
     const sx=x+8+cI*cw+cw/2, sy=y+6+rI*ch+ch/2;
     lot.stalls.push({x:sx,y:sy,w:cw,h:ch});
-    if(r()<0.55) lot.parked.push(Object.assign({x:sx, y:sy, a:(rI%2?1:-1)*Math.PI/2, kind:"car", cr:22, hp:190, maxHp:190, dmgSeed:(r()*1e9)|0, dead:false}, parkedModelProps(r)));
+    if(r()<fill) lot.parked.push(Object.assign({x:sx, y:sy, a:(rI%2?1:-1)*Math.PI/2, kind:"car", cr:22, hp:190, maxHp:190, dmgSeed:(r()*1e9)|0, dead:false}, parkedModelProps(r)));
+  }
+}
+function curbsideDensity(lot){
+  if(lot.biome!=="city") return 0.3;
+  if(lot.zone==="downtown") return 0.94;
+  if(lot.zone==="midrise") return 0.84;
+  return 0.68;
+}
+function addPlazaParking(lot,r){
+  if(lot.zone!=="downtown"&&lot.zone!=="midrise") return;
+  const n=lot.zone==="downtown"?(3+(r()*3|0)):(2+(r()*2|0));
+  for(let k=0;k<n;k++){
+    const cx=lot.x+28+r()*(lot.w-56), cy=lot.y+28+r()*(lot.h-56);
+    if(inRoundabout(cx,cy)) continue;
+    let blocked=false;
+    for(const b of lot.buildings){ if(cx>b.x-16&&cx<b.x+b.w+16&&cy>b.y-16&&cy<b.y+b.h+16){ blocked=true; break; } }
+    if(blocked) continue;
+    lot.parked.push(Object.assign({x:cx,y:cy,a:-Math.PI/2+(r()-0.5)*0.5,kind:"car",cr:22,hp:190,maxHp:190,dmgSeed:(r()*1e9)|0,dead:false}, parkedModelProps(r)));
   }
 }
 function addCurbside(lot,i,j,r){
@@ -1030,7 +1049,8 @@ function addCurbside(lot,i,j,r){
     {ex:getEdge(i,j,0,1),   P0:A,  P1:D,  nx:1, ny:0},
     {ex:getEdge(i+1,j,0,1), P0:Bn, P1:C,  nx:-1,ny:0},
   ];
-  const dens = lot.biome==="city"?0.66 : 0.3;
+  const dens=curbsideDensity(lot);
+  const step=lot.zone==="downtown"?0.15:lot.zone==="midrise"?0.18:0.22;
   if(lot.biome==="city" && r()<0.12){                                   // a bike rack with a few bikes
     const e=edges[(r()*4)|0];
     if(e.ex.exists && !e.ex.bridge){ const dx=e.P1[0]-e.P0[0], dy=e.P1[1]-e.P0[1], ang=Math.atan2(dy,dx), off=e.ex.width/2+15, t=0.35+r()*0.3;
@@ -1041,7 +1061,7 @@ function addCurbside(lot,i,j,r){
   }
   for(const e of edges){ if(!e.ex.exists||e.ex.bridge) continue;
     const dx=e.P1[0]-e.P0[0], dy=e.P1[1]-e.P0[1], ang=Math.atan2(dy,dx), off=e.ex.width/2+13;
-    for(let t=0.2; t<0.86; t+=0.22){ if(r()>dens) continue;
+    for(let t=0.2; t<0.86; t+=step){ if(r()>dens) continue;
       const cx=e.P0[0]+dx*t+e.nx*off, cy=e.P0[1]+dy*t+e.ny*off; if(inRoundabout(cx,cy)) continue;
       const rk=r();
       if(rk<0.09) lot.parked.push({x:cx, y:cy, a:ang, kind:"moto", W:16, L:42, color:pick(CARCOL), cr:12, hp:72, maxHp:72, dmgSeed:(r()*1e9)|0, dead:false, rider:false});
@@ -1434,7 +1454,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=28;
+const LOT_CACHE_VER=29;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 
 const FOREST_MUSHROOMS=["shroom_red","shroom_brown","shroom_tan","shroom_puff","shroom_lilac","shroom_shelf"];
@@ -1615,13 +1635,14 @@ function getLot(i,j){
     else if(!denseCore && biome==="city" && (zone==="midrise"||zone==="transition"||zone==="suburb") && lw>160 && lh>160 && hsh(i,j,617)<0.05){
       lot.church=true; const cw=Math.min(lw*0.86,230), ch=Math.min(lh*0.86,180);
       addBuilding(lot, left+lw/2-cw/2, top+lh/2-ch/2, cw, ch, r, "church"); }
-    else if(!denseCore && biome==="city" && zone!=="suburb" && r()<0.03){ lot.parking=true; lot.empty=true; genParkingLot(lot,r); }
+    else if(biome==="city" && zone!=="suburb" && (zone!=="downtown" ? r()<0.05 : hsh(i,j,618)<0.055)){
+      lot.parking=true; lot.empty=true; genParkingLot(lot,r); }
     else if(denseCore){
-      // downtown / midrise core: only the big landmark (mega) buildings exist here.
-      // cells not covered by a landmark stay as open plaza/greens (no small towers).
+      // downtown / midrise core: open plaza with street parking + greenery
       lot.empty=true; const n=2+(r()*3|0);
       for(let k=0;k<n;k++){ const px=left+24+r()*Math.max(2,lw-48), py=top+24+r()*Math.max(2,lh-48), s=118+r()*68;
         lot.props.push(makeTree(px,py,s,r,r()<0.7?"deciduous":"oak",{city:true})); }
+      addPlazaParking(lot,r);
     }
     else {
       const builtChance = biome==="city" ? (zone==="suburb"?0.92:0.96) : B.density;

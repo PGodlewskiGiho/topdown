@@ -16,14 +16,41 @@ function placeTrafficOnEdge(c){
   const off=g.e.width*0.22;                               // keep to one side of the road
   c.x=p[0]-tn[1]/tl*off; c.y=p[1]+tn[0]/tl*off; c.a=Math.atan2(tn[1],tn[0]);
 }
-function spawnTrafficCar(){
+function spawnTrafficCell(){
   const ci=Math.round(focusX/GAP), cj=Math.round(focusY/GAP);
-  let ai,aj,ns,tries=0;
-  do{ let oi,oj; do{ oi=randInt(-7,7); oj=randInt(-7,7); }while(Math.max(Math.abs(oi),Math.abs(oj))<4);
-      ai=ci+oi; aj=cj+oj; ns=neighbors(ai,aj); tries++; }while(ns.length===0 && tries<24);
-  if(ns.length===0) ns=[[ai+1,aj]];
+  const cc=nearestCity(ci,cj), inCity=biomeOf(ci,cj)==="city";
+  const zFocus=inCity?cityZone(ci,cj):"outer";
+  const downtownFocus=zFocus==="downtown"||zFocus==="midrise";
+  for(let t=0;t<36;t++){
+    let ai,aj;
+    if(inCity && rng()<0.78){
+      const bias=downtownFocus?0.35:0.55, maxR=downtownFocus?7:11;
+      const ang=rng()*6.283, dist=Math.pow(rng(),bias)*maxR;
+      ai=Math.round(cc.cx+Math.cos(ang)*dist);
+      aj=Math.round(cc.cy+Math.sin(ang)*dist);
+    } else {
+      let oi,oj; do{ oi=randInt(-8,8); oj=randInt(-8,8); }while(Math.max(Math.abs(oi),Math.abs(oj))<3);
+      ai=ci+oi; aj=cj+oj;
+    }
+    const ns=neighbors(ai,aj); if(!ns.length) continue;
+    if(inCity && rng()<0.62){
+      const z=cityZone(ai,aj);
+      if(z==="suburb"&&rng()<0.68) continue;
+      if(z==="downtown"||z==="midrise") return [ai,aj,ns];
+    }
+    return [ai,aj,ns];
+  }
+  let oi,oj; do{ oi=randInt(-7,7); oj=randInt(-7,7); }while(Math.max(Math.abs(oi),Math.abs(oj))<4);
+  const ai=ci+oi, aj=cj+oj, ns=neighbors(ai,aj);
+  return [ai,aj,ns.length?ns:[[ai+1,aj]]];
+}
+function spawnTrafficCar(){
+  const [ai,aj,ns]=spawnTrafficCell();
   const b=ns[(rng()*ns.length)|0];
-  const c={state:"drive", ai,aj, bi:b[0],bj:b[1], t:rng()*0.7, speed:rand(70,130), cruise:rand(95,150),
+  const cc=nearestCity(ai,aj), z=biomeOf(ai,aj)==="city"?cityZone(ai,aj):"outer";
+  const urban=z==="downtown"||z==="midrise";
+  const c={state:"drive", ai,aj, bi:b[0],bj:b[1], t:rng()*0.7,
+           speed:urban?rand(55,105):rand(70,130), cruise:urban?rand(72,118):rand(95,150),
            color:pick(CARCOL), W:32, L:58, R:vehicleHitRadius(32,58,"car"), x:0,y:0,a:0, vx:0,vy:0, spin:0, downT:0, ring:null, hp:185, maxHp:185, dmgSeed:(rng()*1e9)|0, dead:false};
   const vr=rng();
   if(vr<0.12){ c.kind="moto"; c.W=16; c.L=42; c.R=vehicleHitRadius(c.W,c.L,"moto"); c.cruise=rand(110,158); c.speed=rand(80,140); c.rider=true; c.riderShirt=pick(SHIRT); c.riderSkin=pick(SKIN); c.riderHelmet=true; c.hp=c.maxHp=72; }
@@ -54,11 +81,23 @@ function spawnPed(){
   applyNpcLook(p, look);
   return p;
 }
+function trafficCap(){
+  const ci=Math.round(focusX/GAP), cj=Math.round(focusY/GAP);
+  if(biomeOf(ci,cj)!=="city") return 34;
+  const z=cityZone(ci,cj);
+  if(z==="downtown") return 58;
+  if(z==="midrise") return 48;
+  return 38;
+}
+function maintainTraffic(){
+  const cap=trafficCap();
+  while(traffic.length<cap) traffic.push(spawnTrafficCar());
+}
 const awayFromCam=(x,y)=>Math.hypot(x-cam.x,y-cam.y) > 720;
 function respawnTraffic(c){ let n; for(let k=0;k<24;k++){ n=spawnTrafficCar(); if(awayFromCam(n.x,n.y)) break; } Object.assign(c,n); }
 function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); }
 
-for(let i=0;i<24;i++) traffic.push(spawnTrafficCar());
+for(let i=0;i<38;i++) traffic.push(spawnTrafficCar());
 for(let i=0;i<40;i++) peds.push(spawnPed());
 
 function isAhead(c,dx,dy,ox,oy,dist,lat){
