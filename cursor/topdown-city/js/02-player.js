@@ -266,7 +266,7 @@ function drawInterior(){
       ctx.fillRect(1.2, yy, wt-2, it.h*0.09); ctx.fillRect(it.w-wt+0.8, yy, wt-2, it.h*0.09); }
     ctx.fillStyle="#f1c40f"; ctx.fillRect(it.w*0.4, 1.2, it.w*0.2, wt-2); }                    // altar window
   ctx.fillStyle="rgba(255,255,255,.55)"; ctx.font="bold 11px monospace"; ctx.textAlign="center"; ctx.textBaseline="alphabetic"; ctx.fillText("WYJŚCIE", it.w/2, it.h-wt-9);
-  drawPerson(p,"#2f5fa0",false);
+  drawPerson(p, ped.shirt||"#2f5fa0", false);
   ctx.restore();
   ctx.setTransform(1/PX,0,0,1/PX,0,0);
   const names={house:"MIESZKANIE",blok:"BLOK",tower:"WIEŻOWIEC",shop:"SKLEP",super:"SUPERMARKET",church:"KOŚCIÓŁ"};

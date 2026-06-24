@@ -1,6 +1,6 @@
 /* TOPDOWN CITY — 19-save.js */
 /* ---------- save / load (graceful: no-ops if storage blocked) ---------- */
-const SAVE_KEY="topdown_city_save_v2";
+const SAVE_KEY="topdown_city_save_v3";
 let stats={missionsDone:0};
 let saveTimer=4, saveFlash=0;
 const statsEl=document.getElementById("stats");
@@ -11,6 +11,7 @@ function saveGame(){
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       money, missionsDone:stats.missionsDone,
       car:carSave,
+      player: typeof characterFromPed==="function"?characterFromPed():null,
       owned, ammo: ammo.map(a=>a===Infinity?-1:a), curWeapon
     }));
     saveFlash=1.3;
@@ -53,7 +54,11 @@ function loadGame(){
     }
     if(Array.isArray(d.owned)) for(let i=0;i<owned.length&&i<d.owned.length;i++) owned[i]=!!d.owned[i];
     if(Array.isArray(d.ammo)) for(let i=0;i<ammo.length&&i<d.ammo.length;i++) ammo[i]=d.ammo[i]<0?Infinity:d.ammo[i];
-    owned[0]=true; if(typeof d.curWeapon==="number"&&owned[d.curWeapon]) curWeapon=d.curWeapon;
+    owned[0]=true;     if(typeof d.curWeapon==="number"&&owned[d.curWeapon]) curWeapon=d.curWeapon;
+    if(d.player && typeof applyCharacterToPed==="function"){
+      Object.assign(playerCharacter, defaultCharacter(), d.player);
+      applyCharacterToPed(playerCharacter);
+    }
   }catch(e){ /* ignore corrupt/blocked */ }
 }
 function tickSave(dt){

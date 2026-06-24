@@ -100,7 +100,7 @@ function draw(){
   drawFootCops(ox,oy);
   // player on top
   if(!car.dead) drawVehicle(car, car.color);
-  if(mode==="foot") drawPerson(ped, "#2f5fa0", false);
+  if(mode==="foot") drawPerson(ped, ped.shirt||"#2f5fa0", false);
   drawLamps(ox,oy);                                     // 3D lamp posts over vehicles
   drawSignals(ox,oy);                                   // 3D traffic-light posts over vehicles
   drawCanopies(ox,oy);                                  // tree crowns over everything -> drive/walk under them

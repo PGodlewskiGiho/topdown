@@ -271,34 +271,69 @@ function drawSpeech(p){
   ctx.fillStyle="#555"; for(let k=0;k<3;k++){ ctx.globalAlpha=k<n?1:0.3; ctx.beginPath(); ctx.arc(bx-4+k*4,by,1.1,0,7); ctx.fill(); }
   ctx.globalAlpha=1;
 }
-function drawPerson(p,color,down){
-  const skin=p.skin||"#e8b888", shirt=p.shirt||color, hair=("hair"in p)?p.hair:"#3a2a18", hat=p.hat||null, hatC=p.hatColor||"#444";
-  ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a);
+function drawPerson(p,color,down,targetCtx){
+  const c=targetCtx||ctx;
+  const skin=p.skin||"#e8b888", shirt=p.shirt||color, pants=p.pants||"#2a3444";
+  const hair=("hair"in p)?p.hair:"#3a2a18", hat=p.hat||null, hatC=p.hatColor||"#444";
+  const body=p.body||"male", hairStyle=p.hairStyle||(hair===null?"bald":"short"), beard=p.beard||null;
+  const br=body==="hardy"?1.14:body==="female"?0.9:1;
+  const r=(p.r||9)*br;
+  c.save(); c.translate(p.x, p.y); c.rotate(p.a);
   if(down){
-    ctx.fillStyle="rgba(0,0,0,.26)"; ctx.beginPath(); ctx.ellipse(0,0,p.r*1.7,p.r*0.85,0,0,7); ctx.fill();
-    ctx.fillStyle=shirt; rrect(-p.r*1.5,-p.r*0.55,p.r*3,p.r*1.1,p.r*0.55); ctx.fill();
-    ctx.fillStyle=skin; ctx.beginPath(); ctx.arc(p.r*1.3,0,p.r*0.5,0,7); ctx.fill();
-    ctx.restore(); return;
+    c.fillStyle="rgba(0,0,0,.26)"; c.beginPath(); c.ellipse(0,0,r*1.7,r*0.85,0,0,7); c.fill();
+    c.fillStyle=shirt; rrect(-r*1.5,-r*0.55,r*3,r*1.1,r*0.55); c.fill();
+    c.fillStyle=skin; c.beginPath(); c.arc(r*1.3,0,r*0.5,0,7); c.fill();
+    c.restore(); return;
   }
   if(p.swimming){
     const bob=Math.sin(performance.now()/250)*1.2;
-    ctx.fillStyle="rgba(255,255,255,.16)"; ctx.beginPath(); ctx.ellipse(0,bob,p.r*1.6,p.r*1.05,0,0,7); ctx.fill();
-    ctx.fillStyle=shirt; ctx.beginPath(); ctx.ellipse(-1,bob,p.r*0.6,p.r*0.7,0,0,7); ctx.fill();
-    ctx.fillStyle=hair||skin; ctx.beginPath(); ctx.arc(p.r*0.4,bob,p.r*0.5,0,7); ctx.fill();
-    ctx.fillStyle=skin; ctx.beginPath(); ctx.arc(p.r*0.52,bob,p.r*0.4,0,7); ctx.fill();
-    ctx.restore(); return;
+    c.fillStyle="rgba(255,255,255,.16)"; c.beginPath(); c.ellipse(0,bob,r*1.6,r*1.05,0,0,7); c.fill();
+    c.fillStyle=shirt; c.beginPath(); c.ellipse(-1,bob,r*0.6,r*0.7,0,0,7); c.fill();
+    c.fillStyle=hair||skin; c.beginPath(); c.arc(r*0.4,bob,r*0.5,0,7); c.fill();
+    c.fillStyle=skin; c.beginPath(); c.arc(r*0.52,bob,r*0.4,0,7); c.fill();
+    c.restore(); return;
   }
-  const hx=p.r*0.45;
-  ctx.fillStyle="rgba(0,0,0,.3)"; ctx.beginPath(); ctx.ellipse(1.5,2,p.r*1.05,p.r*0.9,0,0,7); ctx.fill();        // shadow
-  ctx.fillStyle=shirt; ctx.beginPath(); ctx.ellipse(-1,0,p.r*0.85,p.r*1.15,0,0,7); ctx.fill();                   // torso
-  ctx.fillStyle="rgba(0,0,0,.14)"; ctx.beginPath(); ctx.ellipse(-1,0,p.r*0.85,p.r*1.15,0,3.6,5.8); ctx.fill();   // arm shading
-  ctx.fillStyle=hair||skin; ctx.beginPath(); ctx.arc(hx,0,p.r*0.6,0,7); ctx.fill();                              // hair base
-  ctx.fillStyle=skin; ctx.beginPath(); ctx.arc(hx+p.r*0.13,0,p.r*0.46,0,7); ctx.fill();                          // face (front)
-  if(hat==="cap"){ ctx.fillStyle=hatC; ctx.beginPath(); ctx.arc(hx,0,p.r*0.58,-2.0,2.0); ctx.fill(); ctx.fillRect(hx+p.r*0.45,-p.r*0.42,p.r*0.5,p.r*0.84); }
-  else if(hat==="beanie"){ ctx.fillStyle=hatC; ctx.beginPath(); ctx.arc(hx,0,p.r*0.6,0,7); ctx.fill(); ctx.fillStyle=skin; ctx.beginPath(); ctx.arc(hx+p.r*0.46,0,p.r*0.26,0,7); ctx.fill(); }
-  ctx.strokeStyle="rgba(0,0,0,.25)"; ctx.lineWidth=1.1; ctx.beginPath(); ctx.arc(hx,0,p.r*0.6,0,7); ctx.stroke();
-  if(p.hostile){ ctx.strokeStyle="rgba(255,70,46,.9)"; ctx.lineWidth=1.6; ctx.beginPath(); ctx.arc(0,0,p.r*1.6,0,7); ctx.stroke(); }
-  ctx.restore();
+  const hx=r*0.45, tw=body==="female"?r*0.72:r*0.85, th=body==="female"?r*1.05:r*1.15;
+  c.fillStyle="rgba(0,0,0,.3)"; c.beginPath(); c.ellipse(1.5,2,r*1.05,r*0.9,0,0,7); c.fill();
+  c.fillStyle=pants; c.beginPath(); c.ellipse(-1,r*0.42,r*0.62,r*0.52,0,0,7); c.fill();
+  c.fillStyle=shirt; c.beginPath(); c.ellipse(-1,-r*0.04,tw,th,0,0,7); c.fill();
+  if(p.shirtStyle==="jacket"){
+    c.strokeStyle="rgba(0,0,0,.22)"; c.lineWidth=1.2; c.beginPath(); c.ellipse(-1,-r*0.04,tw,th,0,0,7); c.stroke();
+    c.fillStyle="rgba(255,255,255,.08)"; c.beginPath(); c.ellipse(-1,r*0.02,tw*0.42,th*0.55,0,0,7); c.fill();
+  } else if(p.shirtStyle==="vest"){
+    c.fillStyle="rgba(0,0,0,.12)"; c.beginPath(); c.ellipse(-1,-r*0.04,tw,th,0,3.4,5.8); c.fill();
+    c.fillStyle=shirt; c.beginPath(); c.ellipse(-1,-r*0.02,tw*0.55,th*0.72,0,0,7); c.fill();
+  } else {
+    c.fillStyle="rgba(0,0,0,.14)"; c.beginPath(); c.ellipse(-1,-r*0.04,tw,th,0,3.6,5.8); c.fill();
+  }
+  if(hairStyle!=="bald"&&hair&&!hat){
+    c.fillStyle=hair;
+    if(hairStyle==="long"){
+      c.beginPath(); c.arc(hx,0,r*0.62,0,7); c.fill();
+      c.beginPath(); c.ellipse(hx-r*0.08,r*0.08,r*0.52,r*0.72,0.1,0,7); c.fill();
+    } else if(hairStyle==="ponytail"){
+      c.beginPath(); c.arc(hx,0,r*0.6,0,7); c.fill();
+      c.beginPath(); c.ellipse(-r*0.55,-r*0.08,r*0.28,r*0.48,-0.5,0,7); c.fill();
+    } else {
+      c.beginPath(); c.arc(hx,0,r*0.6,0,7); c.fill();
+    }
+  }
+  c.fillStyle=skin; c.beginPath(); c.arc(hx+r*0.13,0,r*0.46,0,7); c.fill();
+  if(beard&&beard!=="none"){
+    c.fillStyle=hair||"#3a2a18";
+    if(beard==="full"){
+      c.beginPath(); c.ellipse(hx+r*0.1,r*0.12,r*0.38,r*0.32,0,0,7); c.fill();
+    } else {
+      c.globalAlpha=0.55; c.beginPath(); c.ellipse(hx+r*0.08,r*0.1,r*0.3,r*0.2,0,0,7); c.fill();
+      c.globalAlpha=1;
+    }
+  }
+  if(hat==="cap"){ c.fillStyle=hatC; c.beginPath(); c.arc(hx,0,r*0.58,-2.0,2.0); c.fill(); c.fillRect(hx+r*0.45,-r*0.42,r*0.5,r*0.84); }
+  else if(hat==="beanie"){ c.fillStyle=hatC; c.beginPath(); c.arc(hx,0,r*0.6,0,7); c.fill(); c.fillStyle=skin; c.beginPath(); c.arc(hx+r*0.46,0,r*0.26,0,7); c.fill(); }
+  else if(hat==="hood"){ c.fillStyle=hatC; c.beginPath(); c.arc(hx,0,r*0.66,0,7); c.fill(); c.fillStyle="rgba(0,0,0,.12)"; c.beginPath(); c.arc(hx+r*0.46,0,r*0.24,0,7); c.fill(); }
+  c.strokeStyle="rgba(0,0,0,.25)"; c.lineWidth=1.1; c.beginPath(); c.arc(hx,0,r*0.6,0,7); c.stroke();
+  if(p.hostile){ c.strokeStyle="rgba(255,70,46,.9)"; c.lineWidth=1.6; c.beginPath(); c.arc(0,0,r*1.6,0,7); c.stroke(); }
+  c.restore();
 }
 
 function vignette(){

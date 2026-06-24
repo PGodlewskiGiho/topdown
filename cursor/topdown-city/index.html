@@ -43,6 +43,65 @@
     </div>
     <p class="menu-hint" id="menu-save-hint"></p>
   </div>
+  <div class="menu-panel menu-panel-wide hidden" id="menu-char">
+    <button type="button" class="menu-back" id="btn-char-back">← Wróć</button>
+    <h2>Stwórz postać</h2>
+    <p class="menu-sub">Generator bohatera · podgląd na żywo</p>
+    <div class="char-layout">
+      <div class="char-preview-col">
+        <canvas id="char-preview" width="168" height="210"></canvas>
+        <p class="char-preview-name" id="char-preview-name">Wędrowiec</p>
+        <button type="button" class="menu-secondary char-random-btn" id="btn-char-random">🎲 Losuj wygląd</button>
+      </div>
+      <div class="char-scroll">
+        <div class="menu-field">
+          <label class="menu-label" for="char-name">Imię</label>
+          <input type="text" class="char-name-input" id="char-name" maxlength="24" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Sylwetka</span>
+          <div class="menu-choices" id="char-body-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Kolor skóry</span>
+          <div class="menu-choices char-palette" id="char-skin-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Fryzura</span>
+          <div class="menu-choices" id="char-hairstyle-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Kolor włosów</span>
+          <div class="menu-choices char-palette" id="char-haircol-choices"></div>
+        </div>
+        <div class="menu-field" id="char-beard-field">
+          <span class="menu-label">Broda</span>
+          <div class="menu-choices" id="char-beard-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Ubranie</span>
+          <div class="menu-choices char-palette" id="char-shirt-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Styl góry</span>
+          <div class="menu-choices" id="char-shirtstyle-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Spodnie</span>
+          <div class="menu-choices char-palette" id="char-pants-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Nakrycie głowy</span>
+          <div class="menu-choices" id="char-hat-choices"></div>
+        </div>
+        <div class="menu-field" id="char-hatcol-field">
+          <span class="menu-label">Kolor nakrycia</span>
+          <div class="menu-choices char-palette" id="char-hatcol-choices"></div>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="menu-primary char-next-btn" id="btn-char-next">Dalej — wybór świata →</button>
+  </div>
   <div class="menu-panel hidden" id="menu-new">
     <button type="button" class="menu-back" id="btn-back">← Wróć</button>
     <h2>Nowa gra</h2>
@@ -71,7 +130,7 @@
   <script src="js/05-movement.js"></script>
   <script src="js/06-render-draw.js"></script>
   <script src="js/07-boats.js"></script>
-  <script src="js/08-render-assets.js?v=20"></script>
+  <script src="js/08-render-assets.js?v=21"></script>
   <script src="js/09-gauge.js"></script>
   <script src="js/10-time.js"></script>
   <script src="js/11-minimap.js"></script>
@@ -83,8 +142,9 @@
   <script src="js/17-effects.js"></script>
   <script src="js/18-audio.js?v=4"></script>
   <script src="js/19-save.js"></script>
-  <script src="js/21-menu.js?v=2"></script>
+  <script src="js/28-character.js?v=1"></script>
+  <script src="js/21-menu.js?v=3"></script>
   <script src="js/22-wildlife.js?v=18"></script>
-  <script src="js/20-main.js?v=2"></script>
+  <script src="js/20-main.js?v=3"></script>
 </body>
 </html>

@@ -49,8 +49,9 @@ function renderSpawnChoices(){
 }
 function showMenuPanel(id){
   document.getElementById("menu-main")?.classList.toggle("hidden", id!=="main");
+  document.getElementById("menu-char")?.classList.toggle("hidden", id!=="char");
   document.getElementById("menu-new")?.classList.toggle("hidden", id!=="new");
-  gamePhase=id==="new"?"newgame":"menu";
+  gamePhase=id==="new"?"newgame":id==="char"?"charcreate":"menu";
 }
 function dismissMenu(){
   const m=document.getElementById("menu");
@@ -63,15 +64,19 @@ function dismissMenu(){
 }
 function startLoadedGame(){
   loadGame();
+  if(typeof applyCharacterToPed==="function") applyCharacterToPed();
   teleportPlayer(car.x, car.y);
   dismissMenu();
 }
 function startNewGame(){
+  if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
   const sp=getSpawnPoint(menuState.biome, menuState.variant);
   resetNewGameState();
+  if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
   teleportPlayer(sp.x, sp.y);
   dismissMenu();
-  showBigMsg(sp.district);
+  const who=(playerCharacter&&playerCharacter.name)||"Wędrowiec";
+  showBigMsg(who+" · "+sp.district);
   saveGame();
 }
 function initStartMenu(){
@@ -97,10 +102,14 @@ function initStartMenu(){
   }
   if(hint) hint.textContent=saved?"Zapis w przeglądarce (localStorage)":"Brak zapisu — tylko nowa gra";
   btnNew?.addEventListener("click", ()=>{
-    showMenuPanel("new");
-    renderSpawnChoices();
+    if(typeof openCharacterCreator==="function") openCharacterCreator();
+    else { showMenuPanel("new"); renderSpawnChoices(); }
   });
-  btnBack?.addEventListener("click", ()=>showMenuPanel("main"));
+  btnBack?.addEventListener("click", ()=>{
+    showMenuPanel("char");
+    if(typeof renderCharacterUI==="function") renderCharacterUI();
+    if(typeof startCharPreviewLoop==="function") startCharPreviewLoop();
+  });
   btnStart?.addEventListener("click", startNewGame);
   btnLoad?.addEventListener("click", ()=>{ if(hasSaveGame()) startLoadedGame(); });
   if(biomeBox){
@@ -121,5 +130,7 @@ function initStartMenu(){
     }
   }
   refreshSpawnPreview();
+  if(typeof initCharacterCreator==="function") initCharacterCreator();
+  if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
 }
 initStartMenu();
