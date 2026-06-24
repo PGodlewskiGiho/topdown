@@ -1169,6 +1169,34 @@ function drawForestFloor(L){
   }
 }
 
+function drawForestRock(x,y,s,v,moss){
+  ctx.save(); ctx.translate(x,y);
+  const sc=Math.max(0.55,s/14);
+  ctx.scale(sc,sc);
+  ctx.fillStyle="rgba(16,14,10,0.2)"; ctx.beginPath(); ctx.ellipse(2,4,9,3.2,0,0,7); ctx.fill();
+  const shapes=[
+    [[-7,5],[-3,-6],[4,-3],[8,4]],
+    [[-8,4],[-4,-5],[2,-7],[7,-1],[6,5]],
+    [[-6,6],[0,-8],[6,2],[3,6]],
+    [[-5,5],[-6,-2],[0,-7],[5,-4],[7,3]],
+  ];
+  const sh=shapes[(v||0)%shapes.length];
+  ctx.fillStyle=moss?"#5a5848":"#6e6860";
+  ctx.beginPath(); ctx.moveTo(sh[0][0],sh[0][1]);
+  for(let i=1;i<sh.length;i++) ctx.lineTo(sh[i][0],sh[i][1]);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle=moss?"#4a4840":"#565048";
+  ctx.beginPath(); ctx.moveTo(sh[1][0],sh[1][1]);
+  for(let i=2;i<sh.length;i++) ctx.lineTo(sh[i][0],sh[i][1]);
+  ctx.lineTo(sh[0][0]*0.35,sh[0][1]*0.55); ctx.closePath(); ctx.fill();
+  if(moss){
+    ctx.fillStyle="rgba(48,72,42,0.48)"; ctx.beginPath(); ctx.ellipse(-2,-3,4.2,2.4,-0.3,0,7); ctx.fill();
+    ctx.fillStyle="rgba(58,88,48,0.34)"; ctx.beginPath(); ctx.ellipse(3,-1,3.2,1.9,0.2,0,7); ctx.fill();
+  }
+  ctx.fillStyle="rgba(255,248,230,0.14)"; ctx.beginPath(); ctx.ellipse(-2,-4,2.2,1.3,-0.4,0,7); ctx.fill();
+  ctx.restore();
+}
+
 function drawForestFloraItem(d){
   const s=d.s, r=d.rot||0, x=d.x, y=d.y;
   ctx.save(); ctx.translate(x,y); ctx.rotate(r);
@@ -1272,6 +1300,22 @@ function drawForestFloraItem(d){
     case "shroom_puff": drawFloraMushroomPuff(s); break;
     case "shroom_lilac": drawFloraMushroomLilac(s); break;
     case "shroom_shelf": drawFloraMushroomShelf(s); break;
+    case "rock_pebble": {
+      const c=["#6a6458","#5a5448","#726a5e"][(d.v||0)%3];
+      ctx.fillStyle="rgba(14,12,10,0.16)"; ctx.beginPath(); ctx.ellipse(0.8,1.2,s*0.55,s*0.22,0,0,7); ctx.fill();
+      ctx.fillStyle=c; ctx.beginPath(); ctx.ellipse(0,0,s*0.72,s*0.48,r*0.2,0,7); ctx.fill();
+      ctx.fillStyle="rgba(255,245,220,0.18)"; ctx.beginPath(); ctx.ellipse(-s*0.15,-s*0.12,s*0.22,s*0.14,r*0.1,0,7); ctx.fill();
+      break;
+    }
+    case "rock_flat": {
+      ctx.fillStyle="rgba(14,12,10,0.14)"; ctx.beginPath(); ctx.ellipse(1,1.5,s*0.85,s*0.28,r*0.15,0,7); ctx.fill();
+      ctx.fillStyle="#5e5850"; ctx.beginPath();
+      ctx.moveTo(-s*0.9,s*0.15); ctx.lineTo(-s*0.35,-s*0.35); ctx.lineTo(s*0.45,-s*0.22); ctx.lineTo(s*0.95,s*0.22); ctx.closePath(); ctx.fill();
+      ctx.fillStyle="#4a4640"; ctx.beginPath();
+      ctx.moveTo(-s*0.35,-s*0.35); ctx.lineTo(s*0.45,-s*0.22); ctx.lineTo(s*0.2,s*0.18); ctx.closePath(); ctx.fill();
+      ctx.fillStyle="rgba(52,78,44,0.28)"; ctx.beginPath(); ctx.ellipse(-s*0.1,-s*0.08,s*0.35,s*0.18,r*0.2,0,7); ctx.fill();
+      break;
+    }
     default: { // blade
       ctx.strokeStyle="#2a5828"; ctx.lineWidth=1.1; for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(k*2,s*0.15); ctx.quadraticCurveTo(k*2.5,-s*0.35,k*1.2,-s*0.75); ctx.stroke(); }
     }
@@ -1711,8 +1755,7 @@ function drawProps(L){
       ctx.fillStyle="#8a6a3a"; ctx.fillRect(p.x-2,p.y-p.s,4,p.s);
       ctx.fillStyle="#2f8a5a"; for(let a=0;a<6;a++){ const ang=a/6*6.283; ctx.save(); ctx.translate(p.x,p.y-p.s); ctx.rotate(ang); ctx.fillRect(0,-2,p.s*0.95,4); ctx.restore(); }
     } else if(p.t==="rock"){
-      ctx.fillStyle="#7c766c"; ctx.beginPath(); ctx.moveTo(p.x-p.s*0.6,p.y+p.s*0.4); ctx.lineTo(p.x-p.s*0.2,p.y-p.s*0.5); ctx.lineTo(p.x+p.s*0.3,p.y-p.s*0.2); ctx.lineTo(p.x+p.s*0.6,p.y+p.s*0.4); ctx.closePath(); ctx.fill();
-      ctx.fillStyle="#5e594f"; ctx.beginPath(); ctx.moveTo(p.x-p.s*0.2,p.y-p.s*0.5); ctx.lineTo(p.x+p.s*0.3,p.y-p.s*0.2); ctx.lineTo(p.x+p.s*0.05,p.y+p.s*0.4); ctx.closePath(); ctx.fill();
+      drawForestRock(p.x,p.y,p.s,p.v,p.moss);
     } else if(p.t==="reed"){ drawReed(p);
     } else if(p.t==="tree"){ /* trunks drawn in drawTrunks() pass, over buildings */ }
     else {

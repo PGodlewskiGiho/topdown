@@ -1356,13 +1356,55 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=25;
+const LOT_CACHE_VER=26;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 
 const FOREST_MUSHROOMS=["shroom_red","shroom_brown","shroom_tan","shroom_puff","shroom_lilac","shroom_shelf"];
 const FOREST_FLORA_EXTRA=["lichen","berry","bracken","ivy","clover","violet","sprout","heather","deadwood"];
 
 function forestFloraOk(x,y){ return !inWater(x,y) && !isRiverAt(x,y); }
+
+function genForestRocks(lot,r,left,top,lw,lh,i,j){
+  if(lot.biome!=="forest"||lot.water||lot.mountain) return;
+  const hill=lot.hill, steep=(lot.elevMean||0)>0.48;
+  const chance=hill?0.82:steep?0.42:0.26;
+  if(r()>chance) return;
+  const rockOk=(x,y)=>{
+    if(!forestFloraOk(x,y)) return false;
+    for(const p of lot.props){
+      if(p.t!=="tree") continue;
+      const hr=p.hitR||(p.s*0.22);
+      if(Math.hypot(p.x-x,p.y-y)<hr+10) return false;
+    }
+    return true;
+  };
+  let n=hill?2+(r()*4|0):1+(r()*2|0);
+  if(r()<0.34){
+    const cx=left+28+r()*(lw-56), cy=top+28+r()*(lh-56);
+    if(rockOk(cx,cy)){
+      const cn=2+(r()*3|0);
+      for(let k=0;k<cn;k++){
+        const ang=r()*6.283, d=4+r()*20;
+        const x=cx+Math.cos(ang)*d, y=cy+Math.sin(ang)*d;
+        if(!rockOk(x,y)) continue;
+        lot.props.push({x,y,s:9+r()*18,t:"rock",v:(r()*4|0),moss:r()<(hill?0.62:0.44)});
+      }
+      n=Math.max(0,n-1);
+    }
+  }
+  for(let k=0;k<n;k++){
+    const x=left+16+r()*(lw-32), y=top+16+r()*(lh-32);
+    if(!rockOk(x,y)) continue;
+    lot.props.push({x,y,s:7+r()*(hill?16:12),t:"rock",v:(r()*4|0),moss:r()<0.48});
+  }
+  if(!lot.forestFloor) lot.forestFloor=[];
+  const peb=1+(r()*3|0);
+  for(let k=0;k<peb;k++){
+    const x=left+10+r()*(lw-20), y=top+10+r()*(lh-20);
+    if(!forestFloraOk(x,y)) continue;
+    lot.forestFloor.push({x,y,kind:r()<0.55?"rock_pebble":"rock_flat",s:3.5+r()*7,rot:r()*6.28,v:(r()*3|0)});
+  }
+}
 
 function genForestFloor(lot,r,left,top,lw,lh,i,j){
   lot.forestFloor=[];
@@ -1517,10 +1559,6 @@ function getLot(i,j){
   if(!lot.mega && !lot.water && !lot.mountain) addLamps(lot,i,j,r);
   if(!lot.mega) addSignals(lot,i,j);
   if(lot.buildings.length) lot.buildings=lot.buildings.filter(b=>!inPlaza(b.x+b.w/2,b.y+b.h/2));
-  if(lot.hill && !lot.mountain && !lot.water && biome==="forest" && r()<0.58){
-    for(let k=0;k<1+(r()*3|0);k++) lot.props.push({x:left+22+r()*(lw-44), y:top+22+r()*(lh-44), s:10+r()*18, t:"rock"});
-    lot.props.sort((u,v)=>u.y-v.y);
-  }
   // ---- surface detail (visual only; stable per lot) ----
   lot.tufts=[]; lot.flowers=[]; lot.ripples=[]; lot.pebbles=[];
   if(lot.water){
@@ -1539,6 +1577,8 @@ function getLot(i,j){
       }
       if(dense||lot.zone==="forest"){
         genForestFloor(lot,r,left,top,lw,lh,i,j);
+        if(biome==="forest") genForestRocks(lot,r,left,top,lw,lh,i,j);
+        lot.props.sort((u,v)=>u.y-v.y);
       }
       const nf=(r()*6|0); for(let k=0;k<nf;k++) lot.flowers.push({x:left+r()*lw, y:top+r()*lh, c:["#e8d24a","#e07a9a","#c95ad8","#f0f0f0","#e88a3a"][(r()*5)|0]});
     }
