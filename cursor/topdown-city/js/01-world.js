@@ -154,7 +154,10 @@ function isRiverCell(i,j){ return riverCellSigned(i,j)>0; }
 function isRiverAt(x,y){ return riverScore(x,y)>0; }
 function isLakeAt(x,y){ return lakeScore(x,y)>0; }
 function coastalLot(i,j){ for(let di=-1;di<=1;di++)for(let dj=-1;dj<=1;dj++){ if(isWaterCell(i+di,j+dj)) return true; } return false; }
-function inWater(x,y){ return waterScore(x,y) > 0; }             // matches the rendered coastline -> correct shore detection
+function inWater(x,y){
+  if(typeof onForestBridgeAt==="function"&&onForestBridgeAt(x,y)) return false;
+  return waterScore(x,y)>0;
+}
 
 // ---- terrain elevation (multi-scale hills; render == physics via terrainScore) ----
 function terrainBaseNoise(i,j){
@@ -203,30 +206,44 @@ function getEdge(i,j,di,dj){
   const bA=biomeOf(i,j), bB=biomeOf(ii,jj), city=(bA==="city"&&bB==="city");
   const h1=hsh(i*7+di,j*5+dj,7), h2=hsh(i+dj,j+di,13), h3=hsh(i-dj,j-di,19);
   const isHwy = (di===1&&dj===0&&hwCorridorH(j)) || (di===0&&dj===1&&hwCorridorV(i));
-  // terrain: roads avoid water bodies (cross only at rare bridges) and steep mountains (route around)
-  const overWater = (di===1&&dj===0) ? (isWaterCell(i,j)||isWaterCell(i,j-1)) : (isWaterCell(i,j)||isWaterCell(i-1,j));
   const overMega = edgeTouchesMega(i,j,di,dj);
   const mtn = isMountain(i,j)||isMountain(ii,jj);
   let exists = isHwy ? true : (city ? h1>0.07 : h1>0.34);
-  let bridge=false;
-  if(overWater) exists=false;   // roads route around water (lakes are impassable to cars)
-  if(overMega) exists=false;    // mega-structures occupy whole chunks: no roads through footprint
-  if(mtn && !isHwy && h1<0.78) exists=false;                                  // sparse in mountains
   const x1=nX(i,j),y1=nY(i,j),x2=nX(ii,jj),y2=nY(ii,jj);
-  if(!isHwy && terrainSlope((x1+x2)/2,(y1+y2)/2)>0.0036 && h1<0.74) exists=false;   // steep grades -> detour
+  if(overMega) exists=false;
+  if(mtn && !isHwy && h1<0.78) exists=false;
+  if(!isHwy && terrainSlope((x1+x2)/2,(y1+y2)/2)>0.0036 && h1<0.74) exists=false;
   let klass;
   if(isHwy) klass="hwy";
-  else if(city){ const cc=nearestCity(i,j); klass = cc.dist < cc.R*0.3 ? "art" : (h2<0.3?"art":"st"); }   // grand avenues downtown
+  else if(city){ const cc=nearestCity(i,j); klass = cc.dist < cc.R*0.3 ? "art" : (h2<0.3?"art":"st"); }
   else if(bA==="forest"&&bB==="forest") klass="trail";
   else klass = (bA==="forest"||bB==="forest") ? "rural" : (h2<0.5?"rural":"dirt");
   const WR={hwy:[230,290], art:[160,210], st:[120,156], rural:[70,104], dirt:[52,80], trail:[40,58]}[klass];
   const width=Math.round(WR[0]+h3*(WR[1]-WR[0]));
-  const offFrac={hwy:0.015, art:0.022, st:0.04, rural:0.13, dirt:0.19, trail:0.24}[klass];   // forest trails wind more
+  const offFrac={hwy:0.015, art:0.022, st:0.04, rural:0.13, dirt:0.19, trail:0.24}[klass];
   const dx=x2-x1,dy=y2-y1, len=Math.hypot(dx,dy)||1;
-  let off=(h2*2-1)*len*offFrac; const CAP=60; off=Math.max(-CAP,Math.min(CAP,off));   // cap bulge -> roads stay in corridor
+  let off=(h2*2-1)*len*offFrac; const CAP=60; off=Math.max(-CAP,Math.min(CAP,off));
   const cp=[(x1+x2)/2+(-dy/len)*off, (y1+y2)/2+(dx/len)*off];
+  let bridge=false;
+  if(!isHwy && exists){
+    let crossesRiver=false, crossesLake=false;
+    for(let t=0.05;t<0.95;t+=0.07){
+      const p=bez([x1,y1],cp,[x2,y2],t);
+      if(riverScore(p[0],p[1])>0) crossesRiver=true;
+      if(lakeScore(p[0],p[1])>0) crossesLake=true;
+    }
+    if(crossesLake) exists=false;
+    else if(crossesRiver){
+      const forestPair=bA==="forest"&&bB==="forest";
+      const forestRural=klass==="rural"&&(bA==="forest"||bB==="forest");
+      const roll=hsh(i*13+di*3,j*11+dj*5,571);
+      const chance=klass==="trail"?0.34:klass==="rural"?0.15:0;
+      if((forestPair||forestRural)&&roll<chance) bridge=true;
+      else exists=false;
+    }
+  }
   const markings=(klass==="hwy"||klass==="art"||klass==="st");
-  e={exists,width,klass,cp,col: bridge?"#55585f":ROADCLR[klass], markings,len, bulge:Math.abs(off), bridge, hwy:isHwy};
+  e={exists,width,klass,cp,col:bridge?"#6a5848":ROADCLR[klass], markings,len, bulge:Math.abs(off), bridge, hwy:isHwy};
   edgeCache.set(key,e); return e;
 }
 function neighbors(i,j){ const r=[]; for(const[di,dj]of EDIRS) if(getEdge(i,j,di,dj).exists) r.push([i+di,j+dj]); return r; }
@@ -422,6 +439,7 @@ function drawRoads(ox,oy){
   if(_at||_dt){ for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge||e.klass==="trail") continue;
     const tp=(e.klass==="dirt"||e.klass==="rural")?_dt:_at; if(tp) strokeEdge(i,j,di,dj,e.width,tp); } } }
   drawForestTrails(ox,oy);
+  if(typeof drawForestBridges==="function") drawForestBridges(ox,oy);
   // intersections (roundabouts get a ring + island)
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
     const mw=nodeMaxWidth(i,j); if(!mw) continue; const A=node(i,j);
@@ -1338,7 +1356,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=24;
+const LOT_CACHE_VER=25;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 
 const FOREST_MUSHROOMS=["shroom_red","shroom_brown","shroom_tan","shroom_puff","shroom_lilac","shroom_shelf"];
