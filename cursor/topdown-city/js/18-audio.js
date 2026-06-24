@@ -3,7 +3,7 @@
 let actx=null, master=null, audioOn=true, mHeld=false;
 let engOsc, engOsc2, engGain, engFilt, sirenOsc, sirenGain, rainGain;
 let forestAmbGain, forestWindGain, forestWindFilt, forestWindFilt2, forestRustleGain, forestStreamGain;
-let forestBirdTimer=0, forestAnimalTimer=0, forestWindSmooth=0, forestAudioLast=0;
+let forestBirdTimer=0, forestAnimalTimer=0, forestCritterTimer=0, forestWindSmooth=0, forestAudioLast=0;
 function playerInForest(){
   if(typeof focusX==="undefined"||typeof cellAt!=="function") return false;
   const k=cellAt(focusX,focusY);
@@ -171,6 +171,67 @@ function playForestBearGrowl(vol){
   o.connect(f); f.connect(g); g.connect(out); o.start(t0); o.stop(t0+dur+0.02);
   noiseBurst(0.35,"lowpass",120,0,Math.min(0.35,(vol||0.14)*2));
 }
+function playForestSquirrelChirp(vol){
+  const out=forestSfx(vol||0.08); if(!out) return;
+  const t0=actx.currentTime;
+  for(let i=0;i<3+(Math.random()*2|0);i++){
+    const tt=t0+i*0.07+Math.random()*0.03;
+    const o=actx.createOscillator(); o.type="sine";
+    const g=actx.createGain(); g.gain.setValueAtTime(0.0001,tt); g.gain.linearRampToValueAtTime(0.85,tt+0.008); g.gain.exponentialRampToValueAtTime(0.001,tt+0.07);
+    o.frequency.setValueAtTime(2800+Math.random()*900,tt); o.frequency.exponentialRampToValueAtTime(2200+Math.random()*600,tt+0.06);
+    o.connect(g); g.connect(out); o.start(tt); o.stop(tt+0.08);
+  }
+}
+function playForestBushRustle(vol){
+  const out=forestSfx(vol||0.06); if(!out) return;
+  const t0=actx.currentTime, dur=0.14+Math.random()*0.08;
+  const len=Math.max(1,(actx.sampleRate*dur)|0), buf=actx.createBuffer(1,len,actx.sampleRate), d=buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+  const src=actx.createBufferSource(); src.buffer=buf;
+  const f=actx.createBiquadFilter(); f.type="bandpass"; f.frequency.value=1800+Math.random()*1200; f.Q.value=0.65;
+  const g=actx.createGain(); g.gain.setValueAtTime(vol||0.06,t0); g.gain.exponentialRampToValueAtTime(0.001,t0+dur);
+  src.connect(f); f.connect(g); g.connect(out); src.start(t0);
+}
+function playForestFoxYip(vol){
+  const out=forestSfx(vol||0.09); if(!out) return;
+  const t0=actx.currentTime, dur=0.18;
+  const o=actx.createOscillator(); o.type="triangle";
+  const g=actx.createGain(); g.gain.setValueAtTime(0.0001,t0); g.gain.linearRampToValueAtTime(0.75,t0+0.015); g.gain.exponentialRampToValueAtTime(0.001,t0+dur);
+  o.frequency.setValueAtTime(520,t0); o.frequency.exponentialRampToValueAtTime(920,t0+dur*0.55); o.frequency.exponentialRampToValueAtTime(680,t0+dur);
+  o.connect(g); g.connect(out); o.start(t0); o.stop(t0+dur+0.02);
+}
+function playForestOtterChirp(vol){
+  const out=forestSfx(vol||0.08); if(!out) return;
+  const t0=actx.currentTime;
+  for(let i=0;i<2;i++){
+    const tt=t0+i*0.16, o=actx.createOscillator(); o.type="sine";
+    const g=actx.createGain(); g.gain.setValueAtTime(0.0001,tt); g.gain.linearRampToValueAtTime(0.9,tt+0.02); g.gain.exponentialRampToValueAtTime(0.001,tt+0.22);
+    o.frequency.setValueAtTime(1100-i*80,tt); o.frequency.linearRampToValueAtTime(1680-i*60,tt+0.12); o.frequency.exponentialRampToValueAtTime(980,tt+0.22);
+    o.connect(g); g.connect(out); o.start(tt); o.stop(tt+0.24);
+  }
+}
+function playForestOtterSplash(vol){
+  const out=forestSfx(vol||0.07); if(!out) return;
+  const t0=actx.currentTime, dur=0.22;
+  const len=Math.max(1,(actx.sampleRate*dur)|0), buf=actx.createBuffer(1,len,actx.sampleRate), d=buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+  const src=actx.createBufferSource(); src.buffer=buf;
+  const f=actx.createBiquadFilter(); f.type="bandpass"; f.frequency.value=420; f.Q.value=0.55;
+  const g=actx.createGain(); g.gain.setValueAtTime(vol||0.07,t0); g.gain.exponentialRampToValueAtTime(0.001,t0+dur);
+  src.connect(f); f.connect(g); g.connect(out); src.start(t0);
+  const o=actx.createOscillator(); o.type="sine"; o.frequency.value=180;
+  const og=actx.createGain(); og.gain.setValueAtTime(0.0001,t0); og.gain.linearRampToValueAtTime(0.2,t0+0.02); og.gain.exponentialRampToValueAtTime(0.001,t0+dur);
+  o.connect(og); og.connect(out); o.start(t0); o.stop(t0+dur);
+}
+function playForestCritterAmbient(){
+  initAudio();
+  const r=Math.random();
+  if(r<0.28) playForestSquirrelChirp(0.035+Math.random()*0.03);
+  else if(r<0.48) playForestBushRustle(0.03+Math.random()*0.025);
+  else if(r<0.68) playForestFoxYip(0.03+Math.random()*0.025);
+  else if(r<0.86) playForestOtterChirp(0.03+Math.random()*0.025);
+  else playForestOtterSplash(0.025+Math.random()*0.02);
+}
 function playForestAnimalAmbient(){
   initAudio();
   const r=Math.random();
@@ -216,11 +277,22 @@ function updateForestAudio(){
     forestAnimalTimer=rand(8,22);
     if(Math.random()<0.72) playForestAnimalAmbient();
   }
+  forestCritterTimer-=dt;
+  if(forestCritterTimer<=0){
+    forestCritterTimer=rand(3.5,9);
+    const nearStream=nearForestRiver(typeof focusX!=="undefined"?focusX:(mode==="car"?car.x:ped.x), typeof focusY!=="undefined"?focusY:(mode==="car"?car.y:ped.y));
+    if(Math.random()<(nearStream?0.82:0.62)) playForestCritterAmbient();
+  }
 }
 window.playForestDeerSnort=playForestDeerSnort;
 window.playForestWolfHowl=playForestWolfHowl;
 window.playForestBoarGrunt=playForestBoarGrunt;
 window.playForestBearGrowl=playForestBearGrowl;
+window.playForestSquirrelChirp=playForestSquirrelChirp;
+window.playForestBushRustle=playForestBushRustle;
+window.playForestFoxYip=playForestFoxYip;
+window.playForestOtterChirp=playForestOtterChirp;
+window.playForestOtterSplash=playForestOtterSplash;
 function initAudio(){
   if(actx) return;
   const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;

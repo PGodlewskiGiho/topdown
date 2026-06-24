@@ -4,10 +4,10 @@ const bears=[], bearFamilies=[];
 const deer=[], deerHerds=[];
 const wolves=[], wolfPacks=[];
 const boars=[];
-const forestCritters=[], treeSquirrels=[];
+const forestCritters=[], treeSquirrels=[], forestFoxes=[], riverOtters=[];
 const forestBirds=[];
 let bearTimer=0, deerTimer=0, wolfTimer=0, boarTimer=0, forestBirdTimer=0;
-let critterTimer=0, squirrelTimer=0;
+let critterTimer=0, squirrelTimer=0, foxTimer=0, otterTimer=0;
 let nextFamilyId=1, nextHerdId=1, nextPackId=1;
 
 const BEAR_VARIANTS=["brown","dark","cinnamon","grizzly"];
@@ -20,7 +20,7 @@ const BEAR_SPRITE={ready:false,meta:null,img:{}};
 const WILD_SPRITE={ready:false,meta:null,img:{}};
 
 const MAX_BEAR_FAMILIES=2, MAX_DEER_HERDS=3, MAX_WOLF_PACKS=2, MAX_BOAR_GROUPS=3;
-const MAX_FOREST_CRITTERS=26, MAX_TREE_SQUIRRELS=18;
+const MAX_FOREST_CRITTERS=26, MAX_TREE_SQUIRRELS=18, MAX_FOXES=5, MAX_OTTERS=8;
 const HOME_R=380;
 
 const CRITTER_DEF={
@@ -799,6 +799,10 @@ function critterScared(c,pp,dist){
   c.state="flee"; c.fleeT=Math.max(c.fleeT||0,2);
   const ang=Math.atan2(c.y-pp.y,c.x-pp.x)+(rng()-0.5)*0.5;
   c.tx=c.x+Math.cos(ang)*rand(90,170); c.ty=c.y+Math.sin(ang)*rand(90,170);
+  if(c.kind==="rabbit"||c.kind==="mouse"){
+    c.rustleCd=(c.rustleCd||0)+0.5;
+    if(typeof playForestBushRustle==="function"&&c.rustleCd>0.35){ playForestBushRustle(0.06+rng()*0.04); c.rustleCd=0; }
+  }
   return true;
 }
 function critterDayRhythm(c,dt){
@@ -875,6 +879,8 @@ function updateForestCritters(dt){
     if(c.state==="flee") spd=def.run;
     else if(c.state==="return") spd=def.speed*0.85;
     critterMove(c,dt,spd);
+    if(c.moving&&(c.kind==="mouse"||c.kind==="rabbit")&&rng()<dt*0.05&&typeof playForestBushRustle==="function")
+      playForestBushRustle(0.025+rng()*0.02);
   }
   if(!inForestAt(focusX,focusY)) return;
   critterTimer-=dt;
@@ -916,6 +922,7 @@ function updateTreeSquirrels(dt){
         const ang=Math.atan2(pos.y-pp.y,pos.x-pp.x)+(rng()-0.5)*0.7;
         s.tx=pos.x+Math.cos(ang)*rand(120,220); s.ty=pos.y+Math.sin(ang)*rand(120,220);
         s.state="flee";
+        if(typeof playForestSquirrelChirp==="function"&&rng()<0.7) playForestSquirrelChirp(0.08+rng()*0.05);
       }
     }
 
@@ -967,6 +974,284 @@ function updateTreeSquirrels(dt){
     const ns=spawnTreeSquirrel(); if(ns) treeSquirrels.push(ns);
   }
 }
+
+/* ── foxes (river-edges, dusk/night hunter) ── */
+function nearRiverAt(x,y,pad){
+  pad=pad||58;
+  if(isRiverAt(x,y)) return true;
+  for(let a=0;a<8;a++){ const ang=a/8*6.283; if(isRiverAt(x+Math.cos(ang)*pad,y+Math.sin(ang)*pad)) return true; }
+  return false;
+}
+function findRiverBank(wx,wy,maxDist){
+  maxDist=maxDist||48;
+  for(let t=0;t<22;t++){
+    const ang=rng()*6.283, d=rand(10,maxDist);
+    const x=wx+Math.cos(ang)*d, y=wy+Math.sin(ang)*d;
+    if(inForestAt(x,y)&&!inWater(x,y)&&nearRiverAt(x,y,42)) return {x,y};
+  }
+  return null;
+}
+function riverWanderTarget(o,dist){
+  dist=dist||100;
+  for(let t=0;t<20;t++){
+    const ang=rng()*6.283, d=rand(24,dist);
+    const tx=o.x+Math.cos(ang)*d, ty=o.y+Math.sin(ang)*d;
+    if(isRiverAt(tx,ty)) { o.tx=tx; o.ty=ty; return true; }
+  }
+  return false;
+}
+function foxActiveNow(){
+  const phase=wildDayPhase(), h=wildHour();
+  return phase==="night"||phase==="dawn"||phase==="dusk"||(phase==="day"&&(h<8.5||h>18.5));
+}
+function spawnForestFox(){
+  for(let t=0;t<22;t++){
+    const ang=rng()*6.283, dist=rand(120,620);
+    const hx=focusX+Math.cos(ang)*dist, hy=focusY+Math.sin(ang)*dist;
+    const byRiver=nearRiverAt(hx,hy,70);
+    if(!inForestAt(hx,hy)||inWater(hx,hy)||inBuilding(hx,hy,16)) continue;
+    if(!byRiver&&rng()>0.35) continue;
+    for(const f of forestFoxes) if(Math.hypot(f.homeX-hx,f.homeY-hy)<280) return null;
+    const bank=byRiver?findRiverBank(hx,hy,55):null;
+    const x=(bank||{x:hx,y:hy}).x+rand(-12,12), y=(bank||{x:hx,y:hy}).y+rand(-8,8);
+    if(!inForestAt(x,y)||inWater(x,y)) continue;
+    return {
+      kind:"fox", x,y, a:rng()*6.283, r:14,
+      homeX:hx, homeY:hy, denR:20+rand(0,10),
+      tx:x, ty:y, state:"patrol", repick:rand(2,5), fleeT:0, huntT:0,
+      eatT:rand(2,4), walkT:0, moving:false, tailT:rng()*6.28, sfxCd:rand(2,8),
+    };
+  }
+  return null;
+}
+function foxNearestPrey(f){
+  let best=null, bestD=190;
+  for(const c of forestCritters){
+    if(c.kind!=="rabbit"&&c.kind!=="mouse") continue;
+    if(c.state==="sleep"||c.state==="curl") continue;
+    const d=Math.hypot(c.x-f.x,c.y-f.y);
+    if(d<bestD){ best=c; bestD=d; }
+  }
+  return best;
+}
+function updateForestFoxes(dt){
+  const pp=playerPos();
+  for(let i=forestFoxes.length-1;i>=0;i--){
+    const f=forestFoxes[i];
+    f.tailT=(f.tailT||0)+dt*7;
+    f.sfxCd=(f.sfxCd||0)-dt;
+    if(f.fleeT>0) f.fleeT=Math.max(0,f.fleeT-dt);
+    if(f.huntT>0) f.huntT=Math.max(0,f.huntT-dt);
+    if(Math.hypot(f.x-focusX,f.y-focusY)>Math.max(VW,VH)*0.92+240){ forestFoxes.splice(i,1); continue; }
+
+    const den={x:f.homeX,y:f.homeY,r:f.denR||20};
+    if(!foxActiveNow()&&f.fleeT<=0){
+      if(!critterAtBurrow(f,den)){ f.tx=f.homeX+rand(-8,8); f.ty=f.homeY+rand(-8,8); f.state="return"; }
+      else { f.state="sleep"; f.moving=false; }
+      if(f.state!=="sleep"&&f.state!=="return") critterMove(f,dt,34);
+      continue;
+    }
+    if(f.state==="sleep"){ f.state="patrol"; critterWander(f,f.homeX,f.homeY,120); f.repick=rand(2,4); }
+
+    if(pp){
+      const d=Math.hypot(pp.x-f.x,pp.y-f.y);
+      if(d<155){
+        f.state="flee"; f.fleeT=Math.max(f.fleeT||0,2.5); f.huntT=0;
+        const ang=Math.atan2(f.y-pp.y,f.x-pp.x)+(rng()-0.5)*0.45;
+        f.tx=f.x+Math.cos(ang)*rand(140,240); f.ty=f.y+Math.sin(ang)*rand(140,240);
+        if(typeof playForestFoxYip==="function"&&f.sfxCd<=0){ playForestFoxYip(0.1+rng()*0.06); f.sfxCd=rand(2.5,5); }
+        critterMove(f,dt,95);
+        continue;
+      }
+    }
+
+    if(f.state==="flee"){
+      critterMove(f,dt,95);
+      if(f.fleeT<=0) f.state="patrol";
+      continue;
+    }
+
+    const prey=foxNearestPrey(f);
+    if(prey&&f.huntT<=0&&rng()<0.02){
+      f.state="hunt"; f.huntT=rand(3,6); f.tx=prey.x; f.ty=prey.y;
+      if(typeof playForestFoxYip==="function"&&f.sfxCd<=0){ playForestFoxYip(0.05); f.sfxCd=4; }
+    }
+    if(f.state==="hunt"&&prey){
+      f.tx=prey.x; f.ty=prey.y;
+      critterMove(f,dt,72);
+      if(Math.hypot(prey.x-f.x,prey.y-f.y)<18){
+        f.state="eat"; f.eatT=rand(2,4); f.moving=false;
+        if(rng()<0.55){ prey.state="flee"; prey.fleeT=2; prey.tx=prey.x+rand(-80,80); prey.ty=prey.y+rand(-80,80); }
+      }
+      continue;
+    }
+    if(f.state==="eat"){
+      f.eatT=(f.eatT||0)-dt;
+      if(f.eatT<=0){ f.state="patrol"; critterWander(f,f.homeX,f.homeY,130); f.repick=rand(2,5); }
+      continue;
+    }
+
+    f.repick=(f.repick||0)-dt;
+    if(f.repick<=0){
+      if(nearRiverAt(f.x,f.y,50)&&rng()<0.55){
+        const bank=findRiverBank(f.x,f.y,70);
+        if(bank){ f.tx=bank.x+rand(-20,20); f.ty=bank.y+rand(-12,12); }
+        else critterWander(f,f.homeX,f.homeY,130);
+      } else critterWander(f,f.homeX,f.homeY,130);
+      f.repick=rand(2.5,6);
+    }
+    if(f.sfxCd<=0&&rng()<dt*0.012&&typeof playForestFoxYip==="function"){
+      playForestFoxYip(0.04+rng()*0.03); f.sfxCd=rand(6,14);
+    }
+    critterMove(f,dt,f.state==="return"?30:48);
+  }
+  if(!inForestAt(focusX,focusY)) return;
+  foxTimer-=dt;
+  if(forestFoxes.length<MAX_FOXES&&foxTimer<=0){
+    foxTimer=rand(1.2,3.5);
+    const nf=spawnForestFox(); if(nf) forestFoxes.push(nf);
+  }
+}
+
+/* ── river otters ── */
+function spawnRiverOtter(){
+  for(let t=0;t<28;t++){
+    const ang=rng()*6.283, dist=rand(80,520);
+    const x=focusX+Math.cos(ang)*dist, y=focusY+Math.sin(ang)*dist;
+    if(!isRiverAt(x,y)) continue;
+    if(!inForestAt(x,y)&&!nearRiverAt(x,y,80)) continue;
+    for(const o of riverOtters) if(Math.hypot(o.x-x,o.y-y)<90) return null;
+    const bank=findRiverBank(x,y,55)||{x:x+rand(-20,20),y:y+rand(-20,20)};
+    return {
+      kind:"otter", x,y, a:rng()*6.283, r:11,
+      homeX:bank.x, homeY:bank.y,
+      tx:x, ty:y, state:rng()<0.65?"swim":"bank",
+      repick:rand(1.2,2.8), playT:rand(1,3), eatT:rand(1.5,3),
+      tailT:rng()*6.28, walkT:0, moving:false, sfxCd:rand(2,6), splashCd:0,
+    };
+  }
+  return null;
+}
+function otterMove(o,dt,spd){
+  if(o.state==="sleep"){ o.moving=false; return; }
+  const dx=o.tx-o.x, dy=o.ty-o.y, d=Math.hypot(dx,dy)||1;
+  if(d>6){
+    o.a=Math.atan2(dy,dx);
+    const mv=Math.min(1,d/70);
+    o.x+=dx/d*spd*mv*dt; o.y+=dy/d*spd*mv*dt;
+    o.moving=true; o.walkT=(o.walkT||0)+dt;
+  } else o.moving=false;
+  if(o.state==="swim"&&!isRiverAt(o.x,o.y)){
+    if(!riverWanderTarget(o,80)){ o.state="bank"; o.tx=o.homeX; o.ty=o.homeY; }
+  }
+}
+function updateRiverOtters(dt){
+  const pp=playerPos();
+  for(let i=riverOtters.length-1;i>=0;i--){
+    const o=riverOtters[i];
+    o.tailT=(o.tailT||0)+dt*8;
+    o.sfxCd=(o.sfxCd||0)-dt;
+    o.splashCd=Math.max(0,(o.splashCd||0)-dt);
+    if(Math.hypot(o.x-focusX,o.y-focusY)>Math.max(VW,VH)*0.92+260){ riverOtters.splice(i,1); continue; }
+
+    const phase=wildDayPhase();
+    if(phase==="night"&&o.state!=="sleep"&&(!pp||Math.hypot(pp.x-o.x,pp.y-o.y)>160)){
+      if(Math.hypot(o.x-o.homeX,o.y-o.homeY)<28){ o.state="sleep"; o.moving=false; continue; }
+      o.tx=o.homeX; o.ty=o.homeY; o.state="bank";
+    } else if(phase!=="night"&&o.state==="sleep"){
+      o.state=rng()<0.6?"swim":"bank"; o.repick=0.4;
+    }
+
+    if(pp&&Math.hypot(pp.x-o.x,pp.y-o.y)<130){
+      o.state="swim"; o.fleeT=Math.max(o.fleeT||0,2);
+      const ang=Math.atan2(o.y-pp.y,o.x-pp.x);
+      o.tx=o.x+Math.cos(ang)*rand(80,150); o.ty=o.y+Math.sin(ang)*rand(80,150);
+      if(!isRiverAt(o.tx,o.ty)) riverWanderTarget(o,120);
+      if(typeof playForestOtterChirp==="function"&&o.sfxCd<=0){ playForestOtterChirp(0.09); o.sfxCd=2.5; }
+    }
+
+    if(o.state==="sleep") continue;
+
+    o.repick=(o.repick||0)-dt;
+    o.playT=(o.playT||0)-dt;
+
+    if(o.state==="swim"){
+      if(o.repick<=0){
+        riverWanderTarget(o,140);
+        o.repick=rand(1.2,2.8);
+        if(rng()<0.22){ o.state="bank"; o.tx=o.homeX+rand(-16,16); o.ty=o.homeY+rand(-10,10); }
+      }
+      otterMove(o,dt,56);
+      if(o.moving&&o.splashCd<=0&&rng()<dt*0.18&&typeof playForestOtterSplash==="function"){
+        playForestOtterSplash(0.05); o.splashCd=0.35;
+      }
+    } else if(o.state==="bank"||o.state==="play"){
+      if(o.playT<=0&&o.state==="bank"){
+        o.state="play"; o.playT=rand(1.5,3.5);
+        if(typeof playForestOtterChirp==="function"&&o.sfxCd<=0){ playForestOtterChirp(0.07+rng()*0.04); o.sfxCd=rand(3,7); }
+      }
+      if(o.state==="play"){
+        o.a+=Math.sin(o.tailT)*0.02;
+        if(o.playT<=0){
+          o.state=rng()<0.55?"swim":"bank";
+          if(o.state==="swim"){
+            riverWanderTarget(o,90);
+            if(typeof playForestOtterSplash==="function"&&o.splashCd<=0){ playForestOtterSplash(0.08); o.splashCd=0.5; }
+          } else { o.tx=o.homeX; o.ty=o.homeY; }
+        }
+      }
+      if(o.repick<=0){
+        o.tx=o.homeX+rand(-24,24); o.ty=o.homeY+rand(-16,16);
+        o.repick=rand(1.5,3.5);
+        if(rng()<0.35&&isRiverAt(o.x,o.y+20)){ o.state="swim"; riverWanderTarget(o,100); }
+      }
+      otterMove(o,dt,38);
+    }
+  }
+  if(!nearRiverAt(focusX,focusY,120)&&!isRiverAt(focusX,focusY)) return;
+  otterTimer-=dt;
+  if(riverOtters.length<MAX_OTTERS&&otterTimer<=0){
+    otterTimer=rand(0.8,2.2);
+    const no=spawnRiverOtter(); if(no) riverOtters.push(no);
+  }
+}
+function drawForestFox(f){
+  const bob=f.moving?Math.sin((f.walkT||0)*12)*0.7:0;
+  ctx.fillStyle="rgba(0,0,0,0.16)"; ctx.beginPath(); ctx.ellipse(f.x+1,f.y+2,f.r*0.9,f.r*0.38,0,0,7); ctx.fill();
+  ctx.save(); ctx.translate(f.x,f.y+bob); ctx.rotate(f.a);
+  ctx.fillStyle="#c86830"; ctx.beginPath(); ctx.ellipse(0,0,f.r*0.88,f.r*0.58,0,0,7); ctx.fill();
+  ctx.fillStyle="#e8d8c8"; ctx.beginPath(); ctx.ellipse(0,f.r*0.12,f.r*0.42,f.r*0.28,0,0,7); ctx.fill();
+  ctx.fillStyle="#c86830"; ctx.beginPath(); ctx.arc(f.r*0.72,0,f.r*0.42,0,7); ctx.fill();
+  ctx.fillStyle="#1a1410"; ctx.beginPath(); ctx.arc(f.r*0.95,-0.5,0.75,0,7); ctx.fill();
+  ctx.fillStyle="#c86830"; ctx.beginPath(); ctx.moveTo(f.r*0.55,-f.r*0.55); ctx.lineTo(f.r*0.72,-f.r*0.95); ctx.lineTo(f.r*0.88,-f.r*0.48); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(f.r*0.55,f.r*0.55); ctx.lineTo(f.r*0.72,f.r*0.95); ctx.lineTo(f.r*0.88,f.r*0.48); ctx.fill();
+  const wag=Math.sin(f.tailT||0)*0.25;
+  ctx.strokeStyle="#c86830"; ctx.lineWidth=2.8; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(-f.r*0.5,0); ctx.quadraticCurveTo(-f.r*1.15+wag,-f.r*0.35,-f.r*1.35,0.2); ctx.stroke();
+  ctx.fillStyle="#f0ece8"; ctx.beginPath(); ctx.arc(-f.r*1.32,0.25,f.r*0.22,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawRiverOtter(o){
+  const swim=o.state==="swim";
+  if(swim){
+    ctx.fillStyle="rgba(40,90,110,0.12)"; ctx.beginPath(); ctx.ellipse(o.x,o.y+3,o.r*1.1,o.r*0.45,0,0,7); ctx.fill();
+  } else {
+    ctx.fillStyle="rgba(0,0,0,0.14)"; ctx.beginPath(); ctx.ellipse(o.x+1,o.y+2,o.r*0.85,o.r*0.32,0,0,7); ctx.fill();
+  }
+  ctx.save(); ctx.translate(o.x,o.y); ctx.rotate(o.a);
+  ctx.fillStyle="#5a4838"; ctx.beginPath(); ctx.ellipse(0,swim?2:0,o.r*0.92,o.r*(swim?0.42:0.55),0,0,7); ctx.fill();
+  ctx.fillStyle="#8a7868"; ctx.beginPath(); ctx.ellipse(0,swim?3:1,o.r*0.55,o.r*0.28,0,0,7); ctx.fill();
+  ctx.fillStyle="#5a4838"; ctx.beginPath(); ctx.arc(o.r*0.68,swim?0:-0.5,o.r*0.38,0,7); ctx.fill();
+  ctx.fillStyle="#1a1410"; ctx.beginPath(); ctx.arc(o.r*0.88,swim?0:-0.5,0.65,0,7); ctx.fill();
+  if(o.state==="play"){
+    ctx.fillStyle="#5a4838"; ctx.beginPath(); ctx.ellipse(-o.r*0.15,-o.r*0.75,o.r*0.22,o.r*0.38,Math.sin(o.tailT)*0.3,0,7); ctx.fill();
+  }
+  const tw=Math.sin(o.tailT||0)*0.3;
+  ctx.strokeStyle="#4a3828"; ctx.lineWidth=2.4; ctx.lineCap="round";
+  ctx.beginPath(); ctx.moveTo(-o.r*0.45,swim?1:0); ctx.quadraticCurveTo(-o.r*1.05+tw,-o.r*0.2,-o.r*1.2,swim?3:0.5); ctx.stroke();
+  ctx.restore();
+}
+
 function drawSmallBurrow(d){
   if(!d) return;
   const r=d.r||12;
@@ -1054,6 +1339,13 @@ function drawSmallBurrows(ox,oy){
     if(c.homeX<ox-40||c.homeX>ox+VW+40||c.homeY<oy-40||c.homeY>oy+VH+40) continue;
     seen.add(k);
     drawSmallBurrow({x:c.homeX,y:c.homeY,r:c.denR});
+  }
+  for(const f of forestFoxes){
+    const k="f"+(f.homeX|0)+","+(f.homeY|0);
+    if(seen.has(k)) continue;
+    if(f.homeX<ox-40||f.homeX>ox+VW+40||f.homeY<oy-40||f.homeY>oy+VH+40) continue;
+    seen.add(k);
+    drawSmallBurrow({x:f.homeX,y:f.homeY,r:f.denR||20});
   }
 }
 
@@ -1223,6 +1515,8 @@ function updateWildlife(dt){
   for(let i=wolfPacks.length-1;i>=0;i--) if(!wolves.some(w=>w.packId===wolfPacks[i].id)) wolfPacks.splice(i,1);
   updateForestCritters(dt);
   updateTreeSquirrels(dt);
+  updateForestFoxes(dt);
+  updateRiverOtters(dt);
   updateForestBirds(dt);
   if(!forest) return;
   if(bearFamilies.length<MAX_BEAR_FAMILIES&&bearTimer<=0){ bearTimer=rand(2.5,5.5); const g=spawnBearFamily(); if(g) bears.push(...g); }
@@ -1271,7 +1565,9 @@ function drawWildDens(ox,oy){
 function drawWildlife(ox,oy){
   drawWildDens(ox,oy);
   drawSmallBurrows(ox,oy);
+  for(const o of riverOtters) if(o.x>=ox-40&&o.x<=ox+VW+40&&o.y>=oy-40&&o.y<=oy+VH+40) drawRiverOtter(o);
   for(const c of forestCritters) if(c.x>=ox-30&&c.x<=ox+VW+30&&c.y>=oy-30&&c.y<=oy+VH+30) drawForestCritter(c);
+  for(const f of forestFoxes) if(f.x>=ox-40&&f.x<=ox+VW+40&&f.y>=oy-40&&f.y<=oy+VH+40) drawForestFox(f);
   for(const d of deer) if(d.x>=ox-60&&d.x<=ox+VW+60&&d.y>=oy-60&&d.y<=oy+VH+60) drawForestMammal(d);
   for(const b of boars) if(b.x>=ox-60&&b.x<=ox+VW+60&&b.y>=oy-60&&b.y<=oy+VH+60) drawForestMammal(b);
   for(const w of wolves) if(w.x>=ox-60&&w.x<=ox+VW+60&&w.y>=oy-60&&w.y<=oy+VH+60) drawForestMammal(w);
