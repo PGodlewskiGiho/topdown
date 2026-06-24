@@ -25,7 +25,13 @@ function updateBoatDrive(dt){
   b.v=(b.v||0)+throttle*acc*dt; b.v*=(1-Math.min(0.9,0.7*dt)); b.v=clamp(b.v,vmin,vmax);
   if(Math.abs(b.v)>4) b.a += steer*1.7*dt*clamp(Math.abs(b.v)/110,0,1)*(b.v>=0?1:-1);
   const nx=b.x+Math.cos(b.a)*b.v*dt, ny=b.y+Math.sin(b.a)*b.v*dt;
-  if(inWater(nx,ny)){ b.x=nx; b.y=ny; } else { if(Math.abs(b.v)>40){ b._spl=(b._spl||0)-dt; if(b._spl<=0){ splashFoam(b.x+Math.cos(b.a)*16,b.y+Math.sin(b.a)*16,7); b._spl=0.22; } } b.v*=-0.25; }   // boats can't go on land
+  if(inWater(nx,ny)){
+    b.x=nx; b.y=ny;
+    if(typeof applyRiverCurrentXY==="function"){
+      const cur=isRow?1.15:0.72;
+      [b.x,b.y]=applyRiverCurrentXY(b.x,b.y,dt,cur);
+    }
+  } else { if(Math.abs(b.v)>40){ b._spl=(b._spl||0)-dt; if(b._spl<=0){ splashFoam(b.x+Math.cos(b.a)*16,b.y+Math.sin(b.a)*16,7); b._spl=0.22; } } b.v*=-0.25; }   // boats can't go on land
   b.vx=Math.cos(b.a)*b.v; b.vy=Math.sin(b.a)*b.v;
   ped.x=b.x; ped.y=b.y; ped.a=b.a; ped.vx=b.vx; ped.vy=b.vy;       // ride along -> camera & hit-tests follow
 }
@@ -35,7 +41,13 @@ function updateBoat(b,dt){
   if(!inWater(ax,ay)) b.a += b.turn*dt*2.4;            // steer away from the shore
   else if(Math.random()<0.012) b.turn=-b.turn;
   const nx=b.x+Math.cos(b.a)*b.spd*dt, ny=b.y+Math.sin(b.a)*b.spd*dt;
-  if(inWater(nx,ny)){ b.x=nx; b.y=ny; } else { b.a += 2.2*dt; b._spl=(b._spl||0)-dt; if(b._spl<=0){ splashFoam(b.x+Math.cos(b.a)*16,b.y+Math.sin(b.a)*16,4); b._spl=0.5; } }   // beached -> turn in place
+  if(inWater(nx,ny)){
+    b.x=nx; b.y=ny;
+    if(typeof applyRiverCurrentXY==="function"){
+      const row=b.kind==="row";
+      [b.x,b.y]=applyRiverCurrentXY(b.x,b.y,dt,row?1.1:0.65);
+    }
+  } else { b.a += 2.2*dt; b._spl=(b._spl||0)-dt; if(b._spl<=0){ splashFoam(b.x+Math.cos(b.a)*16,b.y+Math.sin(b.a)*16,4); b._spl=0.5; } }   // beached -> turn in place
 }
 const birds=[]; let birdTimer=0;
 function birdThreat(x,y,r){
@@ -113,7 +125,18 @@ function emitWake(b,dt){
   wakes.push({x:sx,y:sy, vx:-Math.cos(b.a)*7, vy:-Math.sin(b.a)*7, t:0, life:1.3, r0:3.4});                                                  // stern churn
   while(wakes.length>320) wakes.shift();
 }
-function updateWakes(dt){ for(let i=wakes.length-1;i>=0;i--){ const w=wakes[i]; w.t+=dt; w.x+=w.vx*dt; w.y+=w.vy*dt; w.vx*=0.95; w.vy*=0.95; if(w.t>=w.life) wakes.splice(i,1); } }
+function updateWakes(dt){
+  for(let i=wakes.length-1;i>=0;i--){
+    const w=wakes[i];
+    w.t+=dt;
+    w.x+=w.vx*dt; w.y+=w.vy*dt;
+    if(typeof applyRiverCurrentXY==="function"&&inRiverCurrent(w.x,w.y)){
+      [w.x,w.y]=applyRiverCurrentXY(w.x,w.y,dt,0.35);
+    }
+    w.vx*=0.95; w.vy*=0.95;
+    if(w.t>=w.life) wakes.splice(i,1);
+  }
+}
 function drawWakes(ox,oy){ for(const w of wakes){ if(w.x<ox-20||w.x>ox+VW+20||w.y<oy-20||w.y>oy+VH+20) continue;
   const f=w.t/w.life, r=w.r0+f*9; ctx.fillStyle=`rgba(235,248,255,${((1-f)*0.5).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(w.x,w.y,r,r*0.62,0,0,7); ctx.fill(); } }
 function drawBoatRider(rx,ry,shirt,skin,oars){

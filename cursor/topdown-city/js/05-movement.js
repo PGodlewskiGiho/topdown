@@ -164,6 +164,9 @@ function updatePed(dt){
   const ppx=ped.x, ppy=ped.y;
   const ptf=terrainSpeedFactor(ped.x,ped.y, ped.vx, ped.vy);
   ped.x+=ped.vx*dt*ptf; ped.y+=ped.vy*dt*ptf;
+  if(swim&&typeof applyRiverCurrentXY==="function"){
+    [ped.x,ped.y]=applyRiverCurrentXY(ped.x,ped.y,dt,0.85);
+  }
   resolveTerrainBlock(ped, ppx, ppy, TERRAIN_SLOPE_WALK);
   { const ci=Math.floor((ped.x-ROAD)/GAP), cj=Math.floor((ped.y-ROAD)/GAP);
     for(let ii=ci-1;ii<=ci+1;ii++) for(let jj=cj-1;jj<=cj+1;jj++){ const L=getLot(ii,jj); for(const b of L.buildings){

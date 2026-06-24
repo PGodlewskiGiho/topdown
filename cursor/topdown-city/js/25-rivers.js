@@ -1,5 +1,5 @@
 /* TOPDOWN CITY — 25-rivers.js */
-/* Forest rivers — clear stream texture + downhill flow animation */
+/* Forest rivers — clear stream texture + downhill flow animation + current */
 
 function riverFlowAt(x,y){
   const g=terrainGrad(x,y);
@@ -11,6 +11,128 @@ function riverFlowAt(x,y){
   }
   const wob=Math.sin(x*0.022+y*0.017)*0.12;
   return [fx-wob*fy, fy+wob*fx];
+}
+
+function inRiverCurrent(x,y){
+  const r=riverScore(x,y);
+  if(r<=0.04) return false;
+  return r>=lakeScore(x,y)*0.82;
+}
+
+function riverCurrentAt(x,y){
+  if(!inRiverCurrent(x,y)) return null;
+  const r=riverScore(x,y);
+  const [fx,fy]=riverFlowAt(x,y);
+  const depth=clamp(r*2.8,0.15,1);
+  return {fx,fy,speed:34+depth*62,depth};
+}
+
+function applyRiverCurrentXY(x,y,dt,mult){
+  const c=riverCurrentAt(x,y);
+  if(!c) return [x,y];
+  const m=mult!=null?mult:1;
+  return [x+c.fx*c.speed*m*dt, y+c.fy*c.speed*m*dt];
+}
+
+const MAX_RIVER_DRIFT=96;
+const riverDrift=[];
+let riverDriftT=0;
+
+function spawnRiverDrift(x,y){
+  if(riverDrift.length>=MAX_RIVER_DRIFT) return;
+  if(!inRiverCurrent(x,y)) return;
+  const [fx,fy]=riverFlowAt(x,y);
+  const kinds=["foam","foam","leaf","bubble"];
+  riverDrift.push({
+    x,y, fx,fy,
+    kind:kinds[(Math.random()*kinds.length)|0],
+    s:0.7+Math.random()*1.1,
+    ph:Math.random()*6.28,
+    life:6+Math.random()*14,
+    maxLife:0,
+  });
+  riverDrift[riverDrift.length-1].maxLife=riverDrift[riverDrift.length-1].life;
+}
+
+function updateRiverDrift(dt){
+  riverDriftT+=dt;
+  const near=typeof nearForestRiver==="function"?nearForestRiver(focusX,focusY):inRiverCurrent(focusX,focusY);
+  if(near&&riverDrift.length<MAX_RIVER_DRIFT){
+    let budget=Math.ceil(dt*(10+Math.min(24,riverDrift.length*0.15)));
+    while(budget-->0){
+      const x=focusX+(Math.random()-0.5)*VW*0.95, y=focusY+(Math.random()-0.5)*VH*0.95;
+      if(inRiverCurrent(x,y)) spawnRiverDrift(x,y);
+    }
+  }
+  for(let i=riverDrift.length-1;i>=0;i--){
+    const p=riverDrift[i];
+    p.life-=dt;
+    if(p.life<=0||!inRiverCurrent(p.x,p.y)){ riverDrift.splice(i,1); continue; }
+    const c=riverCurrentAt(p.x,p.y);
+    if(!c){ riverDrift.splice(i,1); continue; }
+    const wob=Math.sin(riverDriftT*2.4+p.ph)*0.18;
+    p.x+=(c.fx+wob*c.fy)*c.speed*dt;
+    p.y+=(c.fy-wob*c.fx)*c.speed*dt;
+    p.fx=c.fx; p.fy=c.fy;
+  }
+}
+
+function drawRiverDrift(ox,oy,t){
+  if(!riverDrift.length) return;
+  ctx.save();
+  for(const p of riverDrift){
+    if(p.x<ox-30||p.x>ox+VW+30||p.y<oy-30||p.y>oy+VH+30) continue;
+    const fade=clamp(p.life/p.maxLife,0,1);
+    const ang=Math.atan2(p.fy,p.fx);
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(ang);
+    ctx.globalAlpha=0.35+0.55*fade;
+    if(p.kind==="leaf"){
+      ctx.fillStyle="#4a6a32";
+      ctx.beginPath(); ctx.ellipse(0,0,2.8*p.s,1.6*p.s,0.3,0,7); ctx.fill();
+    } else if(p.kind==="bubble"){
+      ctx.strokeStyle=`rgba(220,248,255,${(0.35*fade).toFixed(3)})`;
+      ctx.lineWidth=0.8;
+      ctx.beginPath(); ctx.arc(0,0,1.4*p.s,0,7); ctx.stroke();
+    } else {
+      ctx.fillStyle=`rgba(235,252,255,${(0.5*fade).toFixed(3)})`;
+      ctx.beginPath(); ctx.ellipse(0,0,3.2*p.s,1.3*p.s,0,0,7); ctx.fill();
+    }
+    ctx.restore();
+  }
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
+function drawRiverCurrentChevrons(ox,oy,t){
+  const step=32, spd=48;
+  ctx.save();
+  ctx.lineCap="round"; ctx.lineJoin="round";
+  for(let gy=oy-step; gy<oy+VH+step; gy+=step){
+    for(let gx=ox-step; gx<ox+VW+step; gx+=step){
+      const cx=gx+step*0.5, cy=gy+step*0.5;
+      if(!inRiverCurrent(cx,cy)) continue;
+      const [fx,fy]=riverFlowAt(cx,cy);
+      const ph=(cx*fx+cy*fy)*0.05-t*spd;
+      const band=0.5+0.5*Math.sin(ph);
+      if(band<0.5) continue;
+      const depth=clamp(riverScore(cx,cy)*2.4,0.2,1);
+      const al=(0.06+0.16*band*depth).toFixed(3);
+      const len=10+depth*8;
+      const px=-fy, py=fx;
+      ctx.strokeStyle=`rgba(180,235,255,${al})`;
+      ctx.lineWidth=1.2+depth*0.8;
+      for(const sgn of [-1,1]){
+        const bx=cx+fx*len*0.35+px*sgn*4, by=cy+fy*len*0.35+py*sgn*4;
+        ctx.beginPath();
+        ctx.moveTo(cx+fx*len*0.1,cy+fy*len*0.1);
+        ctx.lineTo(bx,by);
+        ctx.lineTo(cx+fx*len*0.55,cy+fy*len*0.55);
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.lineCap="butt";
+  ctx.restore();
 }
 
 function collectWaterPolys(scoreFn, ox, oy, step){
@@ -31,7 +153,7 @@ function collectWaterPolys(scoreFn, ox, oy, step){
 
 function drawRiverFlowTexture(ox,oy,t){
   const step=14, x0=ox-step, y0=oy-step, x1=ox+VW+step, y1=oy+VH+step;
-  const spd=38;
+  const spd=52;
   ctx.save();
   ctx.globalCompositeOperation="lighter";
   for(let gy=y0; gy<y1; gy+=step){
@@ -41,27 +163,30 @@ function drawRiverFlowTexture(ox,oy,t){
       const [ci,cj]=cellAt(cx,cy);
       if(biomeOf(ci,cj)!=="forest") continue;
       const [fx,fy]=riverFlowAt(cx,cy);
+      const depth=clamp(riverScore(cx,cy)*2.5,0.2,1);
       const ph=(cx*fx+cy*fy)*0.045 - t*spd;
       const band=0.5+0.5*Math.sin(ph);
-      if(band<0.42) continue;
-      const al=(0.04+0.14*band).toFixed(3);
+      if(band<0.38) continue;
+      const al=(0.05+0.18*band*depth).toFixed(3);
       ctx.strokeStyle=`rgba(210,248,255,${al})`;
-      ctx.lineWidth=1.1+1.4*band;
+      ctx.lineWidth=1.2+1.8*band*depth;
       ctx.lineCap="round";
       ctx.beginPath();
       ctx.moveTo(cx-fx*step*0.55, cy-fy*step*0.55);
-      ctx.lineTo(cx+fx*step*0.75, cy+fy*step*0.75);
+      ctx.lineTo(cx+fx*step*0.82, cy+fy*step*0.82);
       ctx.stroke();
     }
   }
   ctx.globalCompositeOperation="source-over";
   ctx.lineCap="butt";
 
-  // pebble / gravel bed visible through shallow water
+  // pebble bed — scrolls downstream with the current
   ctx.globalAlpha=0.42;
   const peb=getTex("riverbed");
   if(peb){
-    const S=160, dx=-((t*18)%S), dy=-((t*11)%S);
+    const S=160;
+    const [cfx,cfy]=riverFlowAt(ox+VW*0.5,oy+VH*0.5);
+    const dx=-((t*22*cfx)%S), dy=-((t*22*cfy)%S);
     ctx.save(); ctx.translate(dx,dy); ctx.fillStyle=peb;
     for(let gy=Math.floor(y0/48)*48; gy<y1; gy+=48){
       for(let gx=Math.floor(x0/48)*48; gx<x1; gx+=48){
@@ -133,7 +258,9 @@ function drawForestRivers(ox,oy){
     ctx.beginPath(); ctx.moveTo(q[0][0],q[0][1]); for(let k=1;k<q.length;k++) ctx.lineTo(q[k][0],q[k][1]); ctx.closePath(); ctx.fill();
   }
   drawRiverFlowTexture(ox,oy,t);
+  drawRiverCurrentChevrons(ox,oy,t);
   drawRiverSparkles(ox,oy,t);
+  drawRiverDrift(ox,oy,t);
 
   ctx.strokeStyle="rgba(14,48,42,0.22)"; ctx.lineWidth=1.4; ctx.lineCap="round";
   const rs=26, x0=ox-rs, y0=oy-rs, x1=ox+VW+rs, y1=oy+VH+rs;
@@ -154,6 +281,15 @@ function drawForestRivers(ox,oy){
 
   drawRiverBanks(bnd,t);
 }
+
+Game.register({
+  id:"river-current",
+  order:25,
+  update(dt){
+    if(typeof gamePhase!=="undefined"&&gamePhase!=="playing") return;
+    updateRiverDrift(dt);
+  },
+});
 
 function drawReed(p){
   ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a||0);
