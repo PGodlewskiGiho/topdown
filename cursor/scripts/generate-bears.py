@@ -21,13 +21,13 @@ REF_CACHE = Path("/tmp/bear-refs/lpc_animals.zip")
 LPC_URL = "https://opengameart.org/sites/default/files/lpc_animals_2022_v1.1.zip"
 
 # LPC individual sheet layout (64×64 cells): rows 0–3 walk S/W/E/N, 4–7 attack, 8–11 die.
-# Row 0 = top-down (walk south in LPC). Pre-rotate +90° so snout points +X in PNG;
-# then ctx.rotate(b.a) in game matches row-1 fix without side-view art.
+# Row 0 = top-down (walk south). No PNG rotation — keep pure overhead view.
+# Heading fix is in 22-wildlife.js: ctx.rotate(PI/2 - b.a).
 WALK_ROW = 0
 ATK_ROW = 4
 WALK_COLS = (0, 1, 2, 3)
 ATK_COL = 1
-FACE_ROT = 90
+FACE_ROT = 0
 SRC = 64
 SCALE = 2  # 64 → 128 px frames
 FW = FH = SRC * SCALE
@@ -58,7 +58,7 @@ def upscale(img: Image.Image) -> Image.Image:
 
 
 def orient_frame(img: Image.Image) -> Image.Image:
-    """Top-down LPC faces +Y; rotate +90° CCW so snout = +X for in-game heading."""
+    """Keep LPC top-down frame as-is (no rotation)."""
     rot = img.rotate(FACE_ROT, resample=Image.Resampling.NEAREST, expand=True)
     w, h = rot.size
     out = Image.new("RGBA", (SRC, SRC), (0, 0, 0, 0))

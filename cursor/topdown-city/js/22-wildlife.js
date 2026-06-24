@@ -3,7 +3,7 @@
 const bears=[];
 let bearTimer=0;
 const BEAR_VARIANTS=["brown","dark","cinnamon","grizzly"];
-const BEAR_ASSET_V=6;
+const BEAR_ASSET_V=7;
 const BEAR_SPRITE={ready:false,meta:null,img:{}};
 
 (function loadBearSprites(){
@@ -234,7 +234,7 @@ function drawBear(b){
   ctx.beginPath(); ctx.ellipse(b.x+2,b.y+4,b.r*0.95,b.r*0.46,0,0,7); ctx.fill();
   ctx.save();
   ctx.translate(b.x,b.y);
-  ctx.rotate(b.a);
+  ctx.rotate(Math.PI/2-b.a);
   const sm=ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled=true;
   try{ ctx.imageSmoothingQuality="high"; }catch(e){}
