@@ -3,7 +3,7 @@
 const bears=[];
 let bearTimer=0;
 const BEAR_VARIANTS=["brown","dark","cinnamon","grizzly"];
-const BEAR_ASSET_V=5;
+const BEAR_ASSET_V=6;
 const BEAR_SPRITE={ready:false,meta:null,img:{}};
 
 (function loadBearSprites(){
