@@ -9,7 +9,7 @@ const car = {
   color: "#d9d4c8", power: 1.10,
   brand: "BMW", carName: "E30", topSpeed: 200, accent: "#1c3a8a", type: "sedan", era: "classic",
   kind: "car", rider: true, riderShirt: "#3a6ea5", riderSkin: "#e8b888", riderHelmet: false,
-  hp: 260, maxHp: 260, dmgSeed: 11, dead: false
+  hp: 320, maxHp: 320, dmgSeed: 11, dead: false
 };
 let focusX = car.x, focusY = car.y;   // generation/spawn anchor (the camera target)
 const skid = [];             // {x,y,a}
@@ -38,6 +38,8 @@ const VK = {
   bike: {acc:0.85, turn:1.65, grip:1.05, cap:190},
 };
 const KMH = 0.34;
+function pxToKmh(px){ return px*KMH; }
+function kmhToPx(kmh){ return kmh/KMH; }
 const CAR_TYPE_HANDLING={
   sedan:   {acc:1.00, turn:1.00, grip:1.00, drag:1.00},
   coupe:   {acc:1.06, turn:1.10, grip:1.05, drag:0.97},
@@ -50,7 +52,7 @@ const CAR_TYPE_HANDLING={
 function carSpeedCap(){
   const vk=VK[car.kind]||VK.car;
   if(vk.cap) return vk.cap;
-  return (car.topSpeed||200)*KMH;
+  return kmhToPx(car.topSpeed||200);
 }
 function carHandling(){
   const vk=VK[car.kind]||VK.car;

@@ -22,7 +22,7 @@ function resolveVehicleStaticCollision(mover, stat, cfg){
   return {nx:ov.nx,ny:ov.ny,pen:ov.pen,push,relInto:vn};
 }
 function parkedCollisionCfg(e){
-  if(typeof car!=="undefined" && e===car) return {skin:1.4,restitution:0.15,friction:0.55,padS:-2};
+  if(typeof car!=="undefined" && e===car) return {skin:1.2,restitution:0.08,friction:0.72,padS:-2};
   if(e.vx!==undefined && e.W) return {skin:1.0,restitution:0.12,friction:0.62,padS:-2};
   return {skin:0.5,restitution:0,friction:0.88,padS:-3};
 }
@@ -37,7 +37,14 @@ function collideCircleBuildings(e,bounce){
     else{ const l=e.x-b.x,r=b.x+b.w-e.x,t=e.y-b.y,bo=b.y+b.h-e.y,mn=Math.min(l,r,t,bo);
       if(mn===l){nx=-1;ny=0;}else if(mn===r){nx=1;ny=0;}else if(mn===t){nx=0;ny=-1;}else{nx=0;ny=1;} d=0; }
     e.x+=nx*(e.R-d); e.y+=ny*(e.R-d);
-    const into=e.vx*nx+e.vy*ny; if(into<0){ e.vx-=into*nx*(1+bounce); e.vy-=into*ny*(1+bounce); if(e.hp!==undefined && into<-110) damageCar(e, (-into-110)*0.18, cx, cy, "impact"); }
+    const into=e.vx*nx+e.vy*ny; if(into<0){ e.vx-=into*nx*(1+bounce); e.vy-=into*ny*(1+bounce);
+      if(e.hp!==undefined && into<-95){
+        const sev=impactSeverity(Math.hypot(e.vx,e.vy), into);
+        if(sev>0.22 && (e._impactCd||0)<=0){
+          damageCar(e, (-into-95)*0.2*sev, cx, cy, "impact", {severity:sev});
+          e._impactCd=0.35+sev*0.15;
+        }
+      } }
   } }
 }
 function carVsTraffic(){
@@ -48,13 +55,20 @@ function carVsTraffic(){
     if(!ov) continue;
     const nx=ov.nx, ny=ov.ny;
     car.x+=nx*ov.pen; car.y+=ny*ov.pen;
-    const into=car.vx*nx+car.vy*ny; if(into<0){ car.vx-=into*nx*1.2; car.vy-=into*ny*1.2; }
-    if(c.state==="drive" && psp>120){
+    const into=car.vx*nx+car.vy*ny;
+    if(into<0){ car.vx-=into*nx*1.2; car.vy-=into*ny*1.2; }
+    const sev=impactSeverity(psp, into);
+    if(c.state==="drive" && psp>120 && sev>0.35){
       c.state="loose"; c.vx=-nx*(psp*0.6)+car.vx*0.3; c.vy=-ny*(psp*0.6)+car.vy*0.3; c.spin=(rng()-0.5)*6; c.downT=0; addHeat(0.2);
       if(mission&&mission.type==="wreck") mission.progress++;
       playThud(0.25+Math.min(0.35,psp/1400));
     }
-    if(psp>55){ damageCar(c, psp*0.14, car.x, car.y, "impact"); damageCar(car, psp*0.06, c.x, c.y, "impact"); }
+    if(sev>0.2 && (car._impactCd||0)<=0){
+      const dmg=sev*sev*72;
+      damageCar(c, dmg*0.95, car.x, car.y, "impact", {severity:sev});
+      damageCar(car, dmg*0.55, c.x, c.y, "impact", {severity:sev});
+      car._impactCd=0.22+sev*0.18;
+    }
   }
 }
 function carVsPeds(){

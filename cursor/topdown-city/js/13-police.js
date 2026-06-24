@@ -102,12 +102,14 @@ function manageResponse(dt){
   while(helis.length>t.heli) helis.pop();
 }
 
-const COP_ACCEL=400;
+const COP_ACCEL=290;
 function copMaxSpeed(c){
-  if(c.unit==="apc") return 360;
-  if(c.unit==="swat") return 500;
-  if(c.kind==="moto") return 560;
-  return 520;
+  const ref=typeof kmhToPx==="function"?kmhToPx(200):588;
+  const s=Math.min(typeof stars!=="undefined"?stars:1,5);
+  if(c.unit==="apc") return ref*0.78;
+  if(c.unit==="swat") return ref*(0.94+s*0.028);
+  if(c.kind==="moto") return ref*(1.0+s*0.022);
+  return ref*(0.86+s*0.032);
 }
 
 function roadBiasAngle(x,y,ang){

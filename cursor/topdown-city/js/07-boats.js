@@ -165,8 +165,16 @@ function drawDebris(ox,oy){ for(const d of debris){ if(d.x<ox-30||d.x>ox+VW+30||
   const al=d.t>d.life-0.6?Math.max(0,(d.life-d.t)/0.6):1; ctx.globalAlpha=al;
   ctx.save(); ctx.translate(d.x,d.y); ctx.rotate(d.a);
   ctx.fillStyle="rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(0.5,1,5.5,4,0,0,7); ctx.fill();
-  ctx.fillStyle="#22252a"; ctx.beginPath(); ctx.arc(0,0,5,0,7); ctx.fill();
-  ctx.fillStyle="#9fd0ec"; rrFill(1,-2.4,4,4.8,1.4);
+  if(d.kind==="bumper"||d.kind==="door"){
+    ctx.fillStyle=d.col||"#555"; rrFill(-(d.w||14)/2,-(d.h||6)/2,d.w||14,d.h||6,2);
+    ctx.fillStyle="rgba(0,0,0,.35)"; ctx.strokeRect(-(d.w||14)/2,-(d.h||6)/2,d.w||14,d.h||6);
+  } else if(d.kind==="glass"){
+    ctx.fillStyle="rgba(195,220,235,.75)"; rrFill(-4,-3,8,6,1.2);
+    ctx.strokeStyle="rgba(255,255,255,.5)"; ctx.lineWidth=0.8; ctx.strokeRect(-4,-3,8,6);
+  } else {
+    ctx.fillStyle="#22252a"; ctx.beginPath(); ctx.arc(0,0,5,0,7); ctx.fill();
+    ctx.fillStyle="#9fd0ec"; rrFill(1,-2.4,4,4.8,1.4);
+  }
   ctx.restore(); ctx.globalAlpha=1; } }
 function drawBike(v){
   const L=v.L, W=v.W, moto=(v.kind==="moto");

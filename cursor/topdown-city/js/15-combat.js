@@ -105,13 +105,50 @@ function spawnWreck(v){
 }
 function carExplode(v){
   if(v.dead) return; v.dead=true; spawnWreck(v);
+  for(let i=0;i<5;i++) spawnCrashDebris(v, pick(["front","rear","left","right"]), 1.1+rng()*0.35);
   if(v===car && mode==="car"){ mode="foot"; ped.x=car.x-Math.cos(car.a)*10; ped.y=car.y-Math.sin(car.a)*10; ped.a=car.a; showBigMsg("AUTO ZNISZCZONE"); }
-  blastQ.push({x:v.x, y:v.y});          // queued -> drained iteratively (no recursive chain -> no stack overflow)
+  blastQ.push({x:v.x, y:v.y});
 }
 function drainBlasts(){ let g=0; while(blastQ.length && g++<3000){ const b=blastQ.shift(); explode(b.x,b.y); } if(blastQ.length) blastQ.length=0; }
 function initVehicleDamageState(v){
   if(!v) return;
-  if(!v.parts) v.parts={front:0,rear:0,left:0,right:0,hood:0,windows:0};
+  if(!v.parts) v.parts={front:0,rear:0,left:0,right:0,hood:0,windows:0,hoodOff:false,bumpFront:false,bumpRear:false,doorL:false,doorR:false};
+}
+function impactSeverity(speed, relInto){
+  const hard=Math.max(0, -(relInto||0));
+  return clamp((speed*0.38+hard*0.82-42)/115, 0, 1.45);
+}
+function spawnCrashDebris(v, zone, sev){
+  if(typeof debris==="undefined" || sev<0.42) return;
+  const c=Math.cos(v.a||0), s=Math.sin(v.a||0);
+  const kinds=zone==="front"?["bumper","glass","hood"]:zone==="rear"?["bumper","door"]:["door","glass"];
+  const n=sev>0.85?2+(rng()>0.5?1:0):1;
+  for(let i=0;i<n;i++){
+    const kind=pick(kinds);
+    const lx=(rng()-0.5)*(v.W||36)*0.9;
+    const ly=zone==="front"?-(v.L||80)*0.38:zone==="rear"?(v.L||80)*0.36:(rng()-0.5)*(v.L||80)*0.45;
+    const wx=v.x+lx*c-ly*s, wy=v.y+lx*s+ly*c;
+    const ang=(v.a||0)+(rng()-0.5)*2.4, sp=rand(90,160+sev*240);
+    debris.push({x:wx,y:wy,vx:Math.cos(ang)*sp+(v.vx||0)*0.35,vy:Math.sin(ang)*sp+(v.vy||0)*0.35,
+      a:rng()*6.283,va:(rng()-0.5)*20,t:0,life:rand(2.8,5.5),kind,col:v.color||"#666",
+      w:kind==="door"?16:kind==="bumper"?18:8,h:kind==="door"?8:kind==="bumper"?5:6});
+  }
+  if(typeof spawnSparks==="function") spawnSparks(v.x,v.y,3+(sev*10|0), v.vx||0, v.vy||0);
+  if(sev>0.65 && typeof playThud==="function") playThud(0.18+Math.min(0.42,sev*0.28));
+}
+function maybeBreakPart(v, zone, sev){
+  initVehicleDamageState(v);
+  const p=v.parts;
+  if(sev<0.72) return;
+  if((zone==="front"||zone==="rear") && p[zone]>0.82 && !p["bump"+(zone==="front"?"Front":"Rear")]){
+    p["bump"+(zone==="front"?"Front":"Rear")]=true; spawnCrashDebris(v, zone, sev*1.1);
+  }
+  if(zone==="front" && p.hood>0.88 && !p.hoodOff){ p.hoodOff=true; spawnCrashDebris(v,"front",sev); }
+  if((zone==="left"||zone==="right") && p[zone]>0.9){
+    const k=zone==="left"?"doorL":"doorR";
+    if(!p[k]){ p[k]=true; spawnCrashDebris(v, zone, sev); }
+  }
+  if(p.windows>0.95 && sev>0.55 && rng()<0.35) spawnCrashDebris(v, zone, sev*0.85);
 }
 function damageZoneFromPoint(v,hx,hy){
   if(hx===undefined || hy===undefined) return null;
@@ -125,27 +162,39 @@ function damageZoneFromPoint(v,hx,hy){
 function applyPartDamage(v,zone,amt,type){
   initVehicleDamageState(v);
   const p=v.parts;
-  const sev=clamp(amt/Math.max(60,v.maxHp||120), 0.01, 0.42);
+  const sev=clamp(amt/Math.max(60,v.maxHp||120), 0.01, 0.55);
   const add=(k,x)=>p[k]=clamp(p[k]+x,0,1.35);
-  if(zone==="front"){ add("front",sev*1.25); add("hood",sev*1.1); if(type==="explosion") add("windows",sev*0.9); }
-  else if(zone==="rear"){ add("rear",sev*1.2); if(type==="explosion") add("windows",sev*0.55); }
-  else if(zone==="left"){ add("left",sev*1.15); if(type==="explosion") add("windows",sev*0.45); }
-  else if(zone==="right"){ add("right",sev*1.15); if(type==="explosion") add("windows",sev*0.45); }
+  if(zone==="front"){ add("front",sev*1.35); add("hood",sev*1.15); if(type==="explosion") add("windows",sev*1.0); }
+  else if(zone==="rear"){ add("rear",sev*1.28); if(type==="explosion") add("windows",sev*0.65); }
+  else if(zone==="left"){ add("left",sev*1.22); if(type==="explosion") add("windows",sev*0.55); }
+  else if(zone==="right"){ add("right",sev*1.22); if(type==="explosion") add("windows",sev*0.55); }
   else {
-    add("front",sev*0.5); add("rear",sev*0.4); add("left",sev*0.45); add("right",sev*0.45);
-    add("hood",sev*0.42); if(type==="explosion") add("windows",sev*0.65);
+    add("front",sev*0.55); add("rear",sev*0.48); add("left",sev*0.52); add("right",sev*0.52);
+    add("hood",sev*0.48); if(type==="explosion") add("windows",sev*0.75);
   }
-  if(amt>22 || type==="explosion") add("windows",sev*0.28);
+  if(amt>18 || type==="explosion") add("windows",sev*0.32);
 }
-function damageCar(v, amt, hitX, hitY, hitType){
+function damageCar(v, amt, hitX, hitY, hitType, opts){
   if(!v || v.hp===undefined || v.dead) return;
+  opts=opts||{};
+  const sev=opts.severity!=null?opts.severity:clamp(amt/85, 0.04, 1.35);
+  if(sev<0.06 && hitType!=="explosion" && hitType!=="burn") return;
   if(v.kind==="moto" && v.riderHelmet && amt>22) popHelmet(v);
-  const durability=(v.kind==="car")?0.58:(v.kind==="moto"?0.78:0.85);
-  const eff=amt*durability;
+  const durability=(v.kind==="car")?0.74:(v.kind==="moto"?0.84:0.9);
+  const scale=hitType==="explosion"?1.15:(hitType==="burn"?0.55:(0.18+0.82*sev*sev));
+  const eff=amt*durability*scale;
   const zone=damageZoneFromPoint(v,hitX,hitY);
   applyPartDamage(v,zone,eff,hitType||"impact");
+  maybeBreakPart(v, zone, sev);
   v.hp-=eff;
   if(v.hp<=0){ v.hp=0; carExplode(v); const i=traffic.indexOf(v); if(i>=0){ traffic.splice(i,1); traffic.push(spawnTrafficCar()); } }
+}
+function tickVehicleImpactCd(dt){
+  const all=[typeof car!=="undefined"?car:null, ...(typeof traffic!=="undefined"?traffic:[]), ...(typeof cops!=="undefined"?cops:[])];
+  for(const v of all){
+    if(!v) continue;
+    if(v._impactCd>0) v._impactCd-=dt;
+  }
 }
 function damageParkedNear(x,y,R,amt){ const ci=Math.floor(x/GAP),cj=Math.floor(y/GAP);
   for(let i=ci-1;i<=ci+1;i++)for(let j=cj-1;j<=cj+1;j++){ const L=getLot(i,j); for(let k=L.parked.length-1;k>=0;k--){ const pc=L.parked[k]; const d=Math.hypot(pc.x-x,pc.y-y); if(d<R){ damageCar(pc, amt*(1-d/R), x, y, "explosion"); if(pc.dead) L.parked.splice(k,1); } } } }
@@ -299,6 +348,7 @@ function updateBullets(dt){
   for(let i=muzzles.length-1;i>=0;i--){ muzzles[i].life-=dt; if(muzzles[i].life<=0) muzzles.splice(i,1); }
 }
 function updateCombat(dt){
+  tickVehicleImpactCd(dt);
   if(typeof invOpen!=="undefined"&&invOpen) return;
   playerFireCd-=dt;
   if(mode==="foot" && (firing||keys[" "]) && playerFireCd<=0){

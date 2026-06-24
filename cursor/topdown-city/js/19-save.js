@@ -30,7 +30,7 @@ function resetNewGameState(){
   const m=CARS[0];
   car.carName=m.name; car.brand=m.brand; car.model=m; car.type=m.type; car.era=m.era;
   car.accent=m.accent; car.color=m.colors?m.colors[0]:m.color; car.power=m.power; car.topSpeed=m.topSpeed;
-  car.W=m.W; car.L=m.L; car.hp=car.maxHp=280; car.dead=false; car.vx=car.vy=0; car.a=0; car.parts=null;
+  car.W=m.W; car.L=m.L; car.hp=car.maxHp=320; car.dead=false; car.vx=car.vy=0; car.a=0; car.parts=null;
   car.R=vehicleHitRadius(car.W, car.L, "car");
   for(let i=0;i<owned.length;i++){ owned[i]=i===0; ammo[i]=WEAPONS[i].kind==="melee"?Infinity:0; }
   curWeapon=0;

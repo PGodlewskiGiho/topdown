@@ -1433,15 +1433,14 @@ function collideParked(e){
         }
         if(pass===0 && typeof car!=="undefined" && e===car){
           const sp=Math.hypot(e.vx,e.vy);
-          if(sp>80 && hit.relInto<-22){
-            if(typeof playThud==="function") playThud(0.12+Math.min(0.28,sp/1600));
-            if(sp>95){
-              const mul=pc.kind==="car"?0.06:(pc.kind==="moto"?0.034:0.028);
-              const selfMul=pc.kind==="car"?0.026:0.017;
-              damageCar(pc, sp*mul, car.x, car.y, "impact");
-              damageCar(car, sp*selfMul, pc.x, pc.y, "impact");
-              if(pc.dead){ L.parked.splice(k,1); continue; }
-            }
+          const sev=impactSeverity(sp, hit.relInto);
+          if(sev>0.18 && (car._impactCd||0)<=0){
+            if(typeof playThud==="function") playThud(0.1+Math.min(0.32,sev*0.24));
+            const dmg=sev*sev*58;
+            damageCar(pc, dmg*0.85, car.x, car.y, "impact", {severity:sev});
+            damageCar(car, dmg*0.42, pc.x, pc.y, "impact", {severity:sev});
+            car._impactCd=0.3+sev*0.2;
+            if(pc.dead){ L.parked.splice(k,1); continue; }
           }
         }
       }
