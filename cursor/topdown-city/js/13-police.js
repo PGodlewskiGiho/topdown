@@ -1,17 +1,40 @@
 /* TOPDOWN CITY — 13-police.js */
-/* ---------- wanted level + police / SWAT / air / military ---------- */
+/* ---------- wanted level + police / SWAT / air / military (GTA IV-style pursuit) ---------- */
 const cops=[], footcops=[], helis=[];
 let heat=0, stars=0, bustTimer=0, prevStars=0, respawnCd=0, dispatchBoost=0, gunfireCd=0;
 
-function addHeat(x){ heat=Math.min(5.99, heat+x); dispatchBoost=Math.max(dispatchBoost, 0.8); }
+/* pursuit / search — stars drop only after hiding out of sight */
+let lkX=0, lkY=0, lkAge=0, escapeProg=0, playerSpotted=false, wantedPhase="clear", lkValid=false;
+const ESCAPE_SEC=[0, 7, 11, 16, 21, 28];
+const SEARCH_BASE=[0, 150, 190, 250, 310, 380];
+
+function addHeat(x){
+  const was=Math.floor(heat);
+  heat=Math.min(5.99, heat+x);
+  if(Math.floor(heat)>was){
+    escapeProg=0;
+    const p=actualPlayerPos();
+    if(p){ lkX=p.x; lkY=p.y; lkAge=0; wantedPhase="pursuit"; lkValid=true; }
+  }
+  dispatchBoost=Math.max(dispatchBoost, 0.8);
+}
 function notifyGunfire(x,y){
   if(gunfireCd>0) return;
   gunfireCd=0.35;
-  addHeat(0.045);
-  dispatchBoost=Math.max(dispatchBoost, 2.2);
+  addHeat(0.12);
+  lkX=x; lkY=y; lkAge=0; escapeProg=0; lkValid=true;
+  wantedPhase="search";
+  dispatchBoost=Math.max(dispatchBoost, 2.4);
 }
 function lawActive(){ return cops.length+footcops.length+helis.length; }
-function clearAllLaw(){ cops.length=0; footcops.length=0; helis.length=0; bustTimer=0; respawnCd=0; dispatchBoost=0; }
+function resetPursuitState(){
+  lkX=lkY=lkAge=escapeProg=0; playerSpotted=false; wantedPhase="clear"; lkValid=false;
+}
+function clearAllLaw(){
+  cops.length=0; footcops.length=0; helis.length=0;
+  bustTimer=0; respawnCd=0; dispatchBoost=0;
+  resetPursuitState();
+}
 
 function wantedTarget(){
   if(mode==="car") return {x:car.x,y:car.y,vx:car.vx||0,vy:car.vy||0,r:car.R, arrestable:true};
@@ -31,6 +54,90 @@ function copSightClear(x0,y0,x1,y1){
   const n=7, dx=x1-x0, dy=y1-y0;
   for(let i=1;i<n;i++){ const t=i/n, px=x0+dx*t, py=y0+dy*t; if(inBuilding(px,py,10)) return false; }
   return true;
+}
+
+function actualPlayerPos(){
+  if(mode==="inside") return null;
+  if(mode==="car") return {x:car.x,y:car.y,r:car.R};
+  if(mode==="boat") return {x:ped.x,y:ped.y,r:ped.r+10};
+  return {x:ped.x,y:ped.y,r:ped.r};
+}
+
+function unitSightRange(u){
+  if(u.unit==="heli") return 500;
+  if(u.unit==="apc") return 340;
+  if(u.unit==="swat") return 400;
+  if(u.kind==="moto") return 360;
+  if(u.type==="swat"||u.type==="soldier") return 300;
+  if(u.type==="police") return 270;
+  return 390;
+}
+
+function canUnitSee(ux,uy,u){
+  const p=actualPlayerPos();
+  if(!p) return false;
+  const d=Math.hypot(p.x-ux,p.y-uy);
+  const rng=unitSightRange(u);
+  if(d>rng) return false;
+  return copSightClear(ux,uy,p.x,p.y);
+}
+
+function searchRadius(){
+  const s=Math.max(1,Math.min(5,stars));
+  return SEARCH_BASE[s]+lkAge*24;
+}
+
+function refreshSpotted(){
+  const p=actualPlayerPos();
+  if(!p){ playerSpotted=false; return false; }
+  for(const c of cops){ if(canUnitSee(c.x,c.y,c)){ playerSpotted=true; lkX=p.x; lkY=p.y; lkAge=0; escapeProg=0; wantedPhase="pursuit"; lkValid=true; return true; } }
+  for(const h of helis){ if(canUnitSee(h.x,h.y,h)){ playerSpotted=true; lkX=p.x; lkY=p.y; lkAge=0; escapeProg=0; wantedPhase="pursuit"; lkValid=true; return true; } }
+  for(const fc of footcops){ if(canUnitSee(fc.x,fc.y,fc)){ playerSpotted=true; lkX=p.x; lkY=p.y; lkAge=0; escapeProg=0; wantedPhase="pursuit"; lkValid=true; return true; } }
+  playerSpotted=false;
+  if(stars>0) wantedPhase="search";
+  return false;
+}
+
+function searchPatrolPoint(seed,rad){
+  const t=performance.now()*0.001;
+  const a=seed+t*0.55;
+  return {x:lkX+Math.cos(a)*rad*0.62, y:lkY+Math.sin(a*0.87)*rad*0.5};
+}
+
+function copDriveTarget(c){
+  const rad=searchRadius();
+  const seed=(c.x*0.017+c.y*0.013)%6.283;
+  const dLk=Math.hypot(lkX-c.x,lkY-c.y);
+  if(dLk>rad*1.35) return {x:lkX,y:lkY,vx:0,vy:0,r:0,arrestable:false};
+  const p=searchPatrolPoint(seed,rad);
+  return {x:p.x,y:p.y,vx:0,vy:0,r:0,arrestable:false};
+}
+
+function dropOneStar(){
+  const s=Math.floor(heat);
+  if(s<=0){ heat=0; resetPursuitState(); return; }
+  heat=s-1;
+  escapeProg=0; lkAge=0;
+  if(s<=1){ showBigMsg("ZGUBIONO POLICJĘ"); resetPursuitState(); }
+  else showBigMsg("POZIOM −1");
+}
+
+function updateSightAndEscape(dt){
+  if(stars<=0){ resetPursuitState(); return; }
+  if(!lkValid){
+    const p=actualPlayerPos();
+    if(p){ lkX=p.x; lkY=p.y; lkValid=true; }
+    else if(mode==="inside"&&interior){ lkX=interior.outX; lkY=interior.outY; lkValid=true; wantedPhase="search"; }
+  }
+  refreshSpotted();
+  if(playerSpotted) return;
+  lkAge+=dt;
+  const escNeed=ESCAPE_SEC[Math.min(5,stars)]*(mission&&mission.type==="getaway"?0.75:1);
+  if(escNeed<=0) return;
+  const p=actualPlayerPos();
+  const hideMul=(mode==="inside")?1.45:(p&&inBuilding(p.x,p.y,8)?1.2:1);
+  escapeProg+=dt*hideMul;
+  if(escapeProg>=escNeed) dropOneStar();
 }
 
 function spawnOffscreen(){
@@ -126,16 +233,19 @@ function roadBiasAngle(x,y,ang){
 }
 
 function updateCop(c,dt){
+  if(c._block){ c.flash=(c.flash+dt*7)%2; return; }
+  const sees=canUnitSee(c.x,c.y,c);
   const lead=c.unit==="apc"?0.35:c.kind==="moto"?0.55:0.45;
-  const tgt=predictTarget(0, lead);
+  const tgt=sees?predictTarget(0,lead):copDriveTarget(c);
   const dx=tgt.x-c.x, dy=tgt.y-c.y, dist=Math.hypot(dx,dy);
   let aim=Math.atan2(dy,dx);
   aim=roadBiasAngle(c.x,c.y,aim);
   let da=aim-c.a; while(da>Math.PI)da-=2*Math.PI; while(da<-Math.PI)da+=2*Math.PI;
   const speed=Math.hypot(c.vx,c.vy);
   c.a+=clamp(da,-1,1)*Math.min(1,speed/55+0.35)*3.2*dt;
-  let thr=dist>90?1:(dist>45?0.35:0.12);
+  let thr=sees?(dist>90?1:(dist>45?0.35:0.12)):(dist>70?0.72:(dist>28?0.38:0.15));
   if(c.unit==="apc" && dist<120) thr=Math.max(thr,0.55);
+  if(!sees && dist<40) thr*=0.55;
   const ahead=(ang)=>{ const px=c.x+Math.cos(ang)*56, py=c.y+Math.sin(ang)*56; return inWater(px,py)||inBuilding(px,py,12); };
   if(ahead(c.a)){ const lOk=!ahead(c.a-0.85), rOk=!ahead(c.a+0.85); c._av=(lOk&&!rOk)?-1:(rOk&&!lOk)?1:(c._av||1); c.a+=c._av*3.0*dt; thr*=0.22; }
   const acc=COP_ACCEL*(c.unit==="apc"?0.85:1);
@@ -155,12 +265,14 @@ function updateCop(c,dt){
 
 function updateHeli(h,dt){
   h.orbit+=dt*0.7;
-  const tgt=predictTarget(0,0.65);
-  const ox=Math.cos(h.orbit)*170, oy=Math.sin(h.orbit)*110;
+  const sees=canUnitSee(h.x,h.y,h);
+  const lead=sees?0.65:0;
+  const tgt=sees?predictTarget(0,lead):{x:lkX,y:lkY,vx:0,vy:0,r:0,arrestable:false};
+  const ox=Math.cos(h.orbit)*(sees?170:240), oy=Math.sin(h.orbit)*(sees?110:180);
   const tx=tgt.x+ox, ty=tgt.y+oy;
   const dx=tx-h.x, dy=ty-h.y, dist=Math.hypot(dx,dy)||1;
   h.a=Math.atan2(dy,dx);
-  const sp=Math.min(340, 80+dist*0.9);
+  const sp=Math.min(340, sees?(80+dist*0.9):(55+dist*0.65));
   h.x+=dx/dist*sp*dt; h.y+=dy/dist*sp*dt;
   if(inWater(h.x,h.y)) h.y-=80*dt;
   h.flash=(h.flash+dt*9)%2;
@@ -181,14 +293,19 @@ function lawShot(sh,x,y,tx,ty,range,dmg,minStars,spread,dt){
 }
 
 function updateLawFire(dt){
-  const tgt=wantedTarget();
+  const live=actualPlayerPos();
+  if(!live) return;
   for(const c of cops){
+    if(!canUnitSee(c.x,c.y,c)) continue;
     const minS=c.unit==="swat"||c.unit==="apc"?2:2;
     const dmg=c.unit==="apc"?10:c.unit==="swat"?9:7;
     const rng=c.unit==="apc"?300:290;
-    lawShot(c,c.x,c.y,tgt.x,tgt.y,rng,dmg,minS,0.18,dt);
+    lawShot(c,c.x,c.y,live.x,live.y,rng,dmg,minS,0.18,dt);
   }
-  for(const h of helis) lawShot(h,h.x,h.y,tgt.x,tgt.y,430,8,3,0.12,dt);
+  for(const h of helis){
+    if(!canUnitSee(h.x,h.y,h)) continue;
+    lawShot(h,h.x,h.y,live.x,live.y,430,8,3,0.12,dt);
+  }
 }
 
 function copInteractions(dt){
@@ -252,17 +369,26 @@ function updateFootCops(dt){
   }
   for(let i=footcops.length-1;i>=0;i--){
     const fc=footcops[i], ox=fc.x, oy=fc.y;
-    const dx=tgt.x-fc.x, dy=tgt.y-fc.y, d=Math.hypot(dx,dy)||1;
+    const sees=canUnitSee(fc.x,fc.y,fc);
+    const live=actualPlayerPos();
+    let tx, ty;
+    if(sees&&live){ tx=live.x; ty=live.y; }
+    else {
+      const seed=(fc.x*0.03+fc.y*0.02)%6.283;
+      const p=searchPatrolPoint(seed,searchRadius()*0.75);
+      tx=p.x; ty=p.y;
+    }
+    const dx=tx-fc.x, dy=ty-fc.y, d=Math.hypot(dx,dy)||1;
     fc.a=Math.atan2(dy,dx);
-    const keep=d>155?1:(d<88?-0.55:0);
+    const keep=sees?(d>155?1:(d<88?-0.55:0)):(d>55?1:(d<22?-0.35:0.2));
     const nx=fc.x+dx/d*fc.speed*keep*dt, ny=fc.y+dy/d*fc.speed*keep*dt;
     if(!inWater(nx,ny)){ fc.x=nx; fc.y=ny; }
     const ci=Math.floor((fc.x-ROAD)/GAP), cj=Math.floor((fc.y-ROAD)/GAP);
     for(let a=ci-1;a<=ci+1;a++) for(let b=cj-1;b<=cj+1;b++){ const L=getLot(a,b); for(const bd of L.buildings){
       const qx=clamp(fc.x,bd.x,bd.x+bd.w), qy=clamp(fc.y,bd.y,bd.y+bd.h), ex=fc.x-qx, ey=fc.y-qy, dd=Math.hypot(ex,ey);
       if(dd<fc.r && dd>0.001){ fc.x+=ex/dd*(fc.r-dd); fc.y+=ey/dd*(fc.r-dd); } } }
-    lawShot(fc,fc.x,fc.y,tgt.x,tgt.y,fc.range||320,fc.dmg||6,2,0.14,dt);
-    if(fc.hp<=0 || heat<=0 || Math.hypot(fc.x-focusX,fc.y-focusY)>2800) footcops.splice(i,1);
+    if(sees&&live) lawShot(fc,fc.x,fc.y,live.x,live.y,fc.range||320,fc.dmg||6,2,0.14,dt);
+    if(fc.hp<=0 || stars===0 || Math.hypot(fc.x-focusX,fc.y-focusY)>2800) footcops.splice(i,1);
   }
 }
 
@@ -281,15 +407,34 @@ function tierMessage(){
   else if(prevStars===0 && stars>0) showBigMsg("POSZUKIWANY");
 }
 
+let blockCd=0;
+function updateRoadblocks(dt){
+  if(stars<4||!playerSpotted){ blockCd-=dt; return; }
+  blockCd-=dt;
+  if(blockCd>0||cops.length>10) return;
+  const p=actualPlayerPos();
+  if(!p) return;
+  const spd=mode==="car"?Math.hypot(car.vx||0,car.vy||0):Math.hypot(ped.vx||0,ped.vy||0);
+  if(spd<50) return;
+  const ang=mode==="car"?car.a:(ped.vx||ped.vy?Math.atan2(ped.vy,ped.vx):0);
+  const bx=p.x+Math.cos(ang)*340, by=p.y+Math.sin(ang)*340;
+  if(inWater(bx,by)||inBuilding(bx,by,22)) return;
+  const c=spawnCop("patrol");
+  c.x=bx; c.y=by; c.a=ang+Math.PI/2; c.vx=0; c.vy=0; c._block=true;
+  cops.push(c);
+  blockCd=11;
+}
+
 function updateWanted(dt){
   gunfireCd=Math.max(0,gunfireCd-dt);
   dispatchBoost=Math.max(0,dispatchBoost-dt*0.45);
-  const decay=(mission&&mission.type==="getaway")?0.13:0.045;
-  heat=Math.max(0, heat-decay*dt);
+  stars=clamp(Math.floor(heat),0,5);
+  updateSightAndEscape(dt);
   stars=clamp(Math.floor(heat),0,5);
   tierMessage();
   prevStars=stars;
   manageResponse(dt);
+  updateRoadblocks(dt);
   for(const c of cops) updateCop(c,dt);
   updateHelis(dt);
   updateFootCops(dt);
@@ -342,8 +487,43 @@ function sirenGlow(c,N){
 
 let lastStars=-1;
 function drawStars(){
-  if(stars===lastStars) return; lastStars=stars;
   const el=document.getElementById("wanted");
+  if(stars===0){
+    if(lastStars!==0){ el.innerHTML=""; el.style.opacity="0"; lastStars=0; }
+    return;
+  }
+  lastStars=stars;
   let s=""; for(let i=0;i<5;i++) s+=`<span class="${i<stars?'on':''}">★</span>`;
-  el.innerHTML=s; el.style.opacity=stars>0?"1":"0";
+  const escNeed=ESCAPE_SEC[Math.min(5,stars)]||7;
+  const pct=clamp(escapeProg/escNeed,0,1);
+  const status=playerSpotted?"WIDZĄ CIĘ":(wantedPhase==="search"?"UKRYJ SIĘ":"POŚCIG");
+  const barCls=playerSpotted?"spotted":"hiding";
+  s+=`<div class="wanted-status ${barCls}">${status}</div>`;
+  if(!playerSpotted){
+    s+=`<div class="escape-bar"><i style="width:${(pct*100).toFixed(1)}%"></i></div>`;
+  }
+  el.innerHTML=s;
+  el.style.opacity="1";
 }
+
+function drawLawSearchZone(ox,oy){
+  if(stars<=0||wantedPhase!=="search"||!lkValid) return;
+  const rad=searchRadius();
+  const pulse=0.55+0.12*Math.sin(performance.now()*0.004);
+  const sx=lkX-ox, sy=lkY-oy;
+  if(sx<-rad-80||sx>VW+rad+80||sy<-rad-80||sy>VH+rad+80) return;
+  ctx.save();
+  ctx.strokeStyle=`rgba(255,80,60,${(0.22*pulse).toFixed(3)})`;
+  ctx.lineWidth=2.5;
+  ctx.setLineDash([14,10]);
+  ctx.beginPath(); ctx.arc(sx,sy,rad,0,7); ctx.stroke();
+  ctx.setLineDash([]);
+  const g=ctx.createRadialGradient(sx,sy,0,sx,sy,rad);
+  g.addColorStop(0,"rgba(255,90,70,0.07)"); g.addColorStop(1,"rgba(255,90,70,0)");
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(sx,sy,rad,0,7); ctx.fill();
+  ctx.fillStyle="rgba(255,210,80,0.85)";
+  ctx.beginPath(); ctx.arc(sx,sy,5,0,7); ctx.fill();
+  ctx.restore();
+}
+
+if(typeof Game!=="undefined") Game.registerSystem({ drawWorldOverlay:drawLawSearchZone });

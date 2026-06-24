@@ -38,6 +38,15 @@ function drawMini(){
 
   Game.drawMap(mctx, opts);
 
+  if(typeof stars!=="undefined" && stars>0 && typeof wantedPhase!=="undefined" && wantedPhase==="search" && lkValid){
+    const rad=(typeof searchRadius==="function"?searchRadius():220)*MS;
+    const mx=tx0(lkX), my=ty0(lkY);
+    mctx.strokeStyle="rgba(255,90,70,0.55)"; mctx.lineWidth=1.6; mctx.setLineDash([4,3]);
+    mctx.beginPath(); mctx.arc(mx,my,rad,0,7); mctx.stroke();
+    mctx.setLineDash([]);
+    mctx.fillStyle="rgba(255,90,70,0.18)"; mctx.beginPath(); mctx.arc(mx,my,3.5,0,7); mctx.fill();
+  }
+
   mctx.restore();
 
   mctx.save();
