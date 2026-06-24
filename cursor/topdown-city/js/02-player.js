@@ -9,7 +9,7 @@ const car = {
   color: "#d9d4c8", power: 1.10,
   brand: "BMW", carName: "E30", topSpeed: 200, accent: "#1c3a8a", type: "sedan", era: "classic",
   kind: "car", rider: true, riderShirt: "#3a6ea5", riderSkin: "#e8b888", riderHelmet: false,
-  hp: 320, maxHp: 320, dmgSeed: 11, dead: false
+  hp: 420, maxHp: 420, dmgSeed: 11, dead: false
 };
 let focusX = car.x, focusY = car.y;   // generation/spawn anchor (the camera target)
 const skid = [];             // {x,y,a}

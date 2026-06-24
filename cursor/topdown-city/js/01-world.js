@@ -299,11 +299,15 @@ function isRiverCell(i,j){ return riverCellSigned(i,j)>0; }
 function isRiverAt(x,y){ return riverScore(x,y)>0; }
 function isLakeAt(x,y){ return lakeScore(x,y)>0; }
 function coastalLot(i,j){ for(let di=-1;di<=1;di++)for(let dj=-1;dj<=1;dj++){ if(isWaterCell(i+di,j+dj)) return true; } return false; }
-function inWater(x,y){
-  if(_getEdgeDepth===0 && typeof onForestBridgeAt==="function"&&onForestBridgeAt(x,y)) return false;
-  if(typeof onCanalBridgeAt==="function"&&onCanalBridgeAt(x,y)) return false;
-  return waterScore(x,y)>0;
+function waterDepthAt(x,y){
+  if(_getEdgeDepth===0 && typeof onForestBridgeAt==="function"&&onForestBridgeAt(x,y)) return 0;
+  if(typeof onCanalBridgeAt==="function"&&onCanalBridgeAt(x,y)) return 0;
+  const lake=lakeScore(x,y), river=riverScore(x,y);
+  const canal=typeof canalScore==="function"?canalScore(x,y):0;
+  return Math.max(lake, river>0?river:0, canal);
 }
+function inWater(x,y){ return waterDepthAt(x,y)>=0.16; }          // swim — ignore shallow edge bleed
+function inDeepWater(x,y){ return waterDepthAt(x,y)>=0.30; }      // vehicles sink only in real depth
 
 // ---- terrain elevation (multi-scale hills; render == physics via terrainScore) ----
 function terrainBaseNoise(i,j){
@@ -678,18 +682,22 @@ function drawRoads(ox,oy){
       fillRoadSurface(A[0],A[1],jr,js.tex,js.col);
     }
   }
-  // centre-line markings (yellow) + white dashed lane dividers (one per lane, ~3.5 m)
+  // lane markings — short dashes between lanes + double centre on fast roads
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
     for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||!e.markings||e.bridge) continue;
       if(isRoundabout(i,j)||isRoundabout(i+di,j+dj)) continue;
-      const halfLanes=Math.max(1, Math.round((e.width*0.5-6)/ROAD_LANE_W));
-      for(let k=1;k<=halfLanes;k++){ const off=k*ROAD_LANE_W;
-        if(off>e.width*0.5-8) break;
-        strokeEdgeOffset(i,j,di,dj, off,1.4,"rgba(225,228,233,.55)",[20,24]);
-        strokeEdgeOffset(i,j,di,dj,-off,1.4,"rgba(225,228,233,.55)",[20,24]);
+      const halfLanes=Math.max(1, Math.floor((e.width*0.5-10)/ROAD_LANE_W));
+      for(let k=1;k<halfLanes;k++){ const off=k*ROAD_LANE_W;
+        if(off>e.width*0.5-10) break;
+        strokeEdgeOffset(i,j,di,dj, off,1.1,"rgba(225,228,233,.48)",[5,9]);
+        strokeEdgeOffset(i,j,di,dj,-off,1.1,"rgba(225,228,233,.48)",[5,9]);
       }
-      if(e.hwy||e.klass==="blvd") strokeEdge(i,j,di,dj,4,"rgba(222,206,96,.9)");
-      else strokeEdge(i,j,di,dj,3,"rgba(216,197,74,.75)",[18,28]);
+      if(e.hwy||e.klass==="blvd"){
+        strokeEdgeOffset(i,j,di,dj, 2.2, 2.0, "rgba(222,206,96,.88)");
+        strokeEdgeOffset(i,j,di,dj,-2.2, 2.0, "rgba(222,206,96,.88)");
+      } else {
+        strokeEdge(i,j,di,dj, 2.2, "rgba(216,197,74,.68)", [8,12]);
+      }
     }
   }
 }
@@ -2006,9 +2014,9 @@ function getLot(i,j){
       for(let k=0;k<9;k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1+r()*2.4});
       for(let k=0;k<5;k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:34+r()*64, a:(r()-0.5)*1.2});
     } else {
-      const dense=biome==="forest"; const nt=dense?(72+(r()*48|0)):(5+(r()*5|0));
+      const dense=biome==="forest"; const nt=dense?(118+(r()*82|0)):(5+(r()*5|0));
       for(let k=0;k<nt;k++){
-        const x=left+r()*lw, y=top+r()*lh, s=dense?(5+r()*9):(5+r()*4);
+        const x=left+r()*lw, y=top+r()*lh, s=dense?(6+r()*12):(5+r()*4);
         lot.tufts.push(dense?{x,y,s,v:FOREST_GRASS_VARIANTS[(r()*FOREST_GRASS_VARIANTS.length)|0]}:{x,y,s});
       }
       if(dense||lot.zone==="forest"){

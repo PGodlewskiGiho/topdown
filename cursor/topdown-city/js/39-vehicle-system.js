@@ -254,7 +254,7 @@ function repairAllParts(){
     pt.hp=def.hp; pt.maxHp=def.hp; pt.wear=0; pt.off=false;
   }
   car._wheelGripLoss=0; car._lightsBroken=false;
-  car.hp=car.maxHp=320;
+  car.hp=car.maxHp=420;
   showBigMsg(cost?`NAPRAWIONO · $${cost}`:"AUTO JAK NOWE");
   saveGame();
   renderTuningPanel();

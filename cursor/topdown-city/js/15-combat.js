@@ -192,8 +192,8 @@ function damageCar(v, amt, hitX, hitY, hitType, opts){
   const sev=opts.severity!=null?opts.severity:clamp(amt/85, 0.04, 1.35);
   if(sev<0.06 && hitType!=="explosion" && hitType!=="burn") return;
   if(v.kind==="moto" && v.riderHelmet && amt>22) popHelmet(v);
-  const durability=(v.kind==="car")?0.74:(v.kind==="moto"?0.84:0.9);
-  const scale=hitType==="explosion"?1.15:(hitType==="burn"?0.55:(0.18+0.82*sev*sev));
+  const durability=(v.kind==="car")?0.50:(v.kind==="moto"?0.60:0.68);
+  const scale=hitType==="explosion"?0.88:(hitType==="burn"?0.45:(0.14+0.70*sev*sev));
   const eff=amt*durability*scale;
   if(v.kind==="car" && typeof applyVehiclePartDamage==="function"){
     applyVehiclePartDamage(v, eff, hitX, hitY, hitType||"impact");

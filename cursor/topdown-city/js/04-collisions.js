@@ -64,9 +64,9 @@ function carVsTraffic(){
       playThud(0.25+Math.min(0.35,psp/1400));
     }
     if(sev>0.2 && (car._impactCd||0)<=0){
-      const dmg=sev*sev*72;
-      damageCar(c, dmg*0.95, car.x, car.y, "impact", {severity:sev});
-      damageCar(car, dmg*0.55, c.x, c.y, "impact", {severity:sev});
+      const dmg=sev*sev*52;
+      damageCar(c, dmg*0.78, car.x, car.y, "impact", {severity:sev});
+      damageCar(car, dmg*0.42, c.x, c.y, "impact", {severity:sev});
       car._impactCd=0.22+sev*0.18;
     }
   }

@@ -7,7 +7,7 @@ const CAR_VIS_KEYS=["type","era","brand","accent","color","power","topSpeed","W"
 function buyCar(model, chosenColor){
   if(money<model.price){ showBigMsg("ZA MAŁO KASY"); return; }
   money-=model.price;
-  car.kind="car"; car.hp=car.maxHp=320; car.dmgSeed=11; car.dead=false;
+  car.kind="car"; car.hp=car.maxHp=420; car.dmgSeed=11; car.dead=false;
   car.parts=null; car.tuning=typeof defaultCarTuning==="function"?defaultCarTuning():null;
   car._wheelGripLoss=0; car._lightsBroken=false;
   car.brand=model.brand||""; car.carName=model.name;

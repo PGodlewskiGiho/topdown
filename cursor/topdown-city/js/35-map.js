@@ -70,13 +70,20 @@ function playerHeading(){
 
 function navNodeKey(i,j){ return i+","+j; }
 
-function nearestNavNode(x,y){
+function nearestNavNode(x,y, gx, gy){
   const ci=Math.round(x/GAP), cj=Math.round(y/GAP);
   let best=null, bd=1e18;
+  const toGoal=gx!=null?Math.atan2(gy-y,gx-x):null;
   for(let di=-6;di<=6;di++) for(let dj=-6;dj<=6;dj++){
     const i=ci+di, j=cj+dj;
     if(nodeDegree(i,j)<1) continue;
-    const nx=nX(i,j), ny=nY(i,j), d=(nx-x)**2+(ny-y)**2;
+    const nx=nX(i,j), ny=nY(i,j);
+    let d=(nx-x)**2+(ny-y)**2;
+    if(toGoal!=null){
+      const na=Math.atan2(ny-y,nx-x);
+      let ad=Math.abs(Math.atan2(Math.sin(na-toGoal),Math.cos(na-toGoal)));
+      d*=1+ad*1.6;
+    }
     if(d<bd){ bd=d; best=[i,j]; }
   }
   return best;
@@ -125,7 +132,7 @@ function simplifyNavNodes(nodes){
 }
 
 function findNavRoadPath(sx,sy,tx,ty){
-  const start=nearestNavNode(sx,sy), goal=nearestNavNode(tx,ty);
+  const start=nearestNavNode(sx,sy,tx,ty), goal=nearestNavNode(tx,ty,sx,sy);
   if(!start||!goal) return [];
   const sk=navNodeKey(start[0],start[1]), gk=navNodeKey(goal[0],goal[1]);
   if(sk===gk) return [start];
@@ -349,13 +356,15 @@ function mapDrawBlips(mctx, tx, ty, showPlayer){
 
 function mapDrawRoute(mctx, tx, ty, width){
   if(!navPath||navPath.length<2) return;
-  mctx.strokeStyle="rgba(180,140,255,.92)";
+  const idx=navRouteStartIndex();
+  const end=Math.min(navPath.length, idx+22);
+  mctx.strokeStyle="rgba(180,140,255,.88)";
   mctx.lineWidth=width||3.2;
   mctx.lineJoin="round";
-  mctx.setLineDash([7,5]);
+  mctx.setLineDash([6,5]);
   mctx.beginPath();
-  mctx.moveTo(tx(navPath[0][0]),ty(navPath[0][1]));
-  for(let k=1;k<navPath.length;k++) mctx.lineTo(tx(navPath[k][0]),ty(navPath[k][1]));
+  mctx.moveTo(tx(navPath[idx][0]),ty(navPath[idx][1]));
+  for(let k=idx+1;k<end;k++) mctx.lineTo(tx(navPath[k][0]),ty(navPath[k][1]));
   mctx.stroke();
   mctx.setLineDash([]);
 }
@@ -382,29 +391,73 @@ function mapDrawFogOverlay(mctx, i0,i1,j0,j1, tx,ty){
   }
 }
 
+function navRouteStartIndex(){
+  if(!navPath||navPath.length<2) return 0;
+  const p=playerWorldPos();
+  const hd=Math.cos(p.a), hs=Math.sin(p.a);
+  let best=0, bestScore=-1e18;
+  for(let k=0;k<navPath.length;k++){
+    const dx=navPath[k][0]-p.x, dy=navPath[k][1]-p.y;
+    const ahead=dx*hd+dy*hs;
+    const d=Math.hypot(dx,dy);
+    const score=ahead*2.2-d*0.04;
+    if(score>bestScore){ bestScore=score; best=k; }
+  }
+  if(best<navPath.length-1){
+    const nx=navPath[best+1][0]-p.x, ny=navPath[best+1][1]-p.y;
+    if(Math.hypot(nx,ny)<34) best++;
+  }
+  return best;
+}
+
+function drawNavMiniArrow(bctx,W,H){
+  if(!navPath||navPath.length<2) return;
+  const idx=navRouteStartIndex();
+  if(idx>=navPath.length) return;
+  const p=playerWorldPos(), wp=navPath[idx];
+  const ang=Math.atan2(wp[1]-p.y,wp[0]-p.x)-playerHeading();
+  const w2=W/2;
+  bctx.save();
+  bctx.translate(w2,w2-22);
+  bctx.rotate(ang);
+  bctx.fillStyle="#b48cff";
+  bctx.beginPath();
+  bctx.moveTo(0,-9); bctx.lineTo(6.5,7); bctx.lineTo(0,3.5); bctx.lineTo(-6.5,7);
+  bctx.closePath(); bctx.fill();
+  bctx.strokeStyle="rgba(0,0,0,.55)"; bctx.lineWidth=1; bctx.stroke();
+  bctx.restore();
+}
+
 function drawNavRouteWorld(ox,oy){
   if(!navPath||navPath.length<2) return;
   const p=playerWorldPos();
-  let startIdx=0, bd=1e18;
-  for(let k=0;k<navPath.length;k++){
-    const d=(navPath[k][0]-p.x)**2+(navPath[k][1]-p.y)**2;
-    if(d<bd){ bd=d; startIdx=k; }
-  }
+  const startIdx=navRouteStartIndex();
+  const endIdx=Math.min(navPath.length, startIdx+28);
   ctx.save();
-  ctx.strokeStyle="rgba(180,140,255,.88)";
-  ctx.lineWidth=4.5;
+  ctx.strokeStyle="rgba(180,140,255,.82)";
+  ctx.lineWidth=3.8;
   ctx.lineJoin="round";
-  ctx.setLineDash([12,8]);
+  ctx.setLineDash([10,7]);
   ctx.beginPath();
-  ctx.moveTo(navPath[startIdx][0],navPath[startIdx][1]);
-  for(let k=startIdx+1;k<navPath.length;k++) ctx.lineTo(navPath[k][0],navPath[k][1]);
+  ctx.moveTo(p.x,p.y);
+  for(let k=startIdx;k<endIdx;k++) ctx.lineTo(navPath[k][0],navPath[k][1]);
   ctx.stroke();
   ctx.setLineDash([]);
+  const wp=navPath[Math.min(startIdx,endIdx-1)];
+  if(wp){
+    const ang=Math.atan2(wp[1]-p.y,wp[0]-p.x);
+    ctx.save();
+    ctx.translate(wp[0],wp[1]); ctx.rotate(ang);
+    ctx.fillStyle="#b48cff";
+    ctx.beginPath(); ctx.moveTo(0,-11); ctx.lineTo(8,9); ctx.lineTo(0,5); ctx.lineTo(-8,9); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle="rgba(0,0,0,.45)"; ctx.lineWidth=1.2; ctx.stroke();
+    ctx.restore();
+  }
   if(navTarget){
-    ctx.fillStyle="rgba(180,140,255,.25)";
-    ctx.beginPath(); ctx.arc(navTarget.x,navTarget.y,28,0,7); ctx.fill();
-    ctx.strokeStyle="#b48cff"; ctx.lineWidth=2.5;
-    ctx.beginPath(); ctx.arc(navTarget.x,navTarget.y,10+3*Math.abs(Math.sin(performance.now()/280)),0,7); ctx.stroke();
+    ctx.fillStyle="rgba(180,140,255,.18)";
+    ctx.beginPath(); ctx.arc(navTarget.x,navTarget.y,22,0,7); ctx.fill();
+    ctx.strokeStyle="#b48cff"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(navTarget.x,navTarget.y,8+2*Math.abs(Math.sin(performance.now()/300)),0,7); ctx.stroke();
   }
   ctx.restore();
 }
@@ -480,6 +533,7 @@ function renderRotatingMap(bctx,W,H,opts){
     bctx.closePath(); bctx.fill();
     bctx.strokeStyle="rgba(0,0,0,.7)"; bctx.lineWidth=1.2; bctx.stroke();
     bctx.restore();
+    if(navPath&&navPath.length>1) drawNavMiniArrow(bctx,W,H);
   }
 
   bctx.fillStyle="rgba(255,255,255,.82)";

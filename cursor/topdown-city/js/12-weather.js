@@ -64,8 +64,8 @@ function puddleTooClose(x,y,rx,ry){
   return false;
 }
 function spawnRainPuddle(x,y){
-  const rx0=7+Math.random()*26, ry0=rx0*(0.42+Math.random()*0.32);
-  rainPuddles.push({x,y,rx0,ry0,rx:2,ry:1,a:Math.random()*Math.PI,size:0.04,ripple:Math.random()*6.28,dyn:true});
+  const rx0=5+Math.random()*14;
+  rainPuddles.push({x,y,rx0,ry0:rx0*(0.78+Math.random()*0.18),rx:2,ry:2,a:Math.random()*Math.PI,size:0.04,dyn:true});
 }
 function updateRainPuddles(dt){
   puddleT+=dt;
@@ -169,42 +169,20 @@ function collectPuddlesInView(ox,oy){
 }
 function drawPuddleBody(p){
   const {rx,ry}=puddleDims(p);
-  if(rx<1.2||ry<0.8) return;
-  const a=clamp(0.35+0.65*wetness*(p.size!=null?p.size:1),0,1);
+  if(rx<1.4) return;
+  const a=clamp(0.10+0.22*wetness*(p.size!=null?p.size:1),0,0.32);
   const [gr,gg,gb]=puddleGroundTint(p.x,p.y);
-  const {px,py,rip}=puddleParallax(p);
-  ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a||0);
-  // soft wet edge — thin water film, not tar stain
-  const bleed=ctx.createRadialGradient(0,0,Math.max(rx,ry)*0.42, 0,0, Math.max(rx,ry)*1.14);
-  bleed.addColorStop(0,`rgba(${gr+12},${gg+18},${gb+28},${(0.20*a).toFixed(3)})`);
-  bleed.addColorStop(0.72,`rgba(${gr+6},${gg+10},${gb+18},${(0.10*a).toFixed(3)})`);
-  bleed.addColorStop(1,"rgba(0,0,0,0)");
-  ctx.fillStyle=bleed; ctx.beginPath(); ctx.ellipse(0,0,rx*1.08,ry*1.08,0,0,7); ctx.fill();
-  const depth=ctx.createRadialGradient(px*0.3,py*0.2,Math.min(rx,ry)*0.06, px*0.1,py*0.15, Math.max(rx,ry));
-  depth.addColorStop(0,`rgba(${gr+55},${gg+72},${gb+95},${(0.42*a).toFixed(3)})`);
-  depth.addColorStop(0.38,`rgba(72,108,138,${(0.34*a).toFixed(3)})`);
-  depth.addColorStop(0.78,`rgba(48,78,104,${(0.22*a).toFixed(3)})`);
-  depth.addColorStop(1,`rgba(36,58,78,${(0.08*a).toFixed(3)})`);
-  ctx.fillStyle=depth; ctx.beginPath(); ctx.ellipse(0,0,rx,ry,0,0,7); ctx.fill();
-  ctx.strokeStyle=`rgba(150,185,215,${(0.28*a).toFixed(3)})`; ctx.lineWidth=1.0;
-  ctx.beginPath(); ctx.ellipse(0,0,rx*0.97,ry*0.97,0,0,7); ctx.stroke();
-  if(weatherI>0.2&&p.ripple!=null){
-    const ripPh=(p.ripple+puddleT*2.4)%6.28;
-    for(let k=0;k<3;k++){
-      const ph=ripPh+k*1.7, r=0.28+((ph%6.28)/6.28)*0.72;
-      ctx.strokeStyle=`rgba(200,220,245,${(0.09*a*(1-r)).toFixed(3)})`; ctx.lineWidth=0.9;
-      ctx.beginPath(); ctx.ellipse(rip*r*0.4,0,rx*r*0.94,ry*r*0.94,0,0,7); ctx.stroke();
-    }
-  }
-  const N=typeof nightFactor!=="undefined"?nightFactor(gameHour):0.35;
-  const spec=lerp(225,150,N)|0;
-  ctx.fillStyle=`rgba(${spec},${spec+12},${spec+28},${(0.22*a*(1-N*0.35)).toFixed(3)})`;
-  ctx.beginPath(); ctx.ellipse(-rx*0.10+px*0.2,-ry*0.16+py*0.15,rx*0.42,ry*0.30,0,0,7); ctx.fill();
-  ctx.fillStyle=`rgba(255,255,255,${(0.06*a*(1-N*0.6)).toFixed(3)})`;
-  ctx.beginPath(); ctx.ellipse(-rx*0.04+px*0.15,-ry*0.10+py*0.12,rx*0.16,ry*0.10,0,0,7); ctx.fill();
+  const R=Math.max(rx,ry*0.92);
+  ctx.save(); ctx.translate(p.x,p.y); ctx.rotate((p.a||0)*0.15);
+  const g=ctx.createRadialGradient(0,0,R*0.08, 0,0,R*1.05);
+  g.addColorStop(0,`rgba(${gr-6|0},${gg-4|0},${gb-2|0},${a.toFixed(3)})`);
+  g.addColorStop(0.55,`rgba(${gr-12|0},${gg-8|0},${gb-6|0},${(a*0.45).toFixed(3)})`);
+  g.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(0,0,R,R*0.88,0,0,7); ctx.fill();
   ctx.restore();
 }
 function drawPuddleReflections(ox,oy){
+  return;
   if(wetness<0.06) return;
   let puddles=collectPuddlesInView(ox,oy);
   if(!puddles.length) return;
@@ -297,7 +275,7 @@ function updateWeather(dt){
   weatherTimer-=dt;
   if(weatherTimer<=0){
     const r=Math.random();
-    weatherTarget = r<0.5?0 : r<0.75?0.5 : r<0.92?0.85 : 1;   // bias toward clear
+    weatherTarget = r<0.52?0 : r<0.78?0.45 : r<0.94?0.72 : 0.82;   // bias toward clear; cap storms
     weatherTimer = rand(26,56);
   }
   weatherI += (weatherTarget-weatherI)*Math.min(1,0.4*dt);
@@ -351,13 +329,14 @@ function drawWet(ox,oy){
 }
 function drawRain(){
   if(weatherI<0.02) return;
-  const veil=weatherI*0.11;
+  const intens=Math.min(weatherI,0.78);
+  const veil=intens*0.048;
   const g=ctx.createLinearGradient(0,0,0,VH);
-  g.addColorStop(0,`rgba(72,88,108,${(veil*0.55).toFixed(3)})`);
-  g.addColorStop(0.45,`rgba(58,72,90,${veil.toFixed(3)})`);
-  g.addColorStop(1,`rgba(48,58,72,${(veil*1.15).toFixed(3)})`);
+  g.addColorStop(0,`rgba(72,88,108,${(veil*0.42).toFixed(3)})`);
+  g.addColorStop(0.45,`rgba(58,72,90,${(veil*0.85).toFixed(3)})`);
+  g.addColorStop(1,`rgba(48,58,72,${(veil*0.95).toFixed(3)})`);
   ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH);
-  const n=Math.floor(weatherI*MAXRAIN), base=0.32+weatherI*0.5;
+  const n=Math.floor(intens*MAXRAIN*0.68), base=0.20+intens*0.34;
   ctx.lineCap="round";
   for(let i=0;i<n;i++){
     const d=rain[i], sl=2.5+d.layer*5.5;
@@ -367,12 +346,12 @@ function drawRain(){
     ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x+sl,d.y+d.l); ctx.stroke();
   }
   ctx.lineCap="butt";
-  if(weatherI>0.38){
-    ctx.fillStyle=`rgba(198,214,232,${(weatherI*0.035).toFixed(3)})`;
+  if(intens>0.55){
+    ctx.fillStyle=`rgba(198,214,232,${(intens*0.018).toFixed(3)})`;
     const t=performance.now()*0.001;
-    for(let k=0;k<Math.floor(weatherI*22);k++){
+    for(let k=0;k<Math.floor(intens*12);k++){
       const sx=(k*113+t*18)%VW, sy=(k*67+t*42)%VH;
-      ctx.fillRect(sx,sy,1,1.5+weatherI*2.2);
+      ctx.fillRect(sx,sy,1,1.5+intens*1.6);
     }
   }
   if(flash>0){ ctx.fillStyle=`rgba(220,230,255,${(flash*0.5).toFixed(3)})`; ctx.fillRect(0,0,VW,VH); }

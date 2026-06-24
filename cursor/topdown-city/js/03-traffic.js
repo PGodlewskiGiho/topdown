@@ -71,7 +71,7 @@ function spawnTrafficCar(){
   const urban=z==="downtown"||z==="midrise";
   const c={state:"drive", ai,aj, bi:b[0],bj:b[1], t:rng()*0.7,
            speed:urban?rand(55,105):rand(70,130), cruise:urban?rand(72,118):rand(95,150),
-           color:pick(CARCOL), W:32, L:58, R:vehicleHitRadius(32,58,"car"), x:0,y:0,a:0, vx:0,vy:0, spin:0, downT:0, ring:null, hp:185, maxHp:185, dmgSeed:(rng()*1e9)|0, dead:false};
+           color:pick(CARCOL), W:32, L:58, R:vehicleHitRadius(32,58,"car"), x:0,y:0,a:0, vx:0,vy:0, spin:0, downT:0, ring:null, hp:255, maxHp:255, dmgSeed:(rng()*1e9)|0, dead:false};
   const vr=rng();
   if(vr<0.12){ c.kind="moto"; c.W=16; c.L=42; c.R=vehicleHitRadius(c.W,c.L,"moto"); c.cruise=rand(110,158); c.speed=rand(80,140); c.rider=true; c.riderShirt=pick(SHIRT); c.riderSkin=pick(SKIN); c.riderHelmet=true; c.hp=c.maxHp=72; }
   else if(vr<0.18){ c.kind="bike"; c.W=14; c.L=36; c.R=vehicleHitRadius(c.W,c.L,"bike"); c.cruise=rand(48,74); c.speed=rand(40,64); c.rider=true; c.riderShirt=pick(SHIRT); c.riderSkin=pick(SKIN); c.riderHair=pick(HAIR); c.hp=c.maxHp=44; }

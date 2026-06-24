@@ -1312,7 +1312,7 @@ function drawClump(x,y,s){
   }
 }
 function drawGrassDetail(L){
-  if(VW>1700) return;                                            // grass invisible when far out: skip entirely
+  if(VW>2200) return;                                            // grass invisible when far out: skip entirely
   const cl=cam.x-VW/2-20, cr=cam.x+VW/2+20, ct=cam.y-VH/2-20, cb=cam.y+VH/2+20;
   const useForest=L.biome==="forest"&&FOREST_GRASS.ready;
   const fKeys=useForest?(FOREST_GRASS._keys||(FOREST_GRASS._keys=Object.keys(FOREST_GRASS.meta?.variants||{}))):null;

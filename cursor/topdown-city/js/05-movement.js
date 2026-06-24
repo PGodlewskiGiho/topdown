@@ -30,7 +30,7 @@ function updateCar(dt){
     if(car.sinking>1.1){ mode="foot"; ped.x=car.x; ped.y=car.y; ped.vx=0; ped.vy=0; ped.a=car.a; recoverCarToLand(); showBigMsg("PŁYŃ DO BRZEGU"); }
     return;
   }
-  if(inWater(car.x,car.y)){ car.sinking=0; playSplash(); showBigMsg("AUTO TONIE!"); return; }
+  if(inDeepWater(car.x,car.y)){ car.sinking=0; playSplash(); showBigMsg("AUTO TONIE!"); return; }
   car._lx=car.x; car._ly=car.y; car._la=car.a;
 
   const throttle=(keys["w"]||keys["arrowup"]?1:0)-(keys["s"]||keys["arrowdown"]?1:0);
@@ -211,17 +211,17 @@ function updateCam(dt){
     cam.latOff+=(targetLat-cam.latOff)*(1-Math.exp(-6*dt));
     tx+=-Math.sin(velA)*cam.latOff;
     ty+= Math.cos(velA)*cam.latOff;
-    const targetRoll=clamp(-(car._lat||0)/Math.max(spd,55), -0.06, 0.06)*slip*1.1;
+    const targetRoll=clamp(-(car._lat||0)/Math.max(spd,55), -0.035, 0.035)*slip*0.55;
     cam.roll+=(targetRoll-cam.roll)*(1-Math.exp(-5*dt));
-    cam.shake=Math.max(cam.shake, slip*0.004);
+    cam.shake=Math.max(cam.shake, slip*0.0011);
   } else {
     tx=a.x+Math.cos(a.a)*lead;
     ty=a.y+Math.sin(a.a)*lead;
-    if(driving&&spd>28){ tx+=car.vx*0.08; ty+=car.vy*0.08; }
+    if(driving&&spd>28){ tx+=car.vx*0.05; ty+=car.vy*0.05; }
     cam.latOff*=1-Math.exp(-12*dt);
     cam.roll+=(0-cam.roll)*(1-Math.exp(-10*dt));
   }
-  cam.shake*=Math.pow(0.82, dt*60);
+  cam.shake*=Math.pow(0.90, dt*60);
 
   const rate=driving?(10+spd*0.028+slip*2.2):12;
   const k=1-Math.exp(-rate*dt);
