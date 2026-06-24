@@ -22,6 +22,7 @@ let hHeld = false;           // one-shot guard for horn key
 let rHeld = false;           // one-shot guard for weather key
 let gHeld = false;           // one-shot guard for reload key
 let iHeld = false;           // one-shot guard for inventory key
+let pHeld = false;           // one-shot guard for map key
 let bHeld = false;           // one-shot guard for buy key
 let cHeld = false;           // one-shot guard for colour-cycle key
 const ped = { x:car.x, y:car.y, a:0, vx:0, vy:0, r:9, walk:96, run:178 };
@@ -73,6 +74,11 @@ function setKey(e,down){
   if(!down && k==="g") gHeld=false;
   if(down && (k==="i"||k==="tab")){ if(!iHeld){ iHeld=true; if(typeof toggleInventory==="function") toggleInventory(); } e.preventDefault(); }
   if(!down && (k==="i"||k==="tab")) iHeld=false;
+  if(down && k==="p"){ if(!pHeld){ pHeld=true; if(typeof toggleBigMap==="function") toggleBigMap(); } e.preventDefault(); }
+  if(!down && k==="p") pHeld=false;
+  if(down && k==="escape"){
+    if(typeof bigMapOpen!=="undefined"&&bigMapOpen && typeof toggleBigMap==="function"){ toggleBigMap(false); e.preventDefault(); return; }
+  }
   if(down && k==="b"){ if(!bHeld){ bHeld=true; tryBuy(); } }
   if(!down && k==="b") bHeld=false;
   if(down && k==="c"){ if(!cHeld){ cHeld=true; cyclePadColor(); } }
@@ -84,6 +90,12 @@ function setKey(e,down){
   if(typeof gamePhase!=="undefined" && gamePhase!=="playing") return;
   if(typeof invOpen!=="undefined"&&invOpen){
     if(down && k==="escape") toggleInventory();
+    return;
+  }
+  if(typeof bigMapOpen!=="undefined"&&bigMapOpen){
+    if(down && k==="escape"){ toggleBigMap(false); e.preventDefault(); return; }
+    if(down && k==="p"){ if(!pHeld){ pHeld=true; toggleBigMap(false); } e.preventDefault(); return; }
+    if(!down && k==="p") pHeld=false;
     return;
   }
   if(down && ((k>="1"&&k<="9")||k==="0")){

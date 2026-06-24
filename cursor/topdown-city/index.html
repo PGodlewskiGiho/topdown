@@ -29,9 +29,26 @@
     <b>A D / ← →</b> skręt &nbsp; <b>SPACJA</b> ręczny (drift)<br>
     <b>F</b> wsiądź / wejdź / wysiądź (auto, łódź lub budynek) &nbsp; <b>SHIFT</b> bieg (pieszo)<br>
     <b>T</b> przewiń czas (dzień/noc) &nbsp; <b>R</b> zmień pogodę<br>
+    <b>P</b> mapa / nawigacja &nbsp; <b>klik minimapa</b> — pełna mapa<br>
     <b>MYSZ / SPACJA</b> strzał (pieszo) &nbsp; <b>B</b> kup auto (w salonie) &nbsp; <b>M</b> dźwięk<br>
     <b>Tab / I</b> ekwipunek &nbsp; <b>G</b> przeładuj &nbsp; <b>1–0 / Q E</b> szybki wybór broni<br>
     <b>sklep z bronią:</b> wejdź i kup klawiszami 2–0
+  </div>
+</div>
+<div id="bigmap" class="hidden">
+  <canvas id="bigmap-cv"></canvas>
+  <div class="bigmap-bar">
+    <span class="bigmap-title">MAPA</span>
+    <span class="bigmap-hint">Klik — cel nawigacji · PPM — usuń · Scroll — zoom · Przeciągnij — przesuń · P / Esc — zamknij</span>
+    <div class="bigmap-actions">
+      <button type="button" id="bigmap-center">Centruj</button>
+      <button type="button" id="bigmap-clear">Usuń cel</button>
+    </div>
+  </div>
+  <div class="bigmap-legend">
+    <span><i class="blip blip-nav"></i> Cel GPS</span>
+    <span><i class="blip blip-mission"></i> Misja</span>
+    <span><i class="blip blip-you"></i> Ty</span>
   </div>
 </div>
 <div id="inventory" class="hidden">
@@ -144,18 +161,19 @@
   <script src="js/25-rivers.js?v=2"></script>
   <script src="js/26-trails.js?v=1"></script>
   <script src="js/27-forest-bridges.js?v=2"></script>
-  <script src="js/02-player.js?v=4"></script>
+  <script src="js/02-player.js?v=5"></script>
   <script src="js/31-interior.js?v=1"></script>
   <script src="js/30-npc-look.js?v=2"></script>
   <script src="js/03-traffic.js?v=7"></script>
   <script src="js/04-collisions.js?v=2"></script>
   <script src="js/05-movement.js?v=3"></script>
-  <script src="js/06-render-draw.js?v=2"></script>
+  <script src="js/06-render-draw.js?v=3"></script>
   <script src="js/07-boats.js?v=2"></script>
   <script src="js/08-render-assets.js?v=28"></script>
   <script src="js/09-gauge.js"></script>
   <script src="js/10-time.js"></script>
-  <script src="js/11-minimap.js?v=2"></script>
+  <script src="js/35-map.js?v=1"></script>
+  <script src="js/11-minimap.js?v=3"></script>
   <script src="js/12-weather.js?v=3"></script>
   <script src="js/13-police.js?v=3"></script>
   <script src="js/14-missions.js"></script>
@@ -165,9 +183,9 @@
   <script src="js/16-shop.js"></script>
   <script src="js/17-effects.js?v=2"></script>
   <script src="js/18-audio.js?v=5"></script>
-  <script src="js/19-save.js"></script>
+  <script src="js/19-save.js?v=2"></script>
   <script src="js/21-menu.js?v=4"></script>
   <script src="js/22-wildlife.js?v=19"></script>
-  <script src="js/20-main.js?v=5"></script>
+  <script src="js/20-main.js?v=6"></script>
 </body>
 </html>

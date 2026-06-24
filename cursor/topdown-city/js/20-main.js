@@ -15,6 +15,8 @@ function frame(now){
     return;
   }
   updateClock(dt); updateWeather(dt); updateRain(dt); updateLeaves(dt);
+  const mapPause=typeof bigMapOpen!=="undefined"&&bigMapOpen;
+  if(!mapPause){
   for(let k=0;k<traffic.length;k++) updateTrafficCar(traffic[k],dt);
   maintainTraffic();
   maintainPeds();
@@ -26,7 +28,6 @@ function frame(now){
   if(mode==="car") updateCar(dt); else if(mode==="boat") updateBoatDrive(dt); else if(mode==="inside") updateInside(dt); else updatePed(dt);
   updateMission(dt);
   updateWanted(dt);
-  pruneT+=dt; if(pruneT>3){ pruneT=0; pruneCaches(); }
   updateCombat(dt);
   updateShop();
   updateGunShop();
@@ -36,8 +37,12 @@ function frame(now){
   updateParkedFx(dt);
   updateWreckFires(dt);
   drainBlasts();
+  }
+  else { maintainTraffic(); maintainPeds(); }
+  pruneT+=dt; if(pruneT>3){ pruneT=0; pruneCaches(); }
   updateAudio();
   tickSave(dt);
+  if(typeof updateMap==="function") updateMap(dt);
   if(mode!=="inside"){ updateCam(dt); focusX=cam.x; focusY=cam.y; }
   draw(); updateHUD(); drawMini(); checkBiome(); drawClock(); drawStars(); drawMissionHUD(); drawMoney(); drawHealth(); drawShopHUD(); drawWeaponHUD(); drawGunShopHUD();
   requestAnimationFrame(frame);

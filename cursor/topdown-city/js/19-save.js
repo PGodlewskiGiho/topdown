@@ -1,7 +1,7 @@
 /* TOPDOWN CITY — 19-save.js */
 /* ---------- save / load (graceful: no-ops if storage blocked) ---------- */
-const SAVE_KEY="topdown_city_save_v4";
-const SAVE_KEY_LEGACY="topdown_city_save_v3";
+const SAVE_KEY="topdown_city_save_v5";
+const SAVE_KEY_LEGACY="topdown_city_save_v4";
 let stats={missionsDone:0};
 let saveTimer=4, saveFlash=0;
 const statsEl=document.getElementById("stats");
@@ -13,7 +13,9 @@ function saveGame(){
       money, missionsDone:stats.missionsDone,
       car:carSave,
       player: typeof characterFromPed==="function"?characterFromPed():null,
-      inventory: typeof serializeInventory==="function"?serializeInventory():null
+      inventory: typeof serializeInventory==="function"?serializeInventory():null,
+      discovered: typeof serializeDiscovery==="function"?serializeDiscovery():null,
+      navTarget: navTarget?{x:navTarget.x,y:navTarget.y}:null
     }));
     saveFlash=1.3;
   }catch(e){ /* storage unavailable (e.g. preview iframe) — ignore */ }
@@ -25,6 +27,8 @@ function resetNewGameState(){
   try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
   money=0; stats.missionsDone=0; health=100; heat=0;stars=0; bustTimer=0; prevStars=0;
   mission=null; pickup=null; saveTimer=4;
+  if(typeof clearNavTarget==="function") clearNavTarget();
+  if(typeof deserializeDiscovery==="function") deserializeDiscovery(null);
   mode="car"; interior=null;
   if(typeof clearAllLaw==="function") clearAllLaw();
   const m=CARS[0];
@@ -41,6 +45,7 @@ function teleportPlayer(x,y){
   car.x=x; car.y=y; car.vx=car.vy=0; car.a=0;
   ped.x=x; ped.y=y; ped.vx=ped.vy=0;
   mode="car"; focusX=x; focusY=y; cam.x=x; cam.y=y;
+  if(typeof seedMapDiscovery==="function") seedMapDiscovery(x,y);
 }
 function loadGame(){
   try{
@@ -70,7 +75,12 @@ function loadGame(){
       Object.assign(playerCharacter, defaultCharacter(), d.player);
       applyCharacterToPed(playerCharacter);
     }
+    if(typeof deserializeDiscovery==="function") deserializeDiscovery(d.discovered);
+    else if(typeof seedMapDiscovery==="function") seedMapDiscovery(car.x,car.y);
+    if(d.navTarget && typeof setNavTarget==="function") setNavTarget(d.navTarget.x,d.navTarget.y,true);
+    else if(typeof clearNavTarget==="function") clearNavTarget();
   }catch(e){ /* ignore corrupt/blocked */ }
+  if(typeof discovered!=="undefined" && discovered.size===0 && typeof seedMapDiscovery==="function") seedMapDiscovery(car.x,car.y);
 }
 function tickSave(dt){
   saveTimer-=dt; if(saveTimer<=0){ saveGame(); saveTimer=4; }

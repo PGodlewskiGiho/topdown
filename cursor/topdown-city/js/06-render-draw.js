@@ -113,6 +113,7 @@ function draw(){
   drawBirds(ox,oy);                                     // gulls over water + city pigeons
   drawWindLeaves(ox,oy);                                // forest leaves on the wind (scales with gusts)
   drawMissionWorld();
+  if(typeof drawNavRouteWorld==="function") drawNavRouteWorld(ox,oy);
   drawBullets();
   drawSlashes();
   drawExplosions();

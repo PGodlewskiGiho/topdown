@@ -47,8 +47,32 @@
   #mission .mt{font-size:12px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase}
   #mission .mo{font-size:13px;color:var(--ink);margin-top:4px}
   #mission .mtime{font-size:18px;color:#fff;margin-top:6px;letter-spacing:.06em}
-  .minimap{position:absolute;right:22px;top:46px;border-radius:14px;
-    box-shadow:0 6px 22px rgba(0,0,0,.5);background:#11131a}
+  .minimap{position:absolute;right:22px;top:46px;border-radius:6px;cursor:pointer;
+    box-shadow:0 0 0 2px rgba(255,255,255,.14),0 8px 28px rgba(0,0,0,.65);background:#0a0c12;
+    image-rendering:pixelated;transition:box-shadow .15s}
+  .minimap:hover{box-shadow:0 0 0 2px rgba(180,140,255,.35),0 10px 32px rgba(0,0,0,.7)}
+  #bigmap{position:fixed;inset:0;z-index:7500;background:rgba(4,6,10,.92);pointer-events:auto;
+    display:grid;grid-template-rows:1fr auto;font-family:var(--mono);color:var(--ink)}
+  #bigmap.hidden{display:none!important}
+  body.map-open #hud .keys,.gauge,.readout,#weapon,#health,#gunshop,.minimap{opacity:.2}
+  #bigmap-cv{display:block;width:100%;height:100%;min-height:0;cursor:crosshair;touch-action:none;grid-row:1}
+  .bigmap-bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:12px 18px 10px;
+    background:linear-gradient(180deg,rgba(8,10,14,.95),rgba(12,14,18,.98));
+    border-top:1px solid rgba(255,255,255,.08)}
+  .bigmap-title{font-size:13px;font-weight:600;letter-spacing:.28em;color:#c8a860}
+  .bigmap-hint{flex:1;font-size:11px;color:#8a919e;letter-spacing:.04em;line-height:1.45;min-width:200px}
+  .bigmap-actions{display:flex;gap:8px}
+  .bigmap-actions button{font-family:var(--mono);font-size:11px;letter-spacing:.06em;padding:7px 12px;
+    border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:var(--ink);cursor:pointer}
+  .bigmap-actions button:hover{background:rgba(180,140,255,.14);border-color:rgba(180,140,255,.35)}
+  .bigmap-legend{position:absolute;right:18px;bottom:72px;display:flex;flex-direction:column;gap:6px;
+    padding:10px 12px;border-radius:10px;background:rgba(8,10,14,.78);border:1px solid rgba(255,255,255,.08);
+    font-size:10px;color:#aeb4bf;letter-spacing:.04em;pointer-events:none}
+  .bigmap-legend span{display:flex;align-items:center;gap:8px}
+  .blip{display:inline-block;width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+  .blip-nav{background:#b48cff;border-radius:1px}
+  .blip-mission{background:#ffd23b;transform:rotate(45deg);border-radius:1px}
+  .blip-you{background:#f0f2f8;clip-path:polygon(50% 0,100% 100%,50% 70%,0 100%)}
   #district{position:absolute;left:50%;bottom:48px;transform:translateX(-50%);
     text-align:center;font-family:var(--mono);opacity:0;transition:opacity .5s;
     text-shadow:0 2px 12px rgba(0,0,0,.75)}
