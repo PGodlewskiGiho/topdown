@@ -181,8 +181,12 @@ function drawDriftSmoke(ox,oy){
 
 function drawDriftHud(){
   if(typeof gamePhase==="undefined"||gamePhase!=="playing"||mode!=="car") return;
+  if(typeof drawTandemHud==="function"&&driftBattle){ drawTandemHud(); return; }
   const el=document.getElementById("drift-hud");
   if(!el) return;
+  const br=el.querySelector(".drift-breakdown");
+  if(br) br.classList.add("hidden");
+  el.querySelector(".drift-label").textContent="DRIFT";
   const show=drift.scoring||drift.session||(drift.score>0&&drift.combo>1.05)||drift.zone;
   el.classList.toggle("hidden", !show);
   if(!show) return;

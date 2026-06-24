@@ -5,6 +5,7 @@ const MAP_DISC_R = 980;
 const MAP_BLIPS = {
   player:"#f0f2f8", mission:"#ffd23b", pickup:"#39d98a", nav:"#b48cff",
   salon:"#5ab0ff", gunshop:"#ffcf6a", super:"#7fe0a8", cop:"#4f8bff",
+  drift:"#ff7a38",
 };
 
 let discovered = new Set();
@@ -395,6 +396,10 @@ function initBigMapEvents(){
     bigMapDrag=null;
     if(Math.hypot(dx,dy)<5 && ev.button===0){
       const w=bigMapEventToWorld(ev);
+      if(typeof hitDriftEventAt==="function"){
+        const de=hitDriftEventAt(w.x,w.y,16);
+        if(de){ navigateToDriftEvent(de); drawBigMap(); return; }
+      }
       if(mapDiscoveredAt(w.x,w.y)) setNavTarget(w.x,w.y);
       else showBigMsg("NIEODKRYTY TEREN");
       drawBigMap();
