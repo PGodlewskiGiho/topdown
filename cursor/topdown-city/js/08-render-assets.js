@@ -1029,6 +1029,16 @@ function getTex(key){
     else if(key==="asphalt"){ grain(1400,"0,0,0","205,210,215",1.4); crack(2,0.10); }
     else if(key==="sand"){ grain(1300,"120,95,55","255,240,200",1.2);
       t.strokeStyle="rgba(150,120,75,0.07)"; t.lineWidth=2; for(let i=0;i<7;i++){ t.beginPath(); const y=rr()*S; t.moveTo(0,y); for(let x=0;x<=S;x+=12) t.lineTo(x, y+Math.sin(x*0.09+i*1.7)*3); t.stroke(); } }
+    else if(key==="sand_desert"){
+      for(let i=0;i<70;i++){ const x=rr()*S,y=rr()*S,w=10+rr()*28,h=7+rr()*20;
+        t.fillStyle=rr()<0.55?`rgba(148,112,68,${(0.06+rr()*0.10).toFixed(3)})`:`rgba(210,178,118,${(0.05+rr()*0.09).toFixed(3)})`;
+        t.fillRect(x,y,w,h); }
+      grain(1800,"108,82,48","228,204,152",1.15); grain(1200,"92,68,38","244,220,176",0.65);
+      t.strokeStyle="rgba(130,98,58,0.08)"; t.lineWidth=2;
+      for(let i=0;i<9;i++){ t.beginPath(); const y=rr()*S; t.moveTo(0,y); for(let x=0;x<=S;x+=10) t.lineTo(x,y+Math.sin(x*0.11+i*1.4)*3.2+Math.sin(x*0.04+i)*1.4); t.stroke(); }
+      for(let i=0;i<40;i++){ const x=rr()*S,y=rr()*S,r=0.8+rr()*2.2;
+        t.fillStyle=rr()<0.5?"rgba(118,92,58,0.22)":"rgba(168,138,88,0.18)"; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); }
+    }
     else if(key==="riverbed"){ t.fillStyle="#3a4a38"; t.fillRect(0,0,S,S);
       grain(900,"20,28,18","90,110,78",1.1);
       for(let i=0;i<48;i++){ const x=rr()*S,y=rr()*S,r=1.2+rr()*3.5;
@@ -1137,7 +1147,10 @@ function getTex(key){
   _tex[key]=pat; return pat;
 }
 function texFillPoly(poly,key){ const p=getTex(key); if(!p) return; ctx.fillStyle=p; ctx.beginPath(); ctx.moveTo(poly[0][0],poly[0][1]); for(let k=1;k<poly.length;k++) ctx.lineTo(poly[k][0],poly[k][1]); ctx.closePath(); ctx.fill(); }
-function groundTexKey(L,sandy){ return sandy?"sand":(L.biome==="forest"?"grass_forest":"grass"); }
+function groundTexKey(L,sandy){
+  if(sandy) return L.biome==="desert"?"sand_desert":"sand";
+  return L.biome==="forest"?"grass_forest":"grass";
+}
 function texFill(L,key){ texFillPoly(L.poly,key); }
 function fillCell(L,color){ const p=L.poly; ctx.fillStyle=color; ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); ctx.lineTo(p[1][0],p[1][1]); ctx.lineTo(p[2][0],p[2][1]); ctx.lineTo(p[3][0],p[3][1]); ctx.closePath(); ctx.fill(); }
 function drawParkingLot(L){ if(!L.stalls) return; ctx.strokeStyle="rgba(230,230,235,.5)"; ctx.lineWidth=1.5; for(const s of L.stalls) ctx.strokeRect(s.x-s.w/2+2,s.y-s.h/2+2,s.w-4,s.h-4); }
@@ -1426,6 +1439,80 @@ function drawForestFloor(L){
   }
 }
 
+// ── PNG desert floor (assets/sand-desert/*.png) ───────────────────────────
+const DESERT_FLOOR={ready:false,meta:null,img:{}};
+(function loadDesertFloorSprites(){
+  fetch("assets/sand-desert/meta.json").then(r=>r.json()).then(meta=>{
+    DESERT_FLOOR.meta=meta;
+    const keys=Object.keys(meta.variants||{}); let left=keys.length||0;
+    if(!left){ DESERT_FLOOR.ready=true; return; }
+    for(const k of keys){
+      const im=new Image();
+      im.onload=im.onerror=()=>{ if(--left<=0) DESERT_FLOOR.ready=true; };
+      im.src="assets/sand-desert/"+meta.variants[k].file;
+      DESERT_FLOOR.img[k]=im;
+    }
+  }).catch(()=>{});
+})();
+function desertFloorMeta(key){
+  const v=DESERT_FLOOR.meta?.variants?.[key];
+  if(v) return v;
+  return DESERT_FLOOR.meta?.variants?.ripple_light||{width:56,height:40,anchorX:28,anchorY:38};
+}
+function drawDesertFloorClump(x,y,s,v){
+  const m=desertFloorMeta(v), img=DESERT_FLOOR.img[v]||DESERT_FLOOR.img.ripple_light;
+  if(!img||!img.complete||!img.naturalWidth) return false;
+  const sc=s*2.1/(m.height||40), W=(m.width||56)*sc, H=(m.height||40)*sc;
+  const ax=(m.anchorX??((m.width||56)*0.5))*sc, ay=(m.anchorY??((m.height||40)-1))*sc;
+  const sm=ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled=true;
+  try{ ctx.imageSmoothingQuality="high"; }catch(e){}
+  ctx.drawImage(img,x-ax,y-ay,W,H);
+  ctx.imageSmoothingEnabled=sm;
+  return true;
+}
+function drawDesertFloraCanvas(d){
+  const s=d.s, r=d.rot||0, x=d.x, y=d.y;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(r);
+  switch(d.kind){
+    case "sage": case "dry_twigs": {
+      ctx.strokeStyle="#6a6840"; ctx.lineWidth=1.4;
+      for(let k=-2;k<=2;k++){ ctx.beginPath(); ctx.moveTo(0,0); ctx.quadraticCurveTo(k*s*0.2,-s*0.5,k*s*0.35,-s*0.85); ctx.stroke(); }
+      ctx.fillStyle="rgba(90,98,52,.55)"; ctx.beginPath(); ctx.ellipse(0,-s*0.35,s*0.55,s*0.32,0,0,7); ctx.fill();
+      break;
+    }
+    case "pebble": case "pebble_cluster": {
+      for(let k=0;k<4;k++){ const px=(k-1.5)*s*0.22, py=(k%2)*s*0.08;
+        ctx.fillStyle=k%2?"#8a7458":"#6a5840"; ctx.beginPath(); ctx.arc(px,py,s*0.14,0,7); ctx.fill(); }
+      break;
+    }
+    case "crack": case "cracked_earth": {
+      ctx.strokeStyle="rgba(92,68,42,.55)"; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.moveTo(-s*0.4,0); ctx.lineTo(s*0.35,-s*0.2); ctx.moveTo(0,-s*0.15); ctx.lineTo(s*0.2,s*0.25); ctx.stroke();
+      break;
+    }
+    case "salt_crust": {
+      ctx.fillStyle="rgba(228,220,198,.45)"; ctx.beginPath(); ctx.ellipse(0,0,s*0.7,s*0.45,0,0,7); ctx.fill();
+      break;
+    }
+    default: return false;
+  }
+  ctx.restore(); return true;
+}
+function drawDesertFloraItem(d){
+  const vk=d.v||d.kind;
+  if(vk && DESERT_FLOOR.ready && drawDesertFloorClump(d.x,d.y,d.s,vk)) return;
+  drawDesertFloraCanvas(d);
+}
+function drawDesertFloor(L){
+  if(!L.desertFloor||!L.desertFloor.length||VW>1700) return;
+  const cl=cam.x-VW/2-24, cr=cam.x+VW/2+24, ct=cam.y-VH/2-24, cb=cam.y+VH/2+24;
+  for(const d of L.desertFloor){
+    if(d.x<cl||d.x>cr||d.y<ct||d.y>cb) continue;
+    drawDesertFloraItem(d);
+  }
+}
+
 function drawForestRock(x,y,s,v,moss){
   ctx.save(); ctx.translate(x,y);
   const sc=Math.max(0.55,s/14);
@@ -1628,17 +1715,31 @@ function drawFloraMushroomShelf(s){
   ctx.fillStyle="rgba(255,255,255,0.12)"; ctx.beginPath(); ctx.ellipse(s*0.12,-s*0.04,s*0.18,s*0.08,0,0,7); ctx.fill();
 }
 function drawSandDetail(L){
-  if(L.biome==="desert"||L.biome==="sea"){                                   // soft rolling dunes
-    for(let k=0;k<4;k++){ const dx=L.x+hsh(L.i,L.j,500+k)*L.w, dy=L.y+hsh(L.i,L.j,520+k)*L.h, rw=L.w*(0.22+hsh(L.i,L.j,540+k)*0.26);
-      ctx.fillStyle=(k%2?"rgba(255,238,200,.11)":"rgba(120,92,56,.10)");
-      ctx.beginPath(); ctx.ellipse(dx,dy,rw,rw*0.5,0.5,0,7); ctx.fill(); }
+  const isDesert=L.biome==="desert";
+  if(L.biome==="desert"||L.biome==="sea"){
+    const nd=isDesert?6:4;
+    for(let k=0;k<nd;k++){
+      const dx=L.x+hsh(L.i,L.j,500+k)*L.w, dy=L.y+hsh(L.i,L.j,520+k)*L.h;
+      const rw=L.w*(0.22+hsh(L.i,L.j,540+k)*0.28);
+      ctx.fillStyle=(k%2?"rgba(255,238,200,.13)":"rgba(120,92,56,.12)");
+      ctx.beginPath(); ctx.ellipse(dx,dy,rw,rw*0.5,0.5,0,7); ctx.fill();
+    }
+    if(isDesert && L.hill){
+      ctx.fillStyle="rgba(90,68,38,.08)"; ctx.beginPath();
+      ctx.ellipse(L.x+L.w*0.55,L.y+L.h*0.45,L.w*0.28,L.h*0.14,0.3,0,7); ctx.fill();
+    }
+    if(isDesert && typeof gameHour!=="undefined" && gameHour>7 && gameHour<19){
+      const tt=performance.now()*0.001, sh=0.04+0.02*Math.sin(tt*0.7+L.i*0.3);
+      ctx.fillStyle=`rgba(255,220,160,${sh.toFixed(3)})`;
+      ctx.fillRect(L.x,L.y,L.w,L.h);
+    }
   }
-  ctx.strokeStyle="rgba(255,240,205,.11)"; ctx.lineWidth=1.5;                 // wind ripples (warm crest)
+  ctx.strokeStyle="rgba(255,240,205,.13)"; ctx.lineWidth=1.5;
   for(const r of L.ripples){ ctx.save(); ctx.translate(r.x,r.y); ctx.rotate(r.a||0); ctx.beginPath(); ctx.moveTo(-r.w/2,0); ctx.quadraticCurveTo(0,-5,r.w/2,0); ctx.stroke(); ctx.restore(); }
-  ctx.strokeStyle="rgba(108,80,48,.13)"; ctx.lineWidth=1.5;                   // shadow side
+  ctx.strokeStyle="rgba(108,80,48,.14)"; ctx.lineWidth=1.5;
   for(const r of L.ripples){ ctx.save(); ctx.translate(r.x,r.y+2.2); ctx.rotate(r.a||0); ctx.beginPath(); ctx.moveTo(-r.w/2,0); ctx.quadraticCurveTo(0,-5,r.w/2,0); ctx.stroke(); ctx.restore(); }
-  for(const p of L.pebbles){ ctx.fillStyle=p.s>1.8?"rgba(116,96,68,.6)":"rgba(150,128,92,.5)"; ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,7); ctx.fill();
-    ctx.fillStyle="rgba(255,246,216,.28)"; ctx.beginPath(); ctx.arc(p.x-p.s*0.3,p.y-p.s*0.3,p.s*0.42,0,7); ctx.fill(); }
+  for(const p of L.pebbles){ ctx.fillStyle=p.s>1.8?"rgba(116,96,68,.65)":"rgba(150,128,92,.55)"; ctx.beginPath(); ctx.arc(p.x,p.y,p.s,0,7); ctx.fill();
+    ctx.fillStyle="rgba(255,246,216,.32)"; ctx.beginPath(); ctx.arc(p.x-p.s*0.3,p.y-p.s*0.3,p.s*0.42,0,7); ctx.fill(); }
 }
 function drawCactus(p){
   const x=p.x, y=p.y, s=Math.max(11,p.s*1.25);

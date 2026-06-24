@@ -701,6 +701,15 @@ const BIOMES={
 };
 const FOREST_NAMES={pine:"BÓR SOSNOWY",spruce:"BÓR ŚWIERKOWY",deciduous:"LAS LIŚCIASTY",maple:"Klonowy gaj",birch:"GĄSZCZ BRZOZOWY",willow:"Wierzbowy brzeg",oak:"DĄBROWA"};
 const FOREST_GROUND={pine:"#284a2a",spruce:"#243e28",deciduous:"#2f5a32",maple:"#325630",birch:"#345a30",willow:"#2e5230",oak:"#2a4e28"};
+const DESERT_NAMES={dune:"Wydmy",salt:"Solniska",rock:"Skaliste pustkowie",scrub:"Krzewiasta step"};
+const DESERT_GROUND={dune:"#caa86a",salt:"#d8ccb0",rock:"#b89868",scrub:"#bea070"};
+function desertType(i,j){
+  const t=hsh(Math.floor(i/5),Math.floor(j/5),441);
+  if(t<0.28) return "dune";
+  if(t<0.48) return "scrub";
+  if(t<0.68) return "rock";
+  return "salt";
+}
 function forestType(i,j){
   const t=hsh(Math.floor(i/4),Math.floor(j/4),331);
   if(t<0.18) return "pine";
@@ -1647,13 +1656,80 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=33;
+const LOT_CACHE_VER=34;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
+const DESERT_FLOOR_VARIANTS=["ripple_light","ripple_dark","dune_crest","cracked_earth","salt_patch","pebble_cluster","sage_bush","dry_grass"];
+const DESERT_FLORA=["sage","tumbleweed","driftwood","bone","pebble","crack","salt_crust"];
 
 const FOREST_MUSHROOMS=["shroom_red","shroom_brown","shroom_tan","shroom_puff","shroom_lilac","shroom_shelf"];
 const FOREST_FLORA_EXTRA=["lichen","berry","bracken","ivy","clover","violet","sprout","heather","deadwood"];
 
 function forestFloraOk(x,y){ return !inWater(x,y) && !isRiverAt(x,y); }
+function desertFloraOk(x,y){
+  if(!forestFloraOk(x,y)) return false;
+  if(terrainSlope(x,y)>0.0048) return false;
+  return true;
+}
+
+function genDesertFloor(lot,r,left,top,lw,lh,i,j){
+  lot.desertFloor=[];
+  const dt=lot.desertType||desertType(i,j);
+  const hill=lot.hill, nf=88+(r()*72|0);
+  const pickKind=()=>{
+    const roll=r();
+    if(roll<0.22) return DESERT_FLOOR_VARIANTS[(r()*DESERT_FLOOR_VARIANTS.length)|0];
+    if(roll<0.38) return "pebble";
+    if(roll<0.52) return DESERT_FLORA[(r()*DESERT_FLORA.length)|0];
+    if(dt==="salt" && roll<0.68) return "salt_crust";
+    if(dt==="rock" && roll<0.72) return "crack";
+    return r()<0.55?"sage":"dry_twigs";
+  };
+  for(let k=0;k<nf;k++){
+    const x=left+10+r()*(lw-20), y=top+10+r()*(lh-20);
+    if(!desertFloraOk(x,y)) continue;
+    const kind=pickKind();
+    const v=DESERT_FLOOR_VARIANTS.includes(kind)?kind:undefined;
+    lot.desertFloor.push({x,y,kind,v,s:4+r()*11,rot:r()*6.28});
+  }
+  if(hill || dt==="dune"){
+    for(let k=0;k<3+(r()*4|0);k++){
+      const x=left+20+r()*(lw-40), y=top+20+r()*(lh-40);
+      if(!desertFloraOk(x,y)) continue;
+      lot.desertFloor.push({x,y,kind:"dune_crest",v:"dune_crest",s:8+r()*14,rot:r()*6.28});
+    }
+  }
+  if(dt==="salt"){
+    for(let k=0;k<2+(r()*3|0);k++){
+      const x=left+24+r()*(lw-48), y=top+24+r()*(lh-48);
+      if(!desertFloraOk(x,y)) continue;
+      lot.desertFloor.push({x,y,kind:"salt_patch",v:"salt_patch",s:10+r()*16,rot:r()*6.28});
+    }
+  }
+  if(dt==="rock"){
+    for(let k=0;k<2+(r()*4|0);k++){
+      const x=left+16+r()*(lw-32), y=top+16+r()*(lh-32);
+      if(!desertFloraOk(x,y)) continue;
+      lot.desertFloor.push({x,y,kind:"cracked_earth",v:"cracked_earth",s:7+r()*12,rot:r()*6.28});
+    }
+  }
+  if(r()<0.35){
+    const cx=left+32+r()*(lw-64), cy=top+32+r()*(lh-64);
+    if(desertFloraOk(cx,cy)){
+      lot.desertFloor.push({x:cx,y:cy,kind:"tumbleweed",v:"tumbleweed",s:10+r()*12,rot:r()*6.28});
+      if(r()<0.5) lot.desertFloor.push({x:cx+8+r()*12,y:cy+6,kind:"driftwood",v:"driftwood",s:8+r()*10,rot:r()*6.28});
+    }
+  }
+}
+
+function genDesertRocks(lot,r,left,top,lw,lh){
+  if(lot.biome!=="desert"||lot.water||lot.mountain) return;
+  if(!lot.hill && r()>0.48) return;
+  for(let k=0;k<1+(r()*3|0);k++){
+    const x=left+14+r()*(lw-28), y=top+14+r()*(lh-28);
+    if(!desertFloraOk(x,y)) continue;
+    lot.props.push({x,y,s:10+r()*22,t:"rock",v:(r()*4|0),moss:false});
+  }
+}
 
 function genForestRocks(lot,r,left,top,lw,lh,i,j){
   if(lot.biome!=="forest"||lot.water||lot.mountain) return;
@@ -1824,6 +1900,19 @@ function getLot(i,j){
     lot.props.sort((u,v)=>u.y-v.y);
     if(r()<0.04) placeBuildings(lot,"outer",r,biome);
   }
+  else if(biome==="desert"){
+    lot.empty=true; lot.zone="outer"; lot.desertType=desertType(i,j);
+    lot.B.ground=DESERT_GROUND[lot.desertType]||lot.B.ground;
+    const nc=5+(r()*9|0);
+    for(let k=0;k<nc;k++){
+      const px=left+16+r()*(lw-32), py=top+16+r()*(lh-32);
+      if(!desertFloraOk(px,py)) continue;
+      lot.props.push({x:px,y:py,s:12+r()*20,t:"cactus"});
+    }
+    genDesertRocks(lot,r,left,top,lw,lh);
+    lot.props.sort((u,v)=>u.y-v.y);
+    if(r()<0.05) placeBuildings(lot,"outer",r,biome);
+  }
   else {
     lot.zone=zone;
     const cemOK=(zone==="suburb"||zone==="transition"||biome!=="city");
@@ -1857,7 +1946,11 @@ function getLot(i,j){
   } else if(lot.mountain){
     for(let k=0;k<10;k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1.4+r()*3});
   } else if((lot.empty||lot.zone==="suburb") && !lot.salon && !lot.gunshop && !lot.water){
-    if(biome==="desert"||biome==="sea"){
+    if(biome==="desert"){
+      for(let k=0;k<14+(r()*10|0);k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1+r()*2.8});
+      for(let k=0;k<8+(r()*7|0);k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:38+r()*72, a:(r()-0.5)*1.2});
+      genDesertFloor(lot,r,left,top,lw,lh,i,j);
+    } else if(biome==="sea"){
       for(let k=0;k<9;k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1+r()*2.4});
       for(let k=0;k<5;k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:34+r()*64, a:(r()-0.5)*1.2});
     } else {

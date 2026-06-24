@@ -1,0 +1,81 @@
+{
+  "variants": {
+    "ripple_light": {
+      "file": "ripple_light.png",
+      "width": 56,
+      "height": 40,
+      "anchorX": 28,
+      "anchorY": 38
+    },
+    "ripple_dark": {
+      "file": "ripple_dark.png",
+      "width": 52,
+      "height": 38,
+      "anchorX": 26,
+      "anchorY": 36
+    },
+    "dune_crest": {
+      "file": "dune_crest.png",
+      "width": 64,
+      "height": 44,
+      "anchorX": 32,
+      "anchorY": 43
+    },
+    "cracked_earth": {
+      "file": "cracked_earth.png",
+      "width": 48,
+      "height": 44,
+      "anchorX": 24,
+      "anchorY": 42
+    },
+    "salt_patch": {
+      "file": "salt_patch.png",
+      "width": 50,
+      "height": 36,
+      "anchorX": 25,
+      "anchorY": 34
+    },
+    "pebble_cluster": {
+      "file": "pebble_cluster.png",
+      "width": 40,
+      "height": 32,
+      "anchorX": 20,
+      "anchorY": 30
+    },
+    "sage_bush": {
+      "file": "sage_bush.png",
+      "width": 44,
+      "height": 48,
+      "anchorX": 22,
+      "anchorY": 46
+    },
+    "tumbleweed": {
+      "file": "tumbleweed.png",
+      "width": 46,
+      "height": 46,
+      "anchorX": 23,
+      "anchorY": 44
+    },
+    "driftwood": {
+      "file": "driftwood.png",
+      "width": 52,
+      "height": 28,
+      "anchorX": 26,
+      "anchorY": 26
+    },
+    "bone": {
+      "file": "bone.png",
+      "width": 36,
+      "height": 20,
+      "anchorX": 18,
+      "anchorY": 18
+    },
+    "dry_grass": {
+      "file": "dry_grass.png",
+      "width": 40,
+      "height": 44,
+      "anchorX": 20,
+      "anchorY": 43
+    }
+  }
+}
