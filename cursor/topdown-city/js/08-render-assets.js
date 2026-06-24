@@ -872,6 +872,18 @@ function getTex(key){
         const x=rr()*S,y=rr()*S; t.beginPath(); t.moveTo(x,y); t.lineTo(x+(rr()-0.5)*12,y+(rr()-0.5)*8); t.stroke(); } t.lineCap="butt"; }
     else if(key==="dirt"){ grain(1000,"0,0,0","150,120,80",1.7);
       for(let i=0;i<16;i++){ const x=rr()*S,y=rr()*S,r=2+rr()*4; t.fillStyle="rgba(90,82,70,0.18)"; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); } }
+    else if(key==="forest_trail"){
+      t.fillStyle="#463628"; t.fillRect(0,0,S,S);
+      grain(2400,"14,10,8","108,88,62",1.35); grain(1600,"22,18,12","138,118,86",0.95);
+      for(let i=0;i<52;i++){ const x=rr()*S,y=rr()*S,r=1.2+rr()*4.2;
+        t.fillStyle=rr()<0.55?"rgba(52,42,32,0.38)":"rgba(88,74,54,0.30)"; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); }
+      for(let i=0;i<38;i++){ t.fillStyle=rr()<0.58?"rgba(36,58,30,0.24)":"rgba(48,72,38,0.18)";
+        t.fillRect(rr()*S,rr()*S,1+rr()*2.8,1+rr()*2); }
+      for(let i=0;i<18;i++){ t.strokeStyle="rgba(28,40,22,0.16)"; t.lineWidth=0.6+rr()*1.1; t.lineCap="round";
+        const x=rr()*S,y=rr()*S; t.beginPath(); t.moveTo(x,y); t.lineTo(x+(rr()-0.5)*14,y+(rr()-0.5)*9); t.stroke(); }
+      t.lineCap="butt";
+      t.fillStyle="rgba(128,108,82,0.10)"; t.beginPath(); t.ellipse(S*0.5,S*0.52,S*0.28,S*0.11,0.08,0,7); t.fill();
+      t.fillStyle="rgba(32,48,26,0.06)"; for(let i=0;i<22;i++){ t.fillRect(rr()*S,rr()*S,2+rr()*4,1.2+rr()*2); } }
     else if(key==="roof"){ for(let y=0;y<S;y+=7){ t.strokeStyle="rgba(0,0,0,0.07)"; t.lineWidth=1; t.beginPath(); t.moveTo(0,y); t.lineTo(S,y); t.stroke(); }
       for(let y=0;y<S;y+=7){ for(let x=(((y/7)|0)%2)*9;x<S;x+=18){ t.strokeStyle="rgba(0,0,0,0.06)"; t.beginPath(); t.moveTo(x,y); t.lineTo(x,y+7); t.stroke(); } }
       grain(420,"0,0,0","255,255,255",1.1); }

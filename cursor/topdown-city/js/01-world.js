@@ -194,7 +194,7 @@ function isMountain(i,j){
   return cellElev(i,j)>(b==="desert"?0.84:0.80);
 }
 function elevation(i,j){ return cellElev(i,j); }                   // legacy alias
-const ROADCLR={ hwy:"#3a3d44", art:"#34373d", st:"#33363c", rural:"#4a4438", dirt:"#5a4f3c" };
+const ROADCLR={ hwy:"#3a3d44", art:"#34373d", st:"#33363c", rural:"#4a4438", dirt:"#5a4f3c", trail:"#5a4838" };
 const edgeCache=new Map();
 function getEdge(i,j,di,dj){
   if(di<0||(di===0&&dj<0)) return getEdge(i+di,j+dj,-di,-dj);   // canonical E or S
@@ -217,10 +217,11 @@ function getEdge(i,j,di,dj){
   let klass;
   if(isHwy) klass="hwy";
   else if(city){ const cc=nearestCity(i,j); klass = cc.dist < cc.R*0.3 ? "art" : (h2<0.3?"art":"st"); }   // grand avenues downtown
+  else if(bA==="forest"&&bB==="forest") klass="trail";
   else klass = (bA==="forest"||bB==="forest") ? "rural" : (h2<0.5?"rural":"dirt");
-  const WR={hwy:[230,290], art:[160,210], st:[120,156], rural:[70,104], dirt:[52,80]}[klass];
+  const WR={hwy:[230,290], art:[160,210], st:[120,156], rural:[70,104], dirt:[52,80], trail:[40,58]}[klass];
   const width=Math.round(WR[0]+h3*(WR[1]-WR[0]));
-  const offFrac={hwy:0.015, art:0.022, st:0.04, rural:0.13, dirt:0.19}[klass];   // city near-straight; design-speed radius
+  const offFrac={hwy:0.015, art:0.022, st:0.04, rural:0.13, dirt:0.19, trail:0.24}[klass];   // forest trails wind more
   const dx=x2-x1,dy=y2-y1, len=Math.hypot(dx,dy)||1;
   let off=(h2*2-1)*len*offFrac; const CAP=60; off=Math.max(-CAP,Math.min(CAP,off));   // cap bulge -> roads stay in corridor
   const cp=[(x1+x2)/2+(-dy/len)*off, (y1+y2)/2+(dx/len)*off];
@@ -412,17 +413,22 @@ function drawRoads(ox,oy){
   const j0=Math.floor((oy-NODE_VAR*2)/GAP)-1, j1=Math.floor((oy+VH+NODE_VAR*2)/GAP)+2;
   ctx.lineCap="round"; ctx.lineJoin="round";
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){                                                // curbs (raised edge)
-    for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge||e.klass==="dirt"||e.klass==="rural") continue;
+    for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge||e.klass==="dirt"||e.klass==="rural"||e.klass==="trail") continue;
       strokeEdge(i,j,di,dj, e.width+7, "#878d96"); } }
-  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ strokeEdge(i,j,1,0); strokeEdge(i,j,0,1); }   // surfaces
+  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
+    for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge||e.klass==="trail") continue;
+      strokeEdge(i,j,di,dj); } }
   const _at=getTex("asphalt"), _dt=getTex("dirt");
-  if(_at||_dt){ for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge) continue;
-    const tp=(e.klass==="dirt"||e.klass==="rural")?_dt:_at; if(tp) strokeEdge(i,j,di,dj,e.width,tp); } } }   // road texture
+  if(_at||_dt){ for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge||e.klass==="trail") continue;
+    const tp=(e.klass==="dirt"||e.klass==="rural")?_dt:_at; if(tp) strokeEdge(i,j,di,dj,e.width,tp); } } }
+  drawForestTrails(ox,oy);
   // intersections (roundabouts get a ring + island)
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
     const mw=nodeMaxWidth(i,j); if(!mw) continue; const A=node(i,j);
     if(isRoundabout(i,j)){
       drawRoundabout(i,j,A,mw);
+    } else if(forestTrailNode(i,j)){
+      /* organic trail junction drawn in drawForestTrails */
     } else {
       ctx.fillStyle=nodeIsCity(i,j)?"#33363c":"#4a4438";
       ctx.beginPath(); ctx.arc(A[0],A[1],mw*0.52,0,7); ctx.fill();
