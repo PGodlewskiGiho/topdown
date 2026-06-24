@@ -68,10 +68,12 @@ function playerHeading(){
   return p.a||0;
 }
 
+function navNodeKey(i,j){ return i+","+j; }
+
 function nearestNavNode(x,y){
   const ci=Math.round(x/GAP), cj=Math.round(y/GAP);
   let best=null, bd=1e18;
-  for(let di=-4;di<=4;di++) for(let dj=-4;dj<=4;dj++){
+  for(let di=-6;di<=6;di++) for(let dj=-6;dj<=6;dj++){
     const i=ci+di, j=cj+dj;
     if(nodeDegree(i,j)<1) continue;
     const nx=nX(i,j), ny=nY(i,j), d=(nx-x)**2+(ny-y)**2;
@@ -80,61 +82,142 @@ function nearestNavNode(x,y){
   return best;
 }
 
+function navNodesAdjacent(a,b){
+  const di=b[0]-a[0], dj=b[1]-a[1];
+  return Math.abs(di)+Math.abs(dj)===1 && getEdge(a[0],a[1],di,dj).exists;
+}
+
+function navEdgeLen(ai,aj,bi,bj){
+  const di=bi-ai, dj=bj-aj;
+  if(Math.abs(di)+Math.abs(dj)!==1) return 1e18;
+  const e=getEdge(ai,aj,di,dj);
+  if(!e.exists) return 1e18;
+  const g=edgeGeom(ai,aj,bi,bj);
+  let len=0, prev=g.p0;
+  const steps=Math.max(8, Math.ceil((e.len||GAP)/26));
+  for(let s=1;s<=steps;s++){
+    const p=bez(g.p0,g.cp,g.p1,s/steps);
+    len+=Math.hypot(p[0]-prev[0], p[1]-prev[1]);
+    prev=p;
+  }
+  return len;
+}
+
+function navHeuristicToGoal(i,j,gi,gj){
+  return Math.hypot(nX(i,j)-nX(gi,gj), nY(i,j)-nY(gj,gj));
+}
+
 function navHeuristic(a,b){
-  return Math.hypot(nX(a[0],a[1])-nX(b[0],b[1]), nY(a[0],a[1])-nY(b[0],b[1]));
+  return navHeuristicToGoal(a[0],a[1],b[0],b[1]);
+}
+
+function simplifyNavNodes(nodes){
+  if(!nodes||nodes.length<=2) return nodes||[];
+  const out=[nodes[0]];
+  for(let i=1;i<nodes.length-1;i++){
+    const a=out[out.length-1], b=nodes[i], c=nodes[i+1];
+    const d1x=b[0]-a[0], d1y=b[1]-a[1], d2x=c[0]-b[0], d2y=c[1]-b[1];
+    if(d1x===d2x && d1y===d2y) continue;
+    out.push(b);
+  }
+  out.push(nodes[nodes.length-1]);
+  return out;
 }
 
 function findNavRoadPath(sx,sy,tx,ty){
   const start=nearestNavNode(sx,sy), goal=nearestNavNode(tx,ty);
   if(!start||!goal) return [];
-  const sk=start[0]+","+start[1], gk=goal[0]+","+goal[1];
+  const sk=navNodeKey(start[0],start[1]), gk=navNodeKey(goal[0],goal[1]);
   if(sk===gk) return [start];
 
-  const open=new Map([[sk,start]]);
-  const gScore=new Map([[sk,0]]);
-  const came=new Map();
-  const closed=new Set();
+  const open=[], gScore=new Map([[sk,0]]), came=new Map(), closed=new Set();
+  const push=(f,g,n,from)=>{
+    open.push({f,g,n,from});
+    let i=open.length-1;
+    while(i>0){
+      const p=(i-1)>>1;
+      if(open[p].f<=open[i].f) break;
+      const t=open[p]; open[p]=open[i]; open[i]=t;
+      i=p;
+    }
+  };
+  const pop=()=>{
+    if(!open.length) return null;
+    const top=open[0], end=open.pop();
+    if(open.length){
+      open[0]=end;
+      let i=0;
+      for(;;){
+        let s=i, l=i*2+1, r=l+1;
+        if(l<open.length && open[l].f<open[s].f) s=l;
+        if(r<open.length && open[r].f<open[s].f) s=r;
+        if(s===i) break;
+        const t=open[i]; open[i]=open[s]; open[s]=t;
+        i=s;
+      }
+    }
+    return top;
+  };
+
+  push(navHeuristicToGoal(start[0],start[1],goal[0],goal[1]), 0, start, null);
   let guard=0;
 
-  while(open.size && guard++<14000){
-    let curK=null, curN=null, bestF=1e18;
-    for(const [k,n] of open){
-      const f=(gScore.get(k)||0)+navHeuristic(n,goal);
-      if(f<bestF){ bestF=f; curK=k; curN=n; }
+  while(open.length && guard++<32000){
+    const cur=pop();
+    if(!cur) break;
+    const ck=navNodeKey(cur.n[0],cur.n[1]);
+    if(closed.has(ck)) continue;
+    closed.add(ck);
+    if(ck===gk){
+      const path=[cur.n];
+      let k=ck;
+      while(came.has(k)){ const p=came.get(k); path.unshift(p); k=navNodeKey(p[0],p[1]); }
+      return simplifyNavNodes(path);
     }
-    if(!curN) break;
-    open.delete(curK);
-    if(curK===gk){
-      const path=[curN];
-      let k=curK;
-      while(came.has(k)){ const p=came.get(k); path.unshift(p); k=p[0]+","+p[1]; }
-      return path;
-    }
-    closed.add(curK);
-    const cg=gScore.get(curK)||0;
-    for(const nb of neighbors(curN[0],curN[1])){
-      const nk=nb[0]+","+nb[1];
+    const from=came.get(ck);
+    let fromDir=null;
+    if(from) fromDir=[cur.n[0]-from[0], cur.n[1]-from[1]];
+    const nbs=neighbors(cur.n[0],cur.n[1]);
+    nbs.sort((a,b)=>{
+      const ha=navHeuristicToGoal(a[0],a[1],goal[0],goal[1]);
+      const hb=navHeuristicToGoal(b[0],b[1],goal[0],goal[1]);
+      if(Math.abs(ha-hb)>0.5) return ha-hb;
+      if(fromDir){
+        const sa=(a[0]-cur.n[0]===fromDir[0]&&a[1]-cur.n[1]===fromDir[1])?0:1;
+        const sb=(b[0]-cur.n[0]===fromDir[0]&&b[1]-cur.n[1]===fromDir[1])?0:1;
+        if(sa!==sb) return sa-sb;
+      }
+      return 0;
+    });
+    for(const nb of nbs){
+      const nk=navNodeKey(nb[0],nb[1]);
       if(closed.has(nk)) continue;
-      const tg=cg+navHeuristic(curN,nb);
+      const edge=navEdgeLen(cur.n[0],cur.n[1],nb[0],nb[1]);
+      if(edge>=1e17) continue;
+      const tg=cur.g+edge;
       if(tg>=(gScore.get(nk)||1e18)) continue;
-      came.set(nk,curN);
+      came.set(nk,cur.n);
       gScore.set(nk,tg);
-      open.set(nk,nb);
+      push(tg+navHeuristicToGoal(nb[0],nb[1],goal[0],goal[1]), tg, nb, cur.n);
     }
   }
-  return [start,goal];
+  return [];
 }
 
 function navPathToWorld(nodes){
-  if(!nodes||nodes.length<2) return nodes&&nodes.length?[[nX(nodes[0][0],nodes[0][1]),nY(nodes[0][0],nodes[0][1])]]:[];
+  if(!nodes||!nodes.length) return [];
+  if(nodes.length===1) return [[nX(nodes[0][0],nodes[0][1]), nY(nodes[0][0],nodes[0][1])]];
   const pts=[];
   for(let k=0;k<nodes.length-1;k++){
     const a=nodes[k], b=nodes[k+1];
-    const g=edgeGeom(a[0],a[1],b[0]-a[0],b[1]-a[1]);
-    const steps=Math.max(4, Math.ceil(g.e.len/42));
-    for(let s=0;s<=steps;s++){
-      const t=s/steps;
-      pts.push(bez(g.p0,g.cp,g.p1,t));
+    if(!navNodesAdjacent(a,b)) continue;
+    const di=b[0]-a[0], dj=b[1]-a[1];
+    const e=getEdge(a[0],a[1],di,dj);
+    const g=edgeGeom(a[0],a[1],di,dj);
+    const steps=Math.max(5, Math.ceil((e.len||GAP)/34));
+    const s0=pts.length?1:0;
+    for(let s=s0;s<=steps;s++){
+      pts.push(bez(g.p0,g.cp,g.p1,s/steps));
     }
   }
   return pts;
@@ -148,7 +231,14 @@ function recomputeNavPath(force){
   const p=playerWorldPos();
   const nodes=findNavRoadPath(p.x,p.y,navTarget.x,navTarget.y);
   navPath=navPathToWorld(nodes);
-  if(navPath.length) navPath.push([navTarget.x,navTarget.y]);
+  if(!navPath.length){
+    if(force && typeof showBigMsg==="function") showBigMsg("BRAK DROGI DO CELU");
+    return;
+  }
+  const first=navPath[0];
+  if(Math.hypot(first[0]-p.x,first[1]-p.y)>20) navPath.unshift([p.x,p.y]);
+  const last=navPath[navPath.length-1];
+  if(Math.hypot(last[0]-navTarget.x,last[1]-navTarget.y)>12) navPath.push([navTarget.x,navTarget.y]);
 }
 
 function setNavTarget(x,y, silent){
