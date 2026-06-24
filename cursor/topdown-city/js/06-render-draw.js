@@ -17,7 +17,9 @@ function draw(){
   ctx.save();
   if(mode==="car"&&(roll||shake>0.001)){
     const cx=car.x-ox, cy=car.y-oy;
-    const sx=(Math.random()-0.5)*shake*VW*0.28, sy=(Math.random()-0.5)*shake*VH*0.28;
+    const sh=drawFrameId*0.37;
+    const sx=(Math.sin(sh*4.1)*0.55+Math.sin(sh*9.3)*0.45)*shake*VW*0.28;
+    const sy=(Math.cos(sh*5.2)*0.55+Math.cos(sh*8.7)*0.45)*shake*VH*0.28;
     ctx.translate(cx+sx, cy+sy);
     ctx.rotate(roll);
     ctx.translate(-cx, -cy);

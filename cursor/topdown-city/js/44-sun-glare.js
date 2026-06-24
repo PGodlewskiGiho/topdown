@@ -84,7 +84,7 @@ function drawSunGlintsWorld(ox,oy){
   if(typeof wetness!=="undefined"&&wetness>0.15&&st.intensity>0.12){
     const i0=Math.floor((ox-NODE_VAR)/GAP)-1, i1=Math.floor((ox+VW+NODE_VAR)/GAP)+2;
     const j0=Math.floor((oy-NODE_VAR)/GAP)-1, j1=Math.floor((oy+VH+NODE_VAR)/GAP)+2;
-    let rb=18;
+    let rb=12;
     for(let i=i0;i<=i1&&rb>0;i++) for(let j=j0;j<=j1&&rb>0;j++){
       for(const[di,dj]of[[1,0],[0,1]]){
         const e=getEdge(i,j,di,dj);

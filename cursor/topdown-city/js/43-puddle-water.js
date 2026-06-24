@@ -50,27 +50,31 @@ function applyWaterSimInClip(preset,alpha,uScale,ox,oy,ww,hh){
 }
 
 function drawWetRoadReflections(ox,oy){
-  if(typeof wetness==="undefined"||wetness<0.10) return;
+  if(typeof wetness==="undefined"||wetness<0.25) return;
+  if(typeof drawFrameId!=="undefined"&&drawFrameId%2&&wetness<0.55) return;
   const sim=getWaterSim();
   if(!sim) return;
   sim.setPreset("wet");
-  const a=wetness*0.48;
+  const a=wetness*0.42;
   const i0=Math.floor((ox-NODE_VAR*2)/GAP)-1, i1=Math.floor((ox+VW+NODE_VAR*2)/GAP)+2;
   const j0=Math.floor((oy-NODE_VAR*2)/GAP)-1, j1=Math.floor((oy+VH+NODE_VAR*2)/GAP)+2;
-  const S=sim.size, crop=S*0.82;
+  const crop=sim.size*0.82;
+  let budget=68;
   ctx.save();
   ctx.globalCompositeOperation="screen";
-  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
+  ctx.globalAlpha=a*(0.55+0.45*wetness);
+  for(let i=i0;i<=i1&&budget>0;i++) for(let j=j0;j<=j1&&budget>0;j++){
     for(const[di,dj]of[[1,0],[0,1]]){
+      if(budget<=0) break;
       const e=getEdge(i,j,di,dj);
       if(!e.exists||e.bridge||e.klass==="trail") continue;
       const paved=e.klass==="st"||e.klass==="art"||e.klass==="blvd"||e.klass==="hwy"||nodeIsCity(i,j);
       if(!paved) continue;
       const g=edgeGeom(i,j,di,dj);
-      const steps=Math.max(4,Math.ceil(g.e.len/24));
+      const steps=Math.max(3,Math.ceil(g.e.len/56));
       const pw=Math.min(e.width*0.88,e.width);
       const ph=10+wetness*6;
-      for(let s=0;s<=steps;s++){
+      for(let s=0;s<=steps&&budget>0;s++){
         const t=s/steps;
         const p=bez(g.p0,g.cp,g.p1,t);
         const tan=bezTan(g.p0,g.cp,g.p1,t);
@@ -79,12 +83,12 @@ function drawWetRoadReflections(ox,oy){
         ctx.save();
         ctx.translate(p[0],p[1]);
         ctx.rotate(ang);
-        ctx.globalAlpha=a*(0.55+0.45*wetness);
         ctx.drawImage(sim.canvas,c.sx,c.sy,c.crop,c.crop,-pw*0.5,-ph*0.5,pw,ph);
         ctx.restore();
+        budget--;
       }
     }
-    if(isRoundabout(i,j)&&nodeIsCity(i,j)){
+    if(budget>0&&isRoundabout(i,j)&&nodeIsCity(i,j)){
       const A=node(i,j), R=roundaboutR(i,j)*0.92;
       const c=waterSimCrop(sim,A[0],A[1],0.014,0.012);
       ctx.save();
@@ -92,6 +96,7 @@ function drawWetRoadReflections(ox,oy){
       ctx.globalAlpha=a*0.65;
       ctx.drawImage(sim.canvas,c.sx,c.sy,c.crop,c.crop,-R,-R,R*2,R*2);
       ctx.restore();
+      budget-=3;
     }
   }
   ctx.restore();
@@ -151,13 +156,17 @@ function drawPuddleBodySim(sim,p,rx,ry,a){
 
 function drawPuddleBody(p){}
 
+let _waterSimFrame=0;
 Game.register({
   id:"puddle-water",
   order:43,
   update(dt){
     if(typeof gamePhase!=="undefined"&&gamePhase!=="playing") return;
     if((typeof wetness==="undefined"||wetness<0.02)&&(typeof weatherI==="undefined"||weatherI<0.06)) return;
+    _waterSimFrame++;
+    const heavy=(typeof wetness!=="undefined"&&wetness>=0.45)||(typeof weatherI!=="undefined"&&weatherI>=0.35);
+    if(!heavy&&_waterSimFrame%2) return;
     const sim=getWaterSim();
-    if(sim) sim.step(dt);
+    if(sim) sim.step(heavy?dt:dt*2);
   },
 });

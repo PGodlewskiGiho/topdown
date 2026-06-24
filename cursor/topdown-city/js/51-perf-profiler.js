@@ -72,7 +72,6 @@ function drawPerfOverlay(){
 
 function togglePerfPanel(){
   perfShow=!perfShow;
-  if(perfShow&&!perfEnabled) perfEnabled=true;
 }
 function resetPerfStats(){
   for(const k in perfAcc) delete perfAcc[k];
