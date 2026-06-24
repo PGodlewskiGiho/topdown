@@ -23,6 +23,7 @@ function frame(now){
   updateBoats(dt);
   updateBirds(dt);
   updateWildlife(dt);
+  if(typeof updateLakeFish==="function") updateLakeFish(dt);
   if(mode==="car") updateCar(dt); else if(mode==="boat") updateBoatDrive(dt); else if(mode==="inside") updateInside(dt); else updatePed(dt);
   updateMission(dt);
   updateWanted(dt);

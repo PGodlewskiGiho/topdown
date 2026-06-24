@@ -82,6 +82,8 @@ function checkBiome(){
   else if(b==="desert"){ const dt=desertType(i,j), loc="d"+dt; if(loc!==curLoc){ curLoc=loc; showDistrict(DESERT_NAMES[dt]||BIOMES.desert.name); } }
   else if(b==="sea"){ const bt=typeof beachType==="function"?beachType(i,j):"sand", loc="s"+bt;
     if(loc!==curLoc){ curLoc=loc; showDistrict((typeof BEACH_NAMES!=="undefined"?BEACH_NAMES:{})[bt]||BIOMES.sea.name); } }
+  else if(b==="lake"){ const lt=typeof lakeShoreType==="function"?lakeShoreType(i,j):"forest", loc="l"+lt;
+    if(loc!==curLoc){ curLoc=loc; showDistrict((typeof LAKE_NAMES!=="undefined"?LAKE_NAMES:{})[lt]||BIOMES.lake.name); } }
   else if(b!==curLoc){ curLoc=b; showDistrict(BIOMES[b].name); }
 }
 initMini();

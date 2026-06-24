@@ -472,6 +472,14 @@ function drawPerson(p,color,down,targetCtx){
   paintBlood(tw,th);
   c.restore();
   if(p.beachUmbrella && !p.holdingPhone && mv<55 && p.idleAct!=="sunbathe") drawPersonUmbrella(p, p.beachUmbrella);
+  if(p.idleAct==="fishing" && mv<8){
+    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a);
+    ctx.strokeStyle="#6a5038"; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(4,2); ctx.lineTo(22,-14); ctx.stroke();
+    ctx.strokeStyle="rgba(180,200,220,.55)"; ctx.lineWidth=0.8;
+    ctx.beginPath(); ctx.moveTo(22,-14); ctx.quadraticCurveTo(28,-22,34,-18); ctx.stroke();
+    ctx.restore();
+  }
 }
 
 function vignette(){
@@ -1157,6 +1165,7 @@ function getTex(key){
 function texFillPoly(poly,key){ const p=getTex(key); if(!p) return; ctx.fillStyle=p; ctx.beginPath(); ctx.moveTo(poly[0][0],poly[0][1]); for(let k=1;k<poly.length;k++) ctx.lineTo(poly[k][0],poly[k][1]); ctx.closePath(); ctx.fill(); }
 function groundTexKey(L,sandy){
   if(sandy) return L.biome==="desert"?"sand_desert":"sand";
+  if(L.biome==="lake") return "grass_forest";
   return L.biome==="forest"?"grass_forest":"grass";
 }
 function texFill(L,key){ texFillPoly(L.poly,key); }
@@ -2200,6 +2209,63 @@ function drawPier(p){
   ctx.strokeStyle="rgba(90,70,50,.35)"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-s,s*0.28); ctx.lineTo(s,s*0.28); ctx.stroke();
   ctx.restore();
 }
+function drawLakePier(p){
+  const x=p.x, y=p.y, s=p.s||40, a=p.a||0;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.fillStyle="#6a6858"; ctx.fillRect(-s,s*0.22,s*2,s*0.16);
+  ctx.fillStyle="#5a5848"; for(let k=0;k<6;k++) ctx.fillRect(-s+k*s*0.38,-s*0.48,s*0.11,s*0.68);
+  ctx.fillStyle="rgba(58,88,48,.35)"; ctx.fillRect(-s*0.92,s*0.18,s*1.84,s*0.08);
+  ctx.strokeStyle="rgba(70,90,60,.4)"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-s,s*0.3); ctx.lineTo(s,s*0.3); ctx.stroke();
+  ctx.fillStyle="#486838"; ctx.beginPath(); ctx.arc(-s*0.85,s*0.26,3,0,7); ctx.arc(s*0.82,s*0.24,2.6,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawLily(p){
+  const x=p.x, y=p.y, s=p.s||8, a=p.a||0;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.fillStyle="rgba(40,80,48,.25)"; ctx.beginPath(); ctx.ellipse(0,0,s*1.1,s*0.55,0,0,7); ctx.fill();
+  ctx.fillStyle="#3a7848"; ctx.beginPath(); ctx.arc(-s*0.15,0,s*0.55,0.2,6.1); ctx.fill();
+  ctx.fillStyle="#f0e878"; ctx.beginPath(); ctx.arc(0,0,s*0.22,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawFishingSpot(p){
+  const x=p.x, y=p.y, s=p.s||14, a=p.a||0;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.fillStyle="#6a5848"; ctx.fillRect(-s*0.35,s*0.1,s*0.7,s*0.22);
+  ctx.strokeStyle="#5a4838"; ctx.lineWidth=2.2; ctx.beginPath(); ctx.moveTo(0,-s*0.1); ctx.lineTo(s*0.55,-s*0.75); ctx.stroke();
+  ctx.strokeStyle="rgba(160,190,210,.5)"; ctx.lineWidth=0.9; ctx.beginPath(); ctx.moveTo(s*0.55,-s*0.75); ctx.quadraticCurveTo(s*0.8,-s*0.95,s*1.05,-s*0.7); ctx.stroke();
+  ctx.fillStyle="#486838"; ctx.beginPath(); ctx.ellipse(s*0.5,s*0.22,s*0.35,s*0.18,0,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawLakeFloorDetail(d){
+  const s=d.s||5, k=d.kind;
+  ctx.save(); ctx.translate(d.x,d.y); ctx.rotate(d.rot||0);
+  if(k==="pebble"){
+    ctx.fillStyle="rgba(120,110,95,.55)"; ctx.beginPath(); ctx.arc(0,0,s*0.5,0,7); ctx.fill();
+  } else if(k==="driftwood"){
+    ctx.fillStyle="#6a5848"; ctx.beginPath(); ctx.ellipse(0,0,s*1.05,s*0.32,0.25,0,7); ctx.fill();
+  } else if(k==="cattail"){
+    ctx.strokeStyle="#4a6838"; ctx.lineWidth=1.4; ctx.beginPath(); ctx.moveTo(0,s*0.35); ctx.lineTo(0,-s*0.55); ctx.stroke();
+    ctx.fillStyle="#6a7848"; ctx.beginPath(); ctx.ellipse(0,-s*0.62,s*0.22,s*0.55,0,0,7); ctx.fill();
+  } else if(k==="dragonfly"){
+    ctx.strokeStyle="rgba(70,120,180,.65)"; ctx.lineWidth=0.9;
+    ctx.beginPath(); ctx.moveTo(-s*0.5,0); ctx.lineTo(s*0.5,0); ctx.stroke();
+    ctx.fillStyle="rgba(90,140,200,.75)"; ctx.beginPath(); ctx.ellipse(-s*0.35,0,s*0.28,s*0.12,0.4,0,7); ctx.ellipse(s*0.35,0,s*0.28,s*0.12,-0.4,0,7); ctx.fill();
+  } else if(k==="shell"){
+    ctx.fillStyle="#e8e0d0"; ctx.beginPath(); ctx.ellipse(0,0,s*0.55,s*0.38,0.15,0,7); ctx.fill();
+  } else if(k==="moss"){
+    ctx.fillStyle="rgba(58,98,48,.45)"; ctx.beginPath(); ctx.ellipse(0,0,s*0.65,s*0.42,0,0,7); ctx.fill();
+  } else {
+    ctx.fillStyle="rgba(90,120,80,.4)"; ctx.beginPath(); ctx.arc(0,0,s*0.45,0,7); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawLakeFloor(L){
+  if(!L.lakeFloor||!L.lakeFloor.length||VW>1700) return;
+  for(const d of L.lakeFloor){
+    if(d.x<cam.x-VW/2-20||d.x>cam.x+VW/2+20||d.y<cam.y-VH/2-20||d.y>cam.y+VH/2+20) continue;
+    drawLakeFloorDetail(d);
+  }
+}
 function drawBeachFloorDetail(d){
   const s=d.s||5, k=d.kind;
   ctx.save(); ctx.translate(d.x,d.y); ctx.rotate(d.rot||0);
@@ -2261,6 +2327,9 @@ function drawProps(L){
     } else if(p.t==="lifeguard"){ drawLifeguardChair(p);
     } else if(p.t==="sandcastle"){ drawSandcastle(p);
     } else if(p.t==="pier"){ drawPier(p);
+    } else if(p.t==="lake_pier"){ drawLakePier(p);
+    } else if(p.t==="lily"){ drawLily(p);
+    } else if(p.t==="fishing_spot"){ drawFishingSpot(p);
     } else if(p.t==="palm"){
       ctx.fillStyle="#8a6a3a"; ctx.fillRect(p.x-2,p.y-p.s,4,p.s);
       ctx.fillStyle="#2f8a5a"; for(let a=0;a<6;a++){ const ang=a/6*6.283; ctx.save(); ctx.translate(p.x,p.y-p.s); ctx.rotate(ang); ctx.fillRect(0,-2,p.s*0.95,4); ctx.restore(); }

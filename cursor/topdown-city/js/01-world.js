@@ -232,22 +232,37 @@ const _csCache=new Map();
 const _rvCache=new Map();
 function lakeAllowed(i,j){
   const b=biomeOf(i,j);
-  if(b==="city"||b==="forest") return false;                       // miasto + lasy: tylko rzeki leśne
+  if(b==="city"||b==="forest") return false;
+  if(b==="lake") return true;
   if(b==="sea") return true;
   const c=nearestCity(i,j);
-  if(c.dist<c.R*1.06) return false;                                // bez losowych kałuż przy mieście
+  if(c.dist<c.R*1.06) return false;
   return true;
+}
+function lakeBasinSigned(i,j){
+  if(biomeOf(i,j)!=="lake") return -1;
+  const bi=Math.floor(i/14), bj=Math.floor(j/14);
+  if(hsh(bi,bj,801)<0.16) return -1;
+  const cx=(bi+0.5)*14+(hsh(bi,bj,802)-0.5)*2.8;
+  const cy=(bj+0.5)*14+(hsh(bi,bj,803)-0.5)*2.8;
+  const dx=i-cx, dy=j-cy, dist=Math.hypot(dx,dy), ang=Math.atan2(dy,dx);
+  const R=4.6+hsh(bi,bj,804)*5.8;
+  const shape=R*(0.88+0.11*Math.sin(ang*3+hsh(bi,bj,805)*6.28)+0.07*Math.sin(ang*5+0.9));
+  return shape-dist;
 }
 function lakeThreshold(i,j){
   const b=biomeOf(i,j);
+  if(b==="lake") return 0.68+hsh(i,j,219)*0.06;
   if(b==="sea") return 0.42;
-  if(b==="desert") return 0.90+hsh(i,j,219)*0.05;                   // rzadkie oazy
+  if(b==="desert") return 0.90+hsh(i,j,219)*0.05;
   return 0.92;
 }
 function lakeCellSigned(i,j){
   const k=i+","+j; let v=_csCache.get(k); if(v!==undefined) return v;
   if(!lakeAllowed(i,j)){ v=-1; _csCache.set(k,v); return v; }
-  v=waterLevel(i,j)-lakeThreshold(i,j);
+  const basin=lakeBasinSigned(i,j);
+  if(biomeOf(i,j)==="lake" && basin>-0.6) v=basin;
+  else v=waterLevel(i,j)-lakeThreshold(i,j);
   if(_csCache.size>9000) _csCache.clear(); _csCache.set(k,v); return v;
 }
 function riverCellSigned(i,j){
@@ -307,6 +322,7 @@ function terrainBaseNoise(i,j){
 function terrainLevel(i,j){
   const b=biomeOf(i,j), n=terrainBaseNoise(i,j);
   if(b==="sea") return 0.10 + n*0.11;
+  if(b==="lake") return 0.20 + n*0.07;
   if(b==="city") return 0.40 + n*0.10;                          // nearly flat downtown pads
   if(b==="desert") return 0.24 + n*0.54;                          // rolling dunes
   const ridge=hsh(Math.floor(i/7),Math.floor(j/7),115);
@@ -334,6 +350,7 @@ function terrainBand(i,j){
 function isMountain(i,j){
   const b=biomeOf(i,j);
   if(b==="sea"||b==="city") return false;
+  if(b==="lake") return cellElev(i,j)>0.74;
   return cellElev(i,j)>(b==="desert"?0.84:0.80);
 }
 function elevation(i,j){ return cellElev(i,j); }                   // legacy alias
@@ -698,7 +715,10 @@ const BIOMES={
   desert: {name:"PUSTYNIA", ground:"#caa86a", walk:"#cbb079", build:["#b08a5a","#9a7448","#c4a06a","#8a6a40"],                  density:0.42, prop:"cactus"},
   forest: {name:"LAS",      ground:"#2f5a32", walk:"#4a6b46", build:["#6a5a44","#5a6a4a","#7a6a50","#695a3e"],                  density:0.40, prop:"tree"},
   sea:    {name:"WYBRZEŻE", ground:"#d4b87a", walk:"#c8b88a", build:["#7a8a96","#6a7a86","#8a9aa6","#a89888"],                             density:0.34, prop:"palm"},
+  lake:   {name:"JEZIORO",  ground:"#3d6848", walk:"#6a8068", build:["#6a7860","#5a6850","#7a8870","#586850"],                  density:0.28, prop:"reed"},
 };
+const LAKE_NAMES={reeds:"Szuwary",sandy:"Piaszczysty brzeg",marsh:"Mokradła",pier:"Pomost",forest:"Leśne jezioro"};
+const LAKE_GROUND={reeds:"#3a6848",sandy:"#8a9870",marsh:"#426850",pier:"#7a8868",forest:"#355a38"};
 const BEACH_NAMES={sand:"Plaża",promenade:"Promenada",rocky:"Skaliste wybrzeże",dune:"Wydmy nadmorskie",pier:"Nabrzeże"};
 const BEACH_GROUND={sand:"#d4b87a",promenade:"#b8a890",rocky:"#a89878",dune:"#cdb070",pier:"#9a9088"};
 const BEACH_UMBRELLA_COL=["#e05040","#48a8c8","#f0c848","#ff6890","#58c878","#ffffff","#8868c8","#ff8838"];
@@ -761,9 +781,24 @@ function nearestCity(i,j){
 }
 function biomeOf(i,j){
   const c=nearestCity(i,j), n=hsh(i,j,77);
-  if(c.dist + (n-0.5)*2.2 < c.R) return "city";        // inside the nearest city's disk
-  const B=5, ci=Math.floor(i/B), cj=Math.floor(j/B), r=hsh(ci,cj,177);   // countryside between cities
-  return r<0.5?"forest": r<0.8?"desert":"sea";
+  if(c.dist + (n-0.5)*2.2 < c.R) return "city";
+  const moisture=smoothNoise(i*0.055+40,j*0.055+40);
+  const B=8, ci=Math.floor(i/B), cj=Math.floor(j/B), cluster=hsh(ci,cj,177);
+  if(cluster>0.36 && cluster<0.66 && moisture>0.46 && c.dist>c.R+4 && c.dist<c.R+44){
+    if(hsh(ci,cj,801)>0.18) return "lake";
+  }
+  const ci5=Math.floor(i/5), cj5=Math.floor(j/5), r=hsh(ci5,cj5,177);
+  if(r<0.48) return "forest";
+  if(r<0.78) return "desert";
+  return "sea";
+}
+function lakeShoreType(i,j){
+  const t=smoothNoise(i*0.2+50,j*0.2+50)*0.55+hsh(Math.floor(i/4),Math.floor(j/4),881)*0.45;
+  if(t<0.26) return "reeds";
+  if(t<0.46) return "marsh";
+  if(t<0.62) return "sandy";
+  if(t<0.78) return "pier";
+  return "forest";
 }
 // Road junction at grid cell (i,j) — used by start menu / spawn picker.
 function roadJunctionAtCell(i,j){
@@ -795,6 +830,10 @@ function findBiomeSpawn(biome, variant=0){
       if(biome==="sea"){
         for(const d of [[90,0],[-90,0],[0,90],[0,-90]]) if(inWater(pt.x+d[0], pt.y+d[1])) score+=1;
       }
+      if(biome==="lake"){
+        if(lakeScore(pt.x,pt.y)>0.04) continue;
+        for(const d of [[70,0],[-70,0],[0,70],[0,-70]]) if(lakeScore(pt.x+d[0], pt.y+d[1])>0.05) score+=2;
+      }
       found.push(Object.assign({score, ring}, pt));
     }
     if(found.length>=4) break;
@@ -805,7 +844,7 @@ function findBiomeSpawn(biome, variant=0){
   }
   found.sort((a,b)=>(b.score-a.score)||(a.ring-b.ring));
   const pick=found[(variant*7+3)%found.length];
-  const names={forest:"Las", desert:"Pustynia", sea:"Wybrzeże"};
+  const names={forest:"Las", desert:"Pustynia", sea:"Wybrzeże", lake:"Jezioro"};
   return Object.assign({}, pick, {label:(names[biome]||biome)+" · trasa "+(variant+1), biome});
 }
 function getSpawnPoint(biome, variant){
@@ -814,6 +853,7 @@ function getSpawnPoint(biome, variant){
   let district=BIOMES[sp.biome]?.name||sp.biome;
   if(sp.biome==="city") district=nc.name;
   else if(sp.biome==="forest") district=FOREST_NAMES[forestType(sp.i, sp.j)]||district;
+  else if(sp.biome==="lake") district=LAKE_NAMES[lakeShoreType(sp.i,sp.j)]||district;
   return Object.assign({}, sp, {district, cityName:nc.name});
 }
 const lotCache=new Map();
@@ -1672,7 +1712,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=36;
+const LOT_CACHE_VER=37;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 const DESERT_FLOOR_VARIANTS=["ripple_light","ripple_dark","dune_crest","cracked_earth","salt_patch","pebble_cluster","sage_bush","dry_grass"];
 const DESERT_FLORA=["sage","tumbleweed","driftwood","bone","pebble","crack","salt_crust"];
@@ -1779,6 +1819,61 @@ function genBeachLot(lot,r,left,top,lw,lh,i,j){
     lot.props.push({x:px,y:py,s:Math.min(lw,lh)*0.35,t:"pier",a:bias.ang});
   }
   genBeachFloor(lot,r,left,top,lw,lh,i,j);
+}
+
+function lakeShoreNearWater(left,top,lw,lh,i,j){
+  let nx=0, ny=0, n=0;
+  for(let s=0;s<16;s++){
+    const x=left+12+hsh(i,j,871+s)*(lw-24), y=top+12+hsh(i,j,891+s)*(lh-24);
+    for(const[dx,dy] of [[22,0],[-22,0],[0,22],[0,-22]]){
+      if(lakeScore(x+dx,y+dy)>0.04){ nx+=dx; ny+=dy; n++; }
+    }
+  }
+  if(n<1) return {nx:0,ny:1,ang:Math.PI/2};
+  const m=Math.hypot(nx,ny)||1;
+  return {nx:nx/m, ny:ny/m, ang:Math.atan2(ny,nx)};
+}
+function genLakeFloor(lot,r,left,top,lw,lh,i,j){
+  lot.lakeFloor=[];
+  const nf=55+(r()*65|0);
+  for(let k=0;k<nf;k++){
+    const x=left+8+r()*(lw-16), y=top+8+r()*(lh-16);
+    if(inWater(x,y)) continue;
+    const roll=r();
+    const kind=roll<0.18?"pebble":roll<0.32?"driftwood":roll<0.48?"cattail":roll<0.62?"dragonfly":roll<0.78?"shell":"moss";
+    lot.lakeFloor.push({x,y,kind,s:3+r()*8,rot:r()*6.28});
+  }
+}
+function genLakeShore(lot,r,left,top,lw,lh,i,j){
+  const st=lot.lakeShoreType||lakeShoreType(i,j), bias=lakeShoreNearWater(left,top,lw,lh,i,j);
+  genLakeFloor(lot,r,left,top,lw,lh,i,j);
+  const nr=(st==="reeds"||st==="marsh")?10+(r()*12|0):4+(r()*6|0);
+  for(let k=0;k<nr;k++){
+    const t=r(), x=left+lw*0.5+bias.nx*(10+t*lw*0.35)+(r()-0.5)*lw*0.18;
+    const y=top+lh*0.5+bias.ny*(10+t*lh*0.35)+(r()-0.5)*lh*0.18;
+    if(inWater(x,y)||inBuilding(x,y,8)) continue;
+    lot.props.push({x,y,s:10+r()*14,t:"reed",a:bias.ang+(r()-0.5)*0.6});
+  }
+  for(let k=0;k<2+(r()*5|0);k++){
+    const t=0.15+r()*0.55, x=left+lw*0.5+bias.nx*(6+t*lw*0.42), y=top+lh*0.5+bias.ny*(6+t*lh*0.42);
+    const sc=lakeScore(x,y);
+    if(sc>0.02 && sc<0.28) lot.props.push({x,y,s:7+r()*9,t:"lily",a:r()*6.28});
+  }
+  if(st==="forest"||st==="marsh"){
+    for(let k=0;k<1+(r()*3|0);k++){
+      const px=left+22+r()*(lw-44), py=top+22+r()*(lh-44);
+      if(!inWater(px,py)&&!inBuilding(px,py,10))
+        lot.props.push(makeTree(px,py,forestTreeS(7+r()*10),r,r()<0.55?"willow":"birch",{fi:i,fj:j}));
+    }
+  }
+  if(st==="pier" && r()<0.58){
+    const px=left+lw*0.5+bias.nx*18, py=top+lh*0.5+bias.ny*18;
+    lot.props.push({x:px,y:py,s:Math.min(lw,lh)*0.3,t:"lake_pier",a:bias.ang});
+  }
+  if((st==="sandy"||st==="pier") && r()<0.42){
+    lot.props.push({x:left+lw*(0.28+r()*0.44),y:top+lh*(0.45+r()*0.25),s:14,t:"fishing_spot",a:bias.ang});
+  }
+  if(r()<0.28) lot.props.push({x:left+lw*(0.2+r()*0.6),y:top+lh*(0.3+r()*0.4),s:11+r()*7,t:"cooler",c:"#689878"});
 }
 
 function genDesertFloor(lot,r,left,top,lw,lh,i,j){
@@ -1980,7 +2075,9 @@ function getLot(i,j){
   }
   else if(isMountain(i,j)){ lot.mountain=true; lot.empty=true; const n=4+(r()*5|0); for(let k=0;k<n;k++) lot.props.push({x:left+18+r()*(lw-36), y:top+18+r()*(lh-36), s:16+r()*28, t:"rock"}); }
   else if(isLakeLot(i,j)){ lot.water=true; lot.lake=true;
-    if(hsh(i,j,141)<0.20){ const nb=[[0,-1],[0,1],[-1,0],[1,0]].find(d=>!isWaterCell(i+d[0],j+d[1]));
+    if(biome==="lake"){ lot.lakeBiome=true; lot.zone="lake"; }
+    const dockChance=biome==="lake"?0.38:0.20;
+    if(hsh(i,j,141)<dockChance){ const nb=[[0,-1],[0,1],[-1,0],[1,0]].find(d=>!isWaterCell(i+d[0],j+d[1]));
       if(nb){ let bx,by;
         if(nb[0]===1){ bx=(Bn[0]+C[0])/2; by=(Bn[1]+C[1])/2; }
         else if(nb[0]===-1){ bx=(A[0]+D[0])/2; by=(A[1]+D[1])/2; }
@@ -2020,6 +2117,15 @@ function getLot(i,j){
       lot.props.push({x:px,y:py,s:12+r()*20,t:"cactus"});
     }
     genDesertRocks(lot,r,left,top,lw,lh);
+    lot.props.sort((u,v)=>u.y-v.y);
+    if(r()<0.05) placeBuildings(lot,"outer",r,biome);
+  }
+  else if(biome==="lake"){
+    lot.lakeShoreType=lakeShoreType(i,j);
+    lot.lakeBiome=true;
+    lot.B.ground=LAKE_GROUND[lot.lakeShoreType]||lot.B.ground;
+    lot.empty=true; lot.zone="shore";
+    genLakeShore(lot,r,left,top,lw,lh,i,j);
     lot.props.sort((u,v)=>u.y-v.y);
     if(r()<0.05) placeBuildings(lot,"outer",r,biome);
   }
@@ -2082,6 +2188,10 @@ function getLot(i,j){
       for(let k=0;k<14+(r()*10|0);k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1+r()*2.8});
       for(let k=0;k<8+(r()*7|0);k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:38+r()*72, a:(r()-0.5)*1.2});
       genDesertFloor(lot,r,left,top,lw,lh,i,j);
+    } else if(biome==="lake"){
+      const nt=18+(r()*22|0);
+      for(let k=0;k<nt;k++) lot.tufts.push({x:left+r()*lw,y:top+r()*lh,s:4+r()*6});
+      if(!lot.lakeFloor) genLakeFloor(lot,r,left,top,lw,lh,i,j);
     } else if(biome==="sea"){
       if(!lot.beachFloor) genBeachFloor(lot,r,left,top,lw,lh,i,j);
       for(let k=0;k<6+(r()*5|0);k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:28+r()*56, a:(r()-0.5)*1.2});

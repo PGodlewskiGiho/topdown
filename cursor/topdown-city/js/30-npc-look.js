@@ -6,6 +6,7 @@ const NPC_PANTS={
   forest:["#283828","#3a4830","#4a4030","#2a3828","#5a5840","#364830"],
   desert:["#6a5840","#8a7858","#5a4838","#7a6848","#4a4030"],
   sea:["#2a4868","#3a5878","#284858","#1a3848","#5a6878","#386878"],
+  lake:["#3a5048","#486858","#385040","#2a4038","#586868","#406050"],
 };
 const NPC_SHOES=["#1a1a20","#2a2420","#3a3028","#4a4038","#5a5048","#8a6838","#e8e8e8","#283848"];
 const NPC_SKIN=["#f4cda3","#e8b888","#d49a6a","#b87a48","#92602f","#6b4528","#4a3018"];
@@ -101,6 +102,16 @@ const NPC_ARCH={
     hairStyle:["short","bald","short"], shirtStyle:["jacket","vest","tee"], hat:["cap","beanie",null],
     accessory:[null], prop:[null,"bucket"], beard:["stubble","full","none"], speed:[20,34],
   },
+  lake_fisher:{
+    shirts:["#486858","#586868","#3a5848","#687878"], pants:NPC_PANTS.lake, body:["male","hardy","male"],
+    hairStyle:["short","bald","short"], shirtStyle:["jacket","vest","tee"], hat:["cap","beanie",null],
+    accessory:[null], prop:[null,"bucket"], beard:["stubble","full","none"], speed:[18,32],
+  },
+  lake_hiker:{
+    shirts:["#5a7860","#688870","#4a6858","#789078"], pants:NPC_PANTS.lake, body:["male","female","hardy"],
+    hairStyle:["short","ponytail","long"], shirtStyle:["jacket","hoodie","vest"], hat:["cap","hood",null],
+    accessory:["scarf",null], prop:["backpack",null,"stick"], beard:["none","stubble"], speed:[22,36],
+  },
   armed_thug:{
     shirts:SHIRT_DARK, pants:["#1a1820","#222028","#2a2030","#181820"], body:["male","hardy","male"],
     hairStyle:["short","bald","short"], shirtStyle:["jacket","vest","hoodie"], hat:[null,"cap","beanie"],
@@ -122,6 +133,10 @@ const NPC_BIOME_POOL={
   sea:[
     {id:"sea_sunbather", w:28},{id:"sea_tourist", w:26},{id:"sea_swimmer", w:18},
     {id:"sea_fisher", w:14},{id:"sea_lifeguard", w:8},{id:"city_casual", w:12},{id:"city_teen", w:8},
+  ],
+  lake:[
+    {id:"lake_fisher", w:38},{id:"lake_hiker", w:32},{id:"forest_hiker", w:14},
+    {id:"city_casual", w:10},{id:"city_elder", w:6},
   ],
 };
 
