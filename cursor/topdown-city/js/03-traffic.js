@@ -8,7 +8,6 @@ const CARCOL = ["#c9c9cf","#3f5b86","#b5483b","#d8a93f","#3f7d5a","#6c6f78","#7a
 const PEDCOL = ["#3a6ea5","#a4513f","#4f7d4a","#7a5fa0","#b59a3f","#5a5e66","#a85a7a"];
 const SKIN=["#f4cda3","#e8b888","#d49a6a","#b87a48","#92602f","#6b4528","#4a3018"];
 const SHIRT=["#3a6ea5","#a4513f","#4f7d4a","#7a5fa0","#b59a3f","#5a5e66","#a85a7a","#2f8a7a","#c0683a","#d0c0a0","#386a8a","#8a3a4a"];
-const SHIRT_DARK=["#3a3540","#2e3a44","#43352e","#33403a","#4a3340"];
 const HAIR=["#2a1c10","#4a3018","#6a4a22","#9a7838","#cdbb88","#6a6a6a","#141414","#b04a2a"];
 const HATCOL=["#b5483b","#3f5b86","#d8a93f","#3f7d5a","#222222","#e0e0e0","#7a4d6b"];
 function assignTrafficLane(c, width){
@@ -117,9 +116,6 @@ function maintainPeds(){
 const awayFromCam=(x,y)=>Math.hypot(x-cam.x,y-cam.y) > 720;
 function respawnTraffic(c){ let n; for(let k=0;k<24;k++){ n=spawnTrafficCar(); if(awayFromCam(n.x,n.y)) break; } Object.assign(c,n); }
 function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); }
-
-for(let i=0;i<38;i++) traffic.push(spawnTrafficCar());
-for(let i=0;i<46;i++) peds.push(spawnPed());
 
 function isAhead(c,dx,dy,ox,oy,dist,lat){
   const rx=ox-c.x, ry=oy-c.y, fwd=rx*dx+ry*dy, side=Math.abs(rx*(-dy)+ry*dx);
@@ -404,4 +400,7 @@ function updateNpcPed(p,dt){
   p.vx=(p.x-_wx)/Math.max(dt,0.001); p.vy=(p.y-_wy)/Math.max(dt,0.001);
   } finally { if(inWater(p.x,p.y)){ p.x=_wx; p.y=_wy; p.vx=0; p.vy=0; } }
 }
+
+for(let i=0;i<38;i++) traffic.push(spawnTrafficCar());
+for(let i=0;i<46;i++) peds.push(spawnPed());
 

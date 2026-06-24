@@ -8,6 +8,10 @@ const NPC_PANTS={
   sea:["#2a4868","#3a5878","#284858","#1a3848","#5a6878","#386878"],
 };
 const NPC_SHOES=["#1a1a20","#2a2420","#3a3028","#4a4038","#5a5048","#8a6838","#e8e8e8","#283848"];
+const NPC_SKIN=["#f4cda3","#e8b888","#d49a6a","#b87a48","#92602f","#6b4528","#4a3018"];
+const NPC_HAIR=["#2a1c10","#4a3018","#6a4a22","#9a7838","#cdbb88","#6a6a6a","#141414","#b04a2a"];
+const NPC_HATCOL=["#b5483b","#3f5b86","#d8a93f","#3f7d5a","#222222","#e0e0e0","#7a4d6b"];
+const SHIRT_DARK=["#3a3540","#2e3a44","#43352e","#33403a","#4a3340"];
 
 const NPC_ARCH={
   city_casual:{
@@ -114,7 +118,7 @@ function npcPickSkin(arch){
   if(arch===NPC_ARCH.city_elder) return pick(["#e8b888","#d49a6a","#c89068","#b87a48"]);
   if(arch===NPC_ARCH.desert_nomad||arch===NPC_ARCH.desert_worker) return pick(["#d49a6a","#b87a48","#92602f","#e8b888","#c89068"]);
   if(arch===NPC_ARCH.sea_tourist) return pick(["#f4cda3","#e8b888","#d49a6a","#b87a48"]);
-  return pick(SKIN);
+  return pick(NPC_SKIN);
 }
 
 function rollNpcAppearance(x,y,opts){
@@ -124,7 +128,7 @@ function rollNpcAppearance(x,y,opts){
   const arch=npcPickArch(biome,!!opts.armed);
   const body=pick(arch.body);
   const hairStyle=pick(arch.hairStyle);
-  const hairCol=arch.hair?pick(arch.hair):pick(HAIR);
+  const hairCol=arch.hair?pick(arch.hair):pick(NPC_HAIR);
   const hair=hairStyle==="bald"?null:hairCol;
   const hat=pick(arch.hat);
   const shirt=pick(arch.shirts);
@@ -147,7 +151,7 @@ function rollNpcAppearance(x,y,opts){
     shirt, pants, shoes:pick(NPC_SHOES),
     body, hair, hairStyle,
     shirtStyle:pick(arch.shirtStyle),
-    beard, hat, hatColor:pick(HATCOL),
+    beard, hat, hatColor:pick(NPC_HATCOL),
     accessory,
     scarfColor:accessory==="scarf"?pick(["#a84838","#384858","#8a6838","#c87838","#586878"]):null,
     prop, propColor:prop?propColors[prop]:null,

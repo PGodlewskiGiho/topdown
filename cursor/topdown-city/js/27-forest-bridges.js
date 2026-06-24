@@ -2,8 +2,9 @@
 /* Rustic forest bridges — selective crossings over rivers (not every trail) */
 
 function isForestBridgeEdge(i,j,di,dj){
-  const e=getEdge(i,j,di,dj);
-  return e.exists && e.bridge && (e.klass==="trail"||e.klass==="rural");
+  if(di<0||(di===0&&dj<0)) return isForestBridgeEdge(i+di,j+dj,-di,-dj);
+  const e=edgeCache.get(i+","+j+","+di+","+dj);
+  return !!(e&&e.exists&&e.bridge&&(e.klass==="trail"||e.klass==="rural"));
 }
 
 function bridgeDeckPoints(p0,cp,p1, deckW, i,j,di,dj){
@@ -25,8 +26,10 @@ function bridgeDeckPoints(p0,cp,p1, deckW, i,j,di,dj){
 }
 
 function distToBridgeEdge(x,y,i,j,di,dj){
-  const {e,p0,p1,cp}=edgeGeom(i,j,i+di,j+dj);
-  if(!e.exists||!e.bridge) return Infinity;
+  if(di<0||(di===0&&dj<0)) return distToBridgeEdge(x,y,i+di,j+dj,-di,-dj);
+  const e=edgeCache.get(i+","+j+","+di+","+dj);
+  if(!e||!e.exists||!e.bridge) return Infinity;
+  const p0=node(i,j), p1=node(i+di,j+dj), cp=e.cp;
   let best=Infinity;
   for(let t=0;t<=1;t+=0.045){
     const p=bez(p0,cp,p1,t);
@@ -38,9 +41,9 @@ function distToBridgeEdge(x,y,i,j,di,dj){
 function onForestBridgeAt(x,y){
   const ci=Math.floor((x-ROAD)/GAP), cj=Math.floor((y-ROAD)/GAP);
   for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){
-    for(const[di,dj] of [[1,0],[0,1],[-1,0],[0,-1]]){
+    for(const[di,dj] of [[1,0],[0,1]]){
       if(!isForestBridgeEdge(i,j,di,dj)) continue;
-      const e=getEdge(i,j,di,dj);
+      const e=edgeCache.get(i+","+j+","+di+","+dj);
       if(distToBridgeEdge(x,y,i,j,di,dj)<e.width*0.58) return true;
     }
   }

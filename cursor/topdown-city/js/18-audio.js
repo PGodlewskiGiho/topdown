@@ -3,7 +3,7 @@
 let actx=null, master=null, audioOn=true, mHeld=false;
 let engOsc, engOsc2, engGain, engFilt, sirenOsc, sirenGain, rainGain;
 let forestAmbGain, forestWindGain, forestWindFilt, forestWindFilt2, forestRustleGain, forestStreamGain;
-let forestBirdTimer=0, forestAnimalTimer=0, forestCritterTimer=0, forestWindSmooth=0, forestAudioLast=0;
+let forestAudioBirdTimer=0, forestAnimalTimer=0, forestCritterTimer=0, forestWindSmooth=0, forestAudioLast=0;
 function playerInForest(){
   if(typeof focusX==="undefined"||typeof cellAt!=="function") return false;
   const k=cellAt(focusX,focusY);
@@ -267,9 +267,9 @@ function updateForestAudio(){
     const stream=nearForestRiver(px,py)?0.11:0;
     forestStreamGain.gain.value+=(stream-forestStreamGain.gain.value)*Math.min(1,2.2*dt);
   }
-  forestBirdTimer-=dt;
-  if(forestBirdTimer<=0){
-    forestBirdTimer=rand(1.4,5.2)/(0.55+wPow*0.35);
+  forestAudioBirdTimer-=dt;
+  if(forestAudioBirdTimer<=0){
+    forestAudioBirdTimer=rand(1.4,5.2)/(0.55+wPow*0.35);
     if(Math.random()<0.88) playForestBirdRandom();
   }
   forestAnimalTimer-=dt;

@@ -1,5 +1,7 @@
 /* TOPDOWN CITY — 20-main.js */
 /* ---------- main loop ---------- */
+getLot(1,2);  // ensure dealership exists near spawn
+getLot(2,1);  // ensure gun shop exists near spawn
 let last=performance.now();
 function frame(now){
   let dt=(now-last)/1000; last=now;

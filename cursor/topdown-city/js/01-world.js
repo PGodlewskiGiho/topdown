@@ -295,7 +295,7 @@ function isRiverAt(x,y){ return riverScore(x,y)>0; }
 function isLakeAt(x,y){ return lakeScore(x,y)>0; }
 function coastalLot(i,j){ for(let di=-1;di<=1;di++)for(let dj=-1;dj<=1;dj++){ if(isWaterCell(i+di,j+dj)) return true; } return false; }
 function inWater(x,y){
-  if(typeof onForestBridgeAt==="function"&&onForestBridgeAt(x,y)) return false;
+  if(_getEdgeDepth===0 && typeof onForestBridgeAt==="function"&&onForestBridgeAt(x,y)) return false;
   return waterScore(x,y)>0;
 }
 
@@ -414,14 +414,18 @@ function junctionRadius(i,j,mw){
   return r;
 }
 const edgeCache=new Map();
+let _getEdgeDepth=0;
 function getEdge(i,j,di,dj){
   if(di<0||(di===0&&dj<0)) return getEdge(i+di,j+dj,-di,-dj);   // canonical E or S
   const key=i+","+j+","+di+","+dj; let e=edgeCache.get(key); if(e) return e;
+  e={exists:false,_pending:true}; edgeCache.set(key,e);          // break reverse-edge recursion while building
+  _getEdgeDepth++;
+  try{
   const ii=i+di, jj=j+dj;
   const bA=biomeOf(i,j), bB=biomeOf(ii,jj), city=(bA==="city"&&bB==="city");
   const h1=hsh(i*7+di,j*5+dj,7), h2=hsh(i+dj,j+di,13), h3=hsh(i-dj,j-di,19);
   const isHwy = (di===1&&dj===0&&hwCorridorH(j)) || (di===0&&dj===1&&hwCorridorV(i));
-  const overMega = edgeTouchesMega(i,j,di,dj);
+  const overMega = _getEdgeDepth>1 ? false : edgeTouchesMega(i,j,di,dj);
   const mtn = isMountain(i,j)||isMountain(ii,jj);
   let exists = isHwy ? true : (city ? h1>0.07 : h1>0.34);
   const x1=nX(i,j),y1=nY(i,j),x2=nX(ii,jj),y2=nY(ii,jj);
@@ -469,6 +473,7 @@ function getEdge(i,j,di,dj){
   const markings=(klass==="hwy"||klass==="blvd"||klass==="art"||klass==="st");
   e={exists,width,klass,cp,col:bridge?"#6a5848":ROADCLR[klass], markings,len, bulge:Math.abs(off), bridge, hwy:isHwy};
   edgeCache.set(key,e); return e;
+  } finally { _getEdgeDepth--; }
 }
 function neighbors(i,j){ const r=[]; for(const[di,dj]of EDIRS) if(getEdge(i,j,di,dj).exists) r.push([i+di,j+dj]); return r; }
 function nodeDegree(i,j){ let d=0; for(const[di,dj]of EDIRS) if(getEdge(i,j,di,dj).exists) d++; return d; }
@@ -1312,7 +1317,7 @@ function updateFalling(dt){
   }
 }
 function addSignals(lot,i,j){
-  if(!isSignal(i,j)) return;
+  if(typeof isSignal!=="function"||!isSignal(i,j)) return;
   lot.signals=[]; lot.si=i; lot.sj=j;
   const cx=nX(i,j), cy=nY(i,j), mw=nodeMaxWidth(i,j);
   for(const[di,dj]of EDIRS){ const e=getEdge(i,j,di,dj); if(!e.exists) continue;
@@ -1873,6 +1878,4 @@ function getLot(i,j){
   if(lot.zone==="suburb" && lot.buildings.length) addGardens(lot, r);
   lotCache.set(key,lot); return lot;
 }
-getLot(1,2);  // ensure dealership exists near spawn
-getLot(2,1);  // ensure gun shop exists near spawn
 
