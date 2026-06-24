@@ -335,7 +335,8 @@ function busted(){ playerDeath("busted"); }
 
 function spawnFootCop(x,y,type){
   type=type||"police";
-  const base={x,y,a:rng()*6.283,r:8.5,speed:rand(84,112),fireCd:rand(0.3,0.9),type,
+  const copModel=typeof Humanoid2D!=="undefined"?Humanoid2D.modelForCop(type):"officer";
+  const base={x,y,a:rng()*6.283,r:8.5,speed:rand(84,112),fireCd:rand(0.3,0.9),type,model:copModel,
     skin:pick(SKIN),pants:"#1a2430",shirtStyle:"jacket",hair:pick(HAIR),hairStyle:"short"};
   if(type==="swat"){
     Object.assign(base,{hp:44,speed:rand(92,118),shirt:"#2a3540",pants:"#151c28",hat:"helmet",hatColor:"#2a3340",dmg:9,range:340});

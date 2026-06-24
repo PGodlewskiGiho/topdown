@@ -32,6 +32,7 @@ function applyCharacterToPed(ch){
   ch=ch||playerCharacter;
   ped.name=ch.name||"Wędrowiec";
   ped.body=ch.body||"male";
+  ped.model=ch.model||(typeof Humanoid2D!=="undefined"?(ch.body==="female"?"female":ch.body==="hardy"?"hardy":"civilian"):"civilian");
   ped.skin=ch.skin;
   ped.hair=ch.hairStyle==="bald"?null:ch.hair;
   ped.hairStyle=ch.hairStyle;

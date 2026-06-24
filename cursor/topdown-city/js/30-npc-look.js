@@ -105,12 +105,13 @@ const NPC_BIOME_POOL={
 };
 
 function npcPickArch(biome, armed){
-  if(armed) return NPC_ARCH.armed_thug;
+  if(armed) return "armed_thug";
   const pool=NPC_BIOME_POOL[biome]||NPC_BIOME_POOL.city;
   let roll=rng()*pool.reduce((s,e)=>s+e.w,0);
-  for(const e of pool){ roll-=e.w; if(roll<=0) return NPC_ARCH[e.id]; }
-  return NPC_ARCH.city_casual;
+  for(const e of pool){ roll-=e.w; if(roll<=0) return e.id; }
+  return "city_casual";
 }
+function npcArchDef(id){ return NPC_ARCH[id]||NPC_ARCH.city_casual; }
 
 function npcPickSkin(arch){
   if(arch===NPC_ARCH.city_elder) return pick(["#e8b888","#d49a6a","#c89068","#b87a48"]);
@@ -123,7 +124,9 @@ function rollNpcAppearance(x,y,opts){
   opts=opts||{};
   const ci=Math.floor((x-ROAD)/GAP), cj=Math.floor((y-ROAD)/GAP);
   const biome=biomeOf(ci,cj);
-  const arch=npcPickArch(biome,!!opts.armed);
+  const archId=npcPickArch(biome,!!opts.armed);
+  const arch=npcArchDef(archId);
+  const model=typeof Humanoid2D!=="undefined"?Humanoid2D.modelForArchetype(archId):"civilian";
   const body=pick(arch.body);
   const hairStyle=pick(arch.hairStyle);
   const hairCol=arch.hair?pick(arch.hair):pick(NPC_HAIR);
@@ -145,6 +148,8 @@ function rollNpcAppearance(x,y,opts){
   const accessory=pick(arch.accessory);
   return {
     archetype:opts.armed?"armed_thug":biome,
+    archetypeId:archId,
+    model,
     skin:npcPickSkin(arch),
     shirt, pants, shoes:pick(NPC_SHOES),
     body, hair, hairStyle,
@@ -160,7 +165,7 @@ function rollNpcAppearance(x,y,opts){
 
 function applyNpcLook(p, look){
   if(!look) return p;
-  for(const k of ["skin","shirt","pants","shoes","body","hair","hairStyle","shirtStyle","beard","hat","hatColor","accessory","scarfColor","prop","propColor","r","speed","color","archetype"]){
+  for(const k of ["skin","shirt","pants","shoes","body","hair","hairStyle","shirtStyle","beard","hat","hatColor","accessory","scarfColor","prop","propColor","r","speed","color","archetype","archetypeId","model"]){
     if(look[k]!==undefined) p[k]=look[k];
   }
   return p;
