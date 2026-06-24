@@ -29,6 +29,11 @@ function collectWaterPolys(scoreFn, ox, oy, step){
   return {polys,bnd};
 }
 
+function clipWaterPolys(polys){
+  ctx.beginPath();
+  for(const q of polys){ ctx.moveTo(q[0][0],q[0][1]); for(let k=1;k<q.length;k++) ctx.lineTo(q[k][0],q[k][1]); ctx.closePath(); }
+}
+
 function drawRiverFlowTexture(ox,oy,t){
   const step=14, x0=ox-step, y0=oy-step, x1=ox+VW+step, y1=oy+VH+step;
   const spd=38;
@@ -58,16 +63,18 @@ function drawRiverFlowTexture(ox,oy,t){
   ctx.lineCap="butt";
 
   // pebble / gravel bed visible through shallow water
-  ctx.globalAlpha=0.55;
+  ctx.globalAlpha=0.42;
   const peb=getTex("riverbed");
   if(peb){
-    ctx.fillStyle=peb;
+    const S=160, dx=-((t*18)%S), dy=-((t*11)%S);
+    ctx.save(); ctx.translate(dx,dy); ctx.fillStyle=peb;
     for(let gy=Math.floor(y0/48)*48; gy<y1; gy+=48){
       for(let gx=Math.floor(x0/48)*48; gx<x1; gx+=48){
         if(riverScore(gx+24,gy+24)<=0.05) continue;
-        ctx.save(); ctx.translate(gx,gy); ctx.fillRect(0,0,48,48); ctx.restore();
+        ctx.fillRect(gx,gy,48,48);
       }
     }
+    ctx.restore();
   }
   ctx.globalAlpha=1;
   ctx.restore();
@@ -115,15 +122,15 @@ function drawForestRivers(ox,oy){
   const {polys,bnd}=collectWaterPolys(riverScore, ox, oy, step);
   if(!polys.length) return;
 
-  ctx.beginPath();
-  for(const q of polys){ ctx.moveTo(q[0][0],q[0][1]); for(let k=1;k<q.length;k++) ctx.lineTo(q[k][0],q[k][1]); ctx.closePath(); }
+  clipWaterPolys(polys);
   const wg=ctx.createLinearGradient(0,oy,0,oy+VH);
   wg.addColorStop(0,"#3a8a78"); wg.addColorStop(0.45,"#2e7268"); wg.addColorStop(1,"#255e58");
   ctx.fillStyle=wg; ctx.fill();
 
   ctx.save(); ctx.clip();
-  // depth tint — darker centre, lighter riffles
-  for(const q of polys){
+  if(typeof applyWaterPattern==="function") applyWaterPattern("water_river",ox,oy,t,0.68,1.35);
+  if(typeof tintWaterDepth==="function") tintWaterDepth(polys,riverScore,[6,30,26],[50,120,100]);
+  else for(const q of polys){
     let cx=0,cy=0; for(const p of q){ cx+=p[0]; cy+=p[1]; } cx/=q.length; cy/=q.length;
     const depth=clamp(riverScore(cx,cy)*2.2, 0.15, 1);
     ctx.fillStyle=`rgba(8,32,28,${(0.12+depth*0.18).toFixed(3)})`;
@@ -132,8 +139,7 @@ function drawForestRivers(ox,oy){
   drawRiverFlowTexture(ox,oy,t);
   drawRiverSparkles(ox,oy,t);
 
-  // secondary ripple lines following flow (not axis-aligned like lakes)
-  ctx.strokeStyle="rgba(14,48,42,0.28)"; ctx.lineWidth=1.6; ctx.lineCap="round";
+  ctx.strokeStyle="rgba(14,48,42,0.22)"; ctx.lineWidth=1.4; ctx.lineCap="round";
   const rs=26, x0=ox-rs, y0=oy-rs, x1=ox+VW+rs, y1=oy+VH+rs;
   for(let gy=y0; gy<y1; gy+=rs){
     for(let gx=x0; gx<x1; gx+=rs){

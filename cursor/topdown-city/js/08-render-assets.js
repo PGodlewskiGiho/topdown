@@ -1002,6 +1002,51 @@ function getTex(key){
         t.fillStyle=rr()<0.55?"rgba(52,48,40,0.35)":"rgba(78,88,62,0.28)"; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); }
       for(let i=0;i<24;i++){ t.strokeStyle="rgba(30,38,26,0.18)"; t.lineWidth=0.8+rr()*1.2; t.lineCap="round";
         const x=rr()*S,y=rr()*S; t.beginPath(); t.moveTo(x,y); t.lineTo(x+(rr()-0.5)*12,y+(rr()-0.5)*8); t.stroke(); } t.lineCap="butt"; }
+    else if(key==="water_lake"){
+      const bg=t.createLinearGradient(0,0,0,S); bg.addColorStop(0,"#2a6a90"); bg.addColorStop(0.55,"#256080"); bg.addColorStop(1,"#1c5270");
+      t.fillStyle=bg; t.fillRect(0,0,S,S);
+      grain(2200,"6,18,32","120,190,230",0.85);
+      for(let i=0;i<38;i++){ const x=rr()*S,y=rr()*S,r=10+rr()*28;
+        const g=t.createRadialGradient(x,y,0,x,y,r);
+        g.addColorStop(0,`rgba(180,230,255,${(0.06+rr()*0.10).toFixed(3)})`);
+        g.addColorStop(0.45,`rgba(90,170,210,${(0.03+rr()*0.06).toFixed(3)})`);
+        g.addColorStop(1,"rgba(20,60,90,0)");
+        t.fillStyle=g; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); }
+      t.strokeStyle="rgba(8,28,48,0.14)"; t.lineWidth=1.1; t.lineCap="round";
+      for(let i=0;i<16;i++){ t.beginPath(); const y=rr()*S; t.moveTo(0,y);
+        for(let x=0;x<=S;x+=10) t.lineTo(x, y+Math.sin(x*0.11+i*1.3)*2.8+Math.sin(x*0.04+i)*1.6); t.stroke(); }
+      t.strokeStyle="rgba(210,240,255,0.10)"; t.lineWidth=0.8;
+      for(let i=0;i<10;i++){ t.beginPath(); const y=rr()*S; t.moveTo(0,y);
+        for(let x=0;x<=S;x+=12) t.lineTo(x, y+Math.sin(x*0.09+i*1.7)*2.2); t.stroke(); }
+      t.lineCap="butt";
+      for(let i=0;i<55;i++){ const x=rr()*S,y=rr()*S; t.fillStyle=`rgba(${rr()<0.5?"14,36,58":"40,88,118"},${(0.05+rr()*0.12).toFixed(3)})`;
+        t.fillRect(x,y,1.2+rr()*2.4,1+rr()*2); }
+    }
+    else if(key==="water_river"){
+      const bg=t.createLinearGradient(0,0,S,0); bg.addColorStop(0,"#2e8270"); bg.addColorStop(0.5,"#287060"); bg.addColorStop(1,"#2e8270");
+      t.fillStyle=bg; t.fillRect(0,0,S,S);
+      grain(1800,"8,28,24","130,210,190",0.75);
+      t.strokeStyle="rgba(180,240,230,0.12)"; t.lineWidth=1.2; t.lineCap="round";
+      for(let i=0;i<22;i++){ const y=8+rr()*(S-16); t.beginPath(); t.moveTo(0,y);
+        for(let x=0;x<=S;x+=8) t.lineTo(x, y+Math.sin(x*0.08+i*0.9)*1.4+(rr()-0.5)*0.6); t.stroke(); }
+      for(let i=0;i<28;i++){ const x=rr()*S,y=rr()*S,r=6+rr()*18;
+        const g=t.createRadialGradient(x,y,0,x,y,r);
+        g.addColorStop(0,`rgba(200,255,245,${(0.05+rr()*0.09).toFixed(3)})`);
+        g.addColorStop(1,"rgba(30,80,70,0)");
+        t.fillStyle=g; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); }
+      for(let i=0;i<32;i++){ const x=rr()*S,y=rr()*S,r=0.8+rr()*2.2;
+        t.fillStyle=rr()<0.5?"rgba(52,48,40,0.22)":"rgba(72,82,58,0.18)"; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); }
+      t.lineCap="butt";
+    }
+    else if(key==="water_shallow"){
+      const bg=t.createLinearGradient(0,0,0,S); bg.addColorStop(0,"#58b0a8"); bg.addColorStop(1,"#489898");
+      t.fillStyle=bg; t.fillRect(0,0,S,S);
+      grain(1400,"40,90,88","180,240,235",0.9);
+      t.strokeStyle="rgba(220,235,210,0.14)"; t.lineWidth=1.4; t.lineCap="round";
+      for(let i=0;i<9;i++){ t.beginPath(); const y=rr()*S; t.moveTo(0,y);
+        for(let x=0;x<=S;x+=11) t.lineTo(x, y+Math.sin(x*0.07+i*1.4)*2.5); t.stroke(); }
+      t.lineCap="butt";
+    }
     else if(key==="dirt"){ grain(1000,"0,0,0","150,120,80",1.7);
       for(let i=0;i<16;i++){ const x=rr()*S,y=rr()*S,r=2+rr()*4; t.fillStyle="rgba(90,82,70,0.18)"; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); } }
     else if(key==="forest_trail"){
@@ -1127,6 +1172,42 @@ function drawBeach(a,b,ccx,ccy,t){
       if(s===0) ctx.moveTo(ex+nx*off,ey+ny*off); else ctx.lineTo(ex+nx*off,ey+ny*off); } ctx.stroke(); }
   ctx.lineCap="butt";
 }
+function clipWaterPolys(polys){
+  ctx.beginPath();
+  for(const q of polys){ ctx.moveTo(q[0][0],q[0][1]); for(let k=1;k<q.length;k++) ctx.lineTo(q[k][0],q[k][1]); ctx.closePath(); }
+}
+function applyWaterPattern(texKey,ox,oy,t,alpha,speed){
+  const pat=getTex(texKey); if(!pat) return;
+  const S=160, sp=speed||1;
+  ctx.save();
+  if(alpha!=null) ctx.globalAlpha=alpha;
+  const dx=-((t*14*sp)%S), dy=-((t*9*sp)%S);
+  ctx.translate(dx,dy);
+  ctx.fillStyle=pat;
+  ctx.fillRect(ox-S*2,oy-S*2,VW+S*4,VH+S*4);
+  ctx.restore();
+}
+function tintWaterDepth(polys,scoreFn,deep,shallow){
+  for(const q of polys){
+    let cx=0,cy=0; for(const p of q){ cx+=p[0]; cy+=p[1]; } cx/=q.length; cy/=q.length;
+    const depth=clamp(scoreFn(cx,cy)*1.75,0,1);
+    const r=deep[0]+(shallow[0]-deep[0])*(1-depth), g=deep[1]+(shallow[1]-deep[1])*(1-depth), b=deep[2]+(shallow[2]-deep[2])*(1-depth);
+    ctx.fillStyle=`rgba(${r|0},${g|0},${b|0},${(0.10+depth*0.20).toFixed(3)})`;
+    ctx.beginPath(); ctx.moveTo(q[0][0],q[0][1]); for(let k=1;k<q.length;k++) ctx.lineTo(q[k][0],q[k][1]); ctx.closePath(); ctx.fill();
+  }
+}
+function drawShallowWater(polys,scoreFn,ox,oy,t){
+  const step=32, x0=ox-16, y0=oy-16, x1=ox+VW+16, y1=oy+VH+16;
+  ctx.save(); ctx.globalCompositeOperation="lighter";
+  for(let gy=y0; gy<y1; gy+=step) for(let gx=x0; gx<x1; gx+=step){
+    const cx=gx+step*0.5, cy=gy+step*0.5, s=scoreFn(cx,cy);
+    if(s<=0||s>0.42) continue;
+    const shallow=1-s/0.42, pulse=0.5+0.5*Math.sin(t*1.6+cx*0.04+cy*0.03);
+    ctx.fillStyle=`rgba(120,210,200,${(shallow*0.14*pulse).toFixed(3)})`;
+    ctx.beginPath(); ctx.arc(cx,cy,step*0.55*(0.7+shallow*0.3),0,7); ctx.fill();
+  }
+  ctx.restore();
+}
 function drawWaterGlobal(ox,oy){
   const step=26, x0=ox-step, y0=oy-step, x1=ox+VW+step, y1=oy+VH+step, t=performance.now()/1000;
   const polys=[], bnd=[];                                                       // ONE marching-squares pass over the whole view -> seamless across lots
@@ -1141,27 +1222,38 @@ function drawWaterGlobal(ox,oy){
     if(cr.length===2) bnd.push(cr);
   }
   if(polys.length){
-    ctx.beginPath(); for(const q of polys){ ctx.moveTo(q[0][0],q[0][1]); for(let k=1;k<q.length;k++) ctx.lineTo(q[k][0],q[k][1]); ctx.closePath(); }
-    const wg=ctx.createLinearGradient(0,oy,0,oy+VH); wg.addColorStop(0,"#2c6c97"); wg.addColorStop(1,"#235c87"); ctx.fillStyle=wg; ctx.fill();
+    clipWaterPolys(polys);
+    const wg=ctx.createLinearGradient(0,oy,0,oy+VH); wg.addColorStop(0,"#2c6c97"); wg.addColorStop(0.55,"#286888"); wg.addColorStop(1,"#1f5278"); ctx.fillStyle=wg; ctx.fill();
     ctx.save(); ctx.clip();
+    applyWaterPattern("water_lake",ox,oy,t,0.62);
+    tintWaterDepth(polys,lakeScore,[8,28,48],[40,100,130]);
+    drawShallowWater(polys,lakeScore,ox,oy,t);
     const wy=(x,ry)=> ry + Math.sin(x*0.10 - t*1.4 + ry*0.05)*2.6 + Math.sin(x*0.045 + ry*0.09 + t*0.8)*2.0;
     const ry0=Math.floor(oy/20)*20, x0w=Math.floor(ox/18)*18;
-    ctx.strokeStyle="rgba(13,40,66,.40)"; ctx.lineWidth=2.2; ctx.beginPath();
+    ctx.strokeStyle="rgba(13,40,66,.28)"; ctx.lineWidth=1.8; ctx.beginPath();
     for(let ry=ry0;ry<oy+VH+20;ry+=20){ let f=true; for(let x=x0w;x<=ox+VW+18;x+=18){ const yy=wy(x,ry)+1.9; if(f){ctx.moveTo(x,yy);f=false;}else ctx.lineTo(x,yy);} } ctx.stroke();
-    ctx.strokeStyle="rgba(206,234,255,.18)"; ctx.lineWidth=1.4; ctx.beginPath();
+    ctx.strokeStyle="rgba(206,234,255,.14)"; ctx.lineWidth=1.1; ctx.beginPath();
     for(let ry=ry0;ry<oy+VH+20;ry+=20){ let f=true; for(let x=x0w;x<=ox+VW+18;x+=18){ const yy=wy(x,ry); if(f){ctx.moveTo(x,yy);f=false;}else ctx.lineTo(x,yy);} } ctx.stroke();
     const Sun=sunShadow(gameHour), warm=Sun?(1-Math.sin(Math.PI*((gameHour-6.2)/13.1))):0;
-    if(Sun&&warm>0.08){ ctx.fillStyle=`rgba(255,168,86,${(0.16*warm).toFixed(3)})`; ctx.fillRect(ox,oy,VW,VH); }
+    if(Sun&&warm>0.08){ ctx.fillStyle=`rgba(255,168,86,${(0.14*warm).toFixed(3)})`; ctx.fillRect(ox,oy,VW,VH); }
     const gl=warm>0.3?"255,206,150":"255,255,255"; ctx.globalCompositeOperation="lighter";
     const sg=46;
     for(let sy=Math.floor(oy/sg)*sg; sy<oy+VH; sy+=sg) for(let sx=Math.floor(ox/sg)*sg; sx<ox+VW; sx+=sg){
       const gi=Math.floor(sx/sg), gj=Math.floor(sy/sg), px=sx+hsh(gi,gj,33)*sg, py=sy+hsh(gi,gj,34)*sg;
-      const tw=0.5+0.5*Math.sin(t*2.4+px*0.3+py*0.2); if(tw>0.62){ const gy=wy(px,py); ctx.fillStyle=`rgba(${gl},${(0.07+0.16*tw).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(px,gy,2.4,1,0,0,7); ctx.fill(); } }
+      if(lakeScore(px,py)<=0) continue;
+      const tw=0.5+0.5*Math.sin(t*2.4+px*0.3+py*0.2); if(tw>0.58){ const gy=wy(px,py); ctx.fillStyle=`rgba(${gl},${(0.06+0.14*tw).toFixed(3)})`; ctx.beginPath(); ctx.ellipse(px,gy,2.6,1.1,0,0,7); ctx.fill(); } }
     ctx.restore();
-    if(bnd.length){                                                             // organic coastline foam, continuous across lots
+    if(bnd.length){
+      ctx.save(); ctx.globalCompositeOperation="source-over";
+      const shallowPat=getTex("water_shallow");
+      if(shallowPat){
+        ctx.lineCap="round"; ctx.lineJoin="round"; ctx.strokeStyle=shallowPat; ctx.lineWidth=16;
+        ctx.beginPath(); for(const s of bnd){ ctx.moveTo(s[0][0],s[0][1]); ctx.lineTo(s[1][0],s[1][1]); } ctx.stroke();
+      }
+      ctx.restore();
       ctx.lineCap="round"; ctx.lineJoin="round";
-      ctx.strokeStyle="rgba(224,208,162,.45)"; ctx.lineWidth=11; ctx.beginPath(); for(const s of bnd){ ctx.moveTo(s[0][0],s[0][1]); ctx.lineTo(s[1][0],s[1][1]); } ctx.stroke();
-      ctx.strokeStyle="rgba(150,196,196,.45)"; ctx.lineWidth=6; ctx.beginPath(); for(const s of bnd){ ctx.moveTo(s[0][0],s[0][1]); ctx.lineTo(s[1][0],s[1][1]); } ctx.stroke();
+      ctx.strokeStyle="rgba(224,208,162,.50)"; ctx.lineWidth=11; ctx.beginPath(); for(const s of bnd){ ctx.moveTo(s[0][0],s[0][1]); ctx.lineTo(s[1][0],s[1][1]); } ctx.stroke();
+      ctx.strokeStyle="rgba(150,196,196,.48)"; ctx.lineWidth=6; ctx.beginPath(); for(const s of bnd){ ctx.moveTo(s[0][0],s[0][1]); ctx.lineTo(s[1][0],s[1][1]); } ctx.stroke();
       const fa=0.5+0.18*Math.sin(t*2.5); ctx.strokeStyle=`rgba(244,252,255,${fa.toFixed(3)})`; ctx.lineWidth=2.4; ctx.beginPath(); for(const s of bnd){ ctx.moveTo(s[0][0],s[0][1]); ctx.lineTo(s[1][0],s[1][1]); } ctx.stroke();
       ctx.lineCap="butt"; ctx.lineJoin="miter";
     }
