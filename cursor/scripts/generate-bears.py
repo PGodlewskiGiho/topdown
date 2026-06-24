@@ -26,8 +26,9 @@ WALK_ROW = 0   # south — true top-down
 ATK_ROW = 4
 WALK_COLS = (0, 1, 2, 3)
 ATK_COL = 1
-# Rotate extracted frame so default facing = +X (game uses atan2 + ctx.rotate).
-FACE_ROT = 90
+# Top-down row 0: head/snout toward +Y in source frame. Game heading uses +X at angle 0.
+# Do NOT rotate in generator — 22-wildlife.js applies meta.angleOffset when drawing.
+FACE_ROT = 0
 SRC = 64
 SCALE = 2  # 64 → 128 px frames
 FW = FH = SRC * SCALE
@@ -170,6 +171,7 @@ def main():
         "anchorX": ANCHOR_X,
         "anchorY": ANCHOR_Y,
         "walkStep": 0.11,
+        "angleOffset": -1.5707963267948966,
         "variants": {},
     }
     for name, cfg in VARIANTS.items():
