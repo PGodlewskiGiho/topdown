@@ -6,7 +6,8 @@ function findWaterNear(fx,fy,minR,maxR){
   const ci=Math.round(fx/GAP), cj=Math.round(fy/GAP);
   for(let tr=0;tr<50;tr++){ const i=ci+randInt(-maxR,maxR), j=cj+randInt(-maxR,maxR);
     if(Math.max(Math.abs(i-ci),Math.abs(j-cj))<minR) continue;
-    if(isWaterCell(i,j)) return [(i+0.5)*GAP,(j+0.5)*GAP]; }
+    if(isWaterCell(i,j)) return [(i+0.5)*GAP,(j+0.5)*GAP];
+    if(typeof canalScore==="function"&&canalScore((i+0.5)*GAP,(j+0.5)*GAP)>0.2) return [(i+0.5)*GAP,(j+0.5)*GAP]; }
   return null;
 }
 function spawnBoat(){ const w=findWaterNear(focusX,focusY,2,9); if(!w) return null;
@@ -31,6 +32,10 @@ function updateBoatDrive(dt){
       const cur=isRow?1.15:0.72;
       [b.x,b.y]=applyRiverCurrentXY(b.x,b.y,dt,cur);
     }
+    if(typeof applyCanalCurrentXY==="function"){
+      [b.x,b.y]=applyCanalCurrentXY(b.x,b.y,dt,isRow?1.05:0.68);
+    }
+    if(typeof collideCanalWalls==="function") collideCanalWalls(b, Math.max(8,(b.W||20)*0.45));
   } else { if(Math.abs(b.v)>40){ b._spl=(b._spl||0)-dt; if(b._spl<=0){ splashFoam(b.x+Math.cos(b.a)*16,b.y+Math.sin(b.a)*16,7); b._spl=0.22; } } b.v*=-0.25; }   // boats can't go on land
   b.vx=Math.cos(b.a)*b.v; b.vy=Math.sin(b.a)*b.v;
   ped.x=b.x; ped.y=b.y; ped.a=b.a; ped.vx=b.vx; ped.vy=b.vy;       // ride along -> camera & hit-tests follow

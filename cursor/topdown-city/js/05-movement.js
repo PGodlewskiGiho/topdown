@@ -167,6 +167,10 @@ function updatePed(dt){
   if(swim&&typeof applyRiverCurrentXY==="function"){
     [ped.x,ped.y]=applyRiverCurrentXY(ped.x,ped.y,dt,0.85);
   }
+  if(swim&&typeof applyCanalCurrentXY==="function"){
+    [ped.x,ped.y]=applyCanalCurrentXY(ped.x,ped.y,dt,0.9);
+  }
+  if(typeof collideCanalWalls==="function") collideCanalWalls(ped);
   resolveTerrainBlock(ped, ppx, ppy, TERRAIN_SLOPE_WALK);
   { const ci=Math.floor((ped.x-ROAD)/GAP), cj=Math.floor((ped.y-ROAD)/GAP);
     for(let ii=ci-1;ii<=ci+1;ii++) for(let jj=cj-1;jj<=cj+1;jj++){ const L=getLot(ii,jj); for(const b of L.buildings){

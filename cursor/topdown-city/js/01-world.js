@@ -287,7 +287,7 @@ function riverScore(x,y){
   const a=riverCellSigned(xi,yi), b=riverCellSigned(xi+1,yi), cc=riverCellSigned(xi,yi+1), d=riverCellSigned(xi+1,yi+1);
   return a+(b-a)*u+(cc-a)*v+(a-b-cc+d)*u*v;
 }
-function waterScore(x,y){ return Math.max(lakeScore(x,y), riverScore(x,y)); }
+function waterScore(x,y){ return Math.max(lakeScore(x,y), riverScore(x,y), typeof canalScore==="function"?canalScore(x,y):0); }
 function isLakeCell(i,j){ return lakeAllowed(i,j)&&lakeCellSigned(i,j)>0; }
 function isLakeLot(i,j){
   if(!lakeAllowed(i,j)) return false;
@@ -301,6 +301,7 @@ function isLakeAt(x,y){ return lakeScore(x,y)>0; }
 function coastalLot(i,j){ for(let di=-1;di<=1;di++)for(let dj=-1;dj<=1;dj++){ if(isWaterCell(i+di,j+dj)) return true; } return false; }
 function inWater(x,y){
   if(_getEdgeDepth===0 && typeof onForestBridgeAt==="function"&&onForestBridgeAt(x,y)) return false;
+  if(typeof onCanalBridgeAt==="function"&&onCanalBridgeAt(x,y)) return false;
   return waterScore(x,y)>0;
 }
 
@@ -763,10 +764,15 @@ const CITY_SPAWN_PRESETS=[
   {i:2, j:1, label:"Sklep z bronią"},
   {i:8, j:6, label:"Peryferie Vesper City"},
   {i:2, j:2, label:"Dealer motocykli"},
+  {i:4, j:3, label:"Kanały — Starówka Vesper City", canal:true},
 ];
 function findBiomeSpawn(biome, variant=0){
   if(biome==="city"){
     const p=CITY_SPAWN_PRESETS[((variant%CITY_SPAWN_PRESETS.length)+CITY_SPAWN_PRESETS.length)%CITY_SPAWN_PRESETS.length];
+    if(p.canal && typeof canalSpawnPoint==="function"){
+      const cp=canalSpawnPoint();
+      if(cp) return Object.assign(cp, {label:p.label, biome:"city"});
+    }
     const pt=roadJunctionAtCell(p.i, p.j);
     return Object.assign(pt, {label:p.label, biome:"city"});
   }
@@ -1689,7 +1695,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=37;
+const LOT_CACHE_VER=38;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 const DESERT_FLOOR_VARIANTS=["ripple_light","ripple_dark","dune_crest","cracked_earth","salt_patch","pebble_cluster","sage_bush","dry_grass"];
 const DESERT_FLORA=["sage","tumbleweed","driftwood","bone","pebble","crack","salt_crust"];

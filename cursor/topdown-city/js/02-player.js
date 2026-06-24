@@ -176,7 +176,11 @@ function toggleVehicle(){
     else if(jackpc) jackParked(jackpc,jacklot);
     else if(target) jackCar(target);
     else if(own) mode="car";
-    else { const bld=findEnterableBuilding(ped.x, ped.y); if(bld) enterBuilding(bld); }
+    else {
+      const entry=typeof nearestCanalEntry==="function"?nearestCanalEntry(ped.x,ped.y,36):null;
+      if(entry&&!inCanalWater(ped.x,ped.y)&&!inWater(ped.x,ped.y)){ descendCanalEntry(entry); return; }
+      const bld=findEnterableBuilding(ped.x, ped.y); if(bld) enterBuilding(bld);
+    }
   }
 }
 function jackCar(c){
