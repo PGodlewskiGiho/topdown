@@ -25,7 +25,7 @@ function setPauseTab(tab){
   if(tab==="stats") refreshPauseStats();
   if(pauseMapActive){
     if(typeof resizeActiveMap==="function") resizeActiveMap();
-    if(typeof drawBigMap==="function") drawBigMap();
+    if(typeof drawPauseMap==="function") drawPauseMap();
   }
 }
 
@@ -104,6 +104,17 @@ function openPauseTab(tab){
   togglePauseMenu(true, tab||"map");
 }
 
+function pauseMapSize(){
+  if(!pauseMapCv||!pauseMapWrap) return {W:640,H:360};
+  const r=pauseMapWrap.getBoundingClientRect();
+  return {W:Math.max(1,r.width), H:Math.max(1,r.height)};
+}
+
+function pauseMapCenterWorld(){
+  const p=playerWorldPos();
+  return {x:bigMapPan?bigMapPan.x:p.x, y:bigMapPan?bigMapPan.y:p.y};
+}
+
 function initPauseMenu(){
   document.getElementById("pause-resume")?.addEventListener("click", ()=>togglePauseMenu(false));
   document.getElementById("pause-tabs")?.addEventListener("click", ev=>{
@@ -111,24 +122,14 @@ function initPauseMenu(){
     if(btn) setPauseTab(btn.dataset.tab);
   });
   document.getElementById("pause-map-center")?.addEventListener("click", ()=>{
-    if(typeof bigMapPan!=="undefined") bigMapPan=null;
-    drawBigMap();
+    if(typeof resetPauseMapView==="function") resetPauseMapView();
+    if(typeof drawPauseMap==="function") drawPauseMap();
   });
   document.getElementById("pause-map-clear")?.addEventListener("click", ()=>{
     if(typeof clearNavTarget==="function") clearNavTarget();
-    drawBigMap();
+    if(typeof drawPauseMap==="function") drawPauseMap();
   });
   if(pauseMapCv) initPauseMapEvents();
-}
-
-function pauseMapEventToWorld(ev){
-  const r=pauseMapCv.getBoundingClientRect();
-  const sx=ev.clientX-r.left, sy=ev.clientY-r.top;
-  const W=r.width, H=r.height;
-  const p=playerWorldPos();
-  const cxw=bigMapPan?bigMapPan.x:p.x, cyw=bigMapPan?bigMapPan.y:p.y;
-  const MS=bigMapZoom;
-  return {x:cxw+(sx-W/2)/MS, y:cyw+(sy-H/2)/MS, sx, sy};
 }
 
 function initPauseMapEvents(){
@@ -137,37 +138,51 @@ function initPauseMapEvents(){
     if(!pauseMapActive) return;
     if(ev.button===2){
       if(typeof clearNavTarget==="function") clearNavTarget();
-      drawBigMap();
+      if(typeof drawPauseMap==="function") drawPauseMap();
       ev.preventDefault();
       return;
     }
-    const p=playerWorldPos();
-    drag={x:ev.clientX,y:ev.clientY,panX:bigMapPan?bigMapPan.x:p.x,panY:bigMapPan?bigMapPan.y:p.y};
+    const cen=pauseMapCenterWorld();
+    drag={x:ev.clientX,y:ev.clientY,panX:cen.x,panY:cen.y};
   });
   window.addEventListener("mousemove", ev=>{
     if(!drag||!pauseMapActive) return;
     const dx=ev.clientX-drag.x, dy=ev.clientY-drag.y;
     if(Math.hypot(dx,dy)<4) return;
-    bigMapPan={x:drag.panX-dx/bigMapZoom, y:drag.panY-dy/bigMapZoom};
-    drawBigMap();
+    const {W,H}=pauseMapSize();
+    const span=typeof pauseMapSpan!=="undefined"?pauseMapSpan:4800;
+    if(typeof rotatingMapPanByDrag==="function"){
+      bigMapPan=rotatingMapPanByDrag(drag.panX,drag.panY,dx,dy,W,H,span);
+    } else {
+      const MS=Math.min(W,H)/span;
+      bigMapPan={x:drag.panX-dx/MS, y:drag.panY-dy/MS};
+    }
+    if(typeof drawPauseMap==="function") drawPauseMap();
   });
   window.addEventListener("mouseup", ev=>{
     if(!drag||!pauseMapActive) return;
     const dx=ev.clientX-drag.x, dy=ev.clientY-drag.y;
     drag=null;
     if(Math.hypot(dx,dy)<5&&ev.button===0){
-      const w=pauseMapEventToWorld(ev);
+      const r=pauseMapCv.getBoundingClientRect();
+      const {W,H}=pauseMapSize();
+      const span=typeof pauseMapSpan!=="undefined"?pauseMapSpan:4800;
+      const cen=pauseMapCenterWorld();
+      const w=typeof rotatingMapScreenToWorld==="function"
+        ?rotatingMapScreenToWorld(ev.clientX-r.left, ev.clientY-r.top, W, H, cen.x, cen.y, span)
+        :{x:cen.x,y:cen.y};
       if(mapDiscoveredAt(w.x,w.y)) setNavTarget(w.x,w.y);
       else showBigMsg("NIEODKRYTY TEREN");
-      drawBigMap();
+      if(typeof drawPauseMap==="function") drawPauseMap();
     }
   });
   pauseMapCv.addEventListener("contextmenu", ev=>ev.preventDefault());
   pauseMapCv.addEventListener("wheel", ev=>{
     if(!pauseMapActive) return;
     ev.preventDefault();
-    bigMapZoom=clamp(bigMapZoom*(ev.deltaY<0?1.12:1/1.12), 0.12, 1.6);
-    drawBigMap();
+    const span=typeof pauseMapSpan!=="undefined"?pauseMapSpan:4800;
+    pauseMapSpan=clamp(span*(ev.deltaY<0?0.9:1/0.9), typeof PAUSE_MAP_SPAN_MIN!=="undefined"?PAUSE_MAP_SPAN_MIN:2200, typeof PAUSE_MAP_SPAN_MAX!=="undefined"?PAUSE_MAP_SPAN_MAX:9200);
+    if(typeof drawPauseMap==="function") drawPauseMap();
   }, {passive:false});
 }
 
@@ -177,3 +192,4 @@ function updatePauseHud(){
 }
 
 Game.register({id:"pause", order:42, updateAlways:true, update(dt){ updatePauseHud(); }});
+initPauseMenu();

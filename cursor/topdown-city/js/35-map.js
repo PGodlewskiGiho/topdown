@@ -16,6 +16,10 @@ let bigMapOpen = false;
 let bigMapPan = null;
 let bigMapZoom = 0.42;
 let bigMapDrag = null;
+let pauseMapSpan = 4800;
+const PAUSE_MAP_SPAN_MIN = 2200;
+const PAUSE_MAP_SPAN_MAX = 9200;
+const MINI_MAP_SPAN = 1500;
 
 const bigMapEl = document.getElementById("bigmap");
 const bigMapCv = document.getElementById("bigmap-cv");
@@ -315,6 +319,130 @@ function drawNavRouteWorld(ox,oy){
   ctx.restore();
 }
 
+function rotatingMapScale(W,H,span){ return Math.min(W,H)/span; }
+
+function rotatingMapScreenToWorld(sx,sy,W,H,cxw,cyw,span){
+  const MS=rotatingMapScale(W,H,span);
+  const w2=W/2, h2=H/2;
+  const heading=playerHeading();
+  const lx=sx-w2, ly=sy-h2;
+  const c=Math.cos(heading), s=Math.sin(heading);
+  const rx=lx*c-ly*s, ry=lx*s+ly*c;
+  return {x:cxw+rx/MS, y:cyw+ry/MS, sx, sy};
+}
+
+function rotatingMapPanByDrag(panX,panY,dx,dy,W,H,span){
+  const MS=rotatingMapScale(W,H,span);
+  const heading=playerHeading();
+  const c=Math.cos(heading), s=Math.sin(heading);
+  return {
+    x:panX-(dx*c+dy*s)/MS,
+    y:panY-(dx*s-dy*c)/MS,
+  };
+}
+
+function renderRotatingMap(bctx,W,H,opts){
+  const cxw=opts.cxw!=null?opts.cxw:playerWorldPos().x;
+  const cyw=opts.cyw!=null?opts.cyw:playerWorldPos().y;
+  const span=opts.span||MINI_MAP_SPAN;
+  const MS=rotatingMapScale(W,H,span);
+  const w2=W/2, h2=H/2;
+  const heading=opts.heading!=null?opts.heading:playerHeading();
+
+  bctx.save();
+  if(opts.clipRound!=null){
+    bctx.beginPath(); bctx.roundRect(0,0,W,H,opts.clipRound); bctx.clip();
+  }
+
+  bctx.fillStyle="#0a0c12";
+  bctx.fillRect(0,0,W,H);
+
+  const tx0=wx=>(wx-cxw)*MS, ty0=wy=>(wy-cyw)*MS;
+
+  bctx.save();
+  bctx.translate(w2,h2);
+  bctx.rotate(-heading);
+  const tx=wx=>tx0(wx), ty=wy=>ty0(wy);
+
+  const viewSpan=span;
+  const i0=Math.floor((cxw-viewSpan/2-GAP)/GAP)-1, i1=Math.floor((cxw+viewSpan/2)/GAP)+1;
+  const j0=Math.floor((cyw-viewSpan/2-GAP)/GAP)-1, j1=Math.floor((cyw+viewSpan/2)/GAP)+1;
+  const mapOpts={tx,ty,i0,i1,j0,j1,scale:MS,fog:!!opts.fog,cxw,cyw,w2,routeWidth:opts.routeWidth||2.8,showPlayer:false};
+  Game.drawMap(bctx, mapOpts);
+
+  if(opts.wantedSearch && typeof stars!=="undefined" && stars>0 && typeof wantedPhase!=="undefined" && wantedPhase==="search" && typeof lkValid!=="undefined" && lkValid){
+    const rad=(typeof searchRadius==="function"?searchRadius():220)*MS;
+    const mx=tx0(lkX), my=ty0(lkY);
+    bctx.strokeStyle="rgba(255,90,70,0.55)"; bctx.lineWidth=1.6; bctx.setLineDash([4,3]);
+    bctx.beginPath(); bctx.arc(mx,my,rad,0,7); bctx.stroke();
+    bctx.setLineDash([]);
+    bctx.fillStyle="rgba(255,90,70,0.18)"; bctx.beginPath(); bctx.arc(mx,my,3.5,0,7); bctx.fill();
+  }
+
+  bctx.restore();
+
+  if(opts.showPlayer!==false){
+    bctx.save();
+    bctx.translate(w2,h2);
+    bctx.fillStyle=MAP_BLIPS.player;
+    bctx.beginPath();
+    bctx.moveTo(0,-7); bctx.lineTo(5,6); bctx.lineTo(0,3); bctx.lineTo(-5,6);
+    bctx.closePath(); bctx.fill();
+    bctx.strokeStyle="rgba(0,0,0,.7)"; bctx.lineWidth=1.2; bctx.stroke();
+    bctx.restore();
+  }
+
+  bctx.fillStyle="rgba(255,255,255,.82)";
+  bctx.font=`bold ${opts.nFont||9}px monospace`;
+  bctx.textAlign="center";
+  bctx.fillText("N", w2, opts.nFont?14:11);
+
+  if(opts.border!==false){
+    bctx.strokeStyle="rgba(255,255,255,.22)"; bctx.lineWidth=2;
+    bctx.beginPath(); bctx.roundRect(1,1,W-2,H-2,opts.clipRound!=null?Math.max(4,opts.clipRound-1):6); bctx.stroke();
+    bctx.strokeStyle="rgba(0,0,0,.45)"; bctx.lineWidth=1;
+    bctx.beginPath(); bctx.roundRect(2.5,2.5,W-5,H-5,opts.clipRound!=null?Math.max(3,opts.clipRound-2):5); bctx.stroke();
+  }
+
+  bctx.restore();
+}
+
+function drawPauseMap(){
+  const tgt=mapViewTarget();
+  if(!tgt||!tgt.ctx||!tgt.cv) return;
+  resizeBigMap();
+  const W=tgt.cv.width/DPR, H=tgt.cv.height/DPR;
+  const bctx=tgt.ctx;
+  bctx.setTransform(DPR,0,0,DPR,0,0);
+  bctx.clearRect(0,0,W,H);
+
+  const p=playerWorldPos();
+  const cxw=bigMapPan?bigMapPan.x:p.x, cyw=bigMapPan?bigMapPan.y:p.y;
+  renderRotatingMap(bctx,W,H,{
+    cxw,cyw,
+    span:pauseMapSpan,
+    fog:true,
+    routeWidth:3.2,
+    clipRound:12,
+    wantedSearch:true,
+    nFont:11,
+    showPlayer:true,
+  });
+
+  if(navTarget){
+    const d=Math.hypot(navTarget.x-p.x,navTarget.y-p.y);
+    bctx.fillStyle="rgba(180,140,255,.92)";
+    bctx.font="bold 11px monospace";
+    bctx.textAlign="right";
+    bctx.fillText(`CEL · ${(d/100|0)*100} m`, W-14, H-14);
+  }
+}
+
+function resetPauseMapView(){
+  bigMapPan=null;
+  pauseMapSpan=4800;
+}
+
 function resizeBigMap(){
   const tgt=typeof mapViewTarget==="function"?mapViewTarget():null;
   if(!tgt||!tgt.cv||!tgt.el) return;
@@ -436,7 +564,8 @@ function initBigMapEvents(){
 function updateMap(dt){
   updateMapDiscovery();
   if(navTarget) recomputeNavPath(false);
-  if(bigMapOpen||(typeof pauseMapActive!=="undefined"&&pauseMapActive)) drawBigMap();
+  if(typeof pauseMapActive!=="undefined"&&pauseMapActive) drawPauseMap();
+  else if(bigMapOpen) drawBigMap();
 }
 
 initBigMapEvents();
