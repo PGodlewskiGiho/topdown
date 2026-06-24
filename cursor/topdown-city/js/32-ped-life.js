@@ -15,6 +15,7 @@ const PED_LINES={
   shop:["Ciekawa witryna.","Może coś kupię.","Ładne to wygląda."],
   plaza:["Miło tu usiąść.","Fajna fontanna.","Dobra przerwa."],
   group:["Idziemy?","Czekajcie na mnie!","Tu jesteśmy."],
+  beach:["Piękna woda!","Idealna pogoda na plażę.","Gdzie mój krem z filtrem?","Morze jest ciepłe.","Kto chce loda?"],
 };
 
 const PED_SCHEDULES={
@@ -67,7 +68,16 @@ const PED_SCHEDULES={
     default:{preferred:["work","shop"], speed:0.9, dwell:[14,24], searchR:12},
   },
   sea_tourist:{
-    default:{preferred:["coast","plaza","shop"], speed:0.9, dwell:[20,36], searchR:16},
+    default:{preferred:["beach","coast","plaza","shop"], speed:0.88, dwell:[20,36], searchR:16},
+  },
+  sea_sunbather:{
+    default:{preferred:["beach","coast"], speed:0.62, dwell:[28,55], searchR:14},
+  },
+  sea_swimmer:{
+    default:{preferred:["coast","beach"], speed:0.95, dwell:[14,26], searchR:14},
+  },
+  sea_lifeguard:{
+    default:{preferred:["beach","coast"], speed:0.88, dwell:[22,40], searchR:12},
   },
   sea_fisher:{
     default:{preferred:["coast","work"], speed:0.82, dwell:[22,40], searchR:14},
@@ -110,6 +120,10 @@ function pedFindPOI(x,y,kind,searchR){
     else if(kind==="coast" && biomeOf(i,j)==="sea" && coastalLot(i,j)){
       ok=true; px=(nX(i,j)+nX(i+1,j+1))*0.25+(nX(i+1,j)+nX(i,j+1))*0.25;
       py=(nY(i,j)+nY(i+1,j+1))*0.25+(nY(i+1,j)+nY(i,j+1))*0.25;
+    }
+    else if(kind==="beach" && L.beach && L.beachSpots && L.beachSpots.length){
+      const sp=L.beachSpots[(hsh(i,j,701)+hsh(x|0,y|0,703))%L.beachSpots.length];
+      ok=true; px=sp.x; py=sp.y;
     }
     else if(kind==="trail" && typeof forestTrailNode==="function" && forestTrailNode(i,j)){ ok=true; px=nX(i,j); py=nY(i,j); }
     else if(kind==="park"){
@@ -327,6 +341,15 @@ function pedLifeIdle(p,dt){
   if(p.idleAct==="phone"){
     p.holdingPhone=true;
     if(rng()<0.003) pedSay(p,PED_LINES.phone,1.5);
+  } else if(p.idleAct==="sunbathe"){
+    p.holdingPhone=false;
+    p.vx=0; p.vy=0;
+    if(p.dest) p.a=Math.atan2(p.dest.y-p.y,p.dest.x-p.x)+Math.PI*0.5;
+    if(rng()<0.004) pedSay(p,PED_LINES.beach,2);
+  } else if(p.idleAct==="beach_play"){
+    p.holdingPhone=false;
+    if(rng()<0.008){ p.a+= (rng()-0.5)*0.6; p.x+=(rng()-0.5)*8; p.y+=(rng()-0.5)*8; }
+    if(rng()<0.005) pedSay(p,PED_LINES.beach,1.5);
   } else {
     p.holdingPhone=false;
   }
@@ -377,6 +400,16 @@ function updatePedLife(p,dt){
     if(p.phone) pedSay(p,PED_LINES.phone,2);
     else pedSay(p,PED_LINES.idle,1.8);
     return true;
+  }
+
+  const ci=Math.floor((p.x-ROAD)/GAP), cj=Math.floor((p.y-ROAD)/GAP);
+  if(biomeOf(ci,cj)==="sea" && !p.idleAct && !p.onGraph && rng()<0.0035){
+    if(p.sunbather || p.archId==="sea_sunbather" || rng()<0.45){
+      p.idleAct="sunbathe"; p.idleT=rand(12,28); p.beachUmbrella=p.beachUmbrella||pick(BEACH_UMBRELLA_COL||["#e05040","#48a8c8"]);
+      pedSay(p,PED_LINES.beach,2.4);
+      return true;
+    }
+    if(rng()<0.35){ p.idleAct="beach_play"; p.idleT=rand(6,14); pedSay(p,PED_LINES.beach,1.8); return true; }
   }
 
   if(p.dest && !p.onGraph && !p.plaza){

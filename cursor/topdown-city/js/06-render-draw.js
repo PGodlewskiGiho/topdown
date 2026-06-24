@@ -27,7 +27,7 @@ function draw(){
     else if(L.mega){ fillCell(L, "#6f7076"); texFill(L,"concrete"); }
     else if(L.empty){
       if(L.salon||L.gunshop||L.motodealer){ fillCell(L, L.B.walk); texFill(L,"concrete"); if(L.motodealer) drawMotoDealerLot(L); }
-      else { fillCell(L, L.B.ground); const sandy=(L.biome==="desert"||L.biome==="sea"); texFill(L, groundTexKey(L,sandy)); if(sandy){ drawSandDetail(L); if(L.biome==="desert") drawDesertFloor(L); } else { if(L.biome==="forest") drawForestFloor(L); drawGrassDetail(L); } drawProps(L); }
+      else { fillCell(L, L.B.ground); const sandy=(L.biome==="desert"||L.biome==="sea"); texFill(L, groundTexKey(L,sandy)); if(sandy){ drawSandDetail(L); if(L.biome==="desert") drawDesertFloor(L); else if(L.biome==="sea") drawBeachFloor(L); } else { if(L.biome==="forest") drawForestFloor(L); drawGrassDetail(L); } drawProps(L); }
     }
     else if(L.zone==="suburb"){ fillCell(L, L.B.ground); texFill(L,"grass"); drawGrassDetail(L); drawProps(L); drawFences(L); }
     else { fillCell(L, L.B.walk); texFill(L,"concrete"); pavingLines(L); }

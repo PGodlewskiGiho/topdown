@@ -100,8 +100,10 @@ function trafficCap(){
 }
 function pedCap(){
   const ci=Math.round(focusX/GAP), cj=Math.round(focusY/GAP);
+  const biome=biomeOf(ci,cj);
   let cap;
-  if(biomeOf(ci,cj)!=="city") cap=42;
+  if(biome==="sea") cap=62;
+  else if(biome!=="city") cap=42;
   else {
     const z=cityZone(ci,cj);
     if(z==="downtown") cap=88;
@@ -110,6 +112,7 @@ function pedCap(){
   }
   const h=typeof gameHour!=="undefined"?gameHour:12;
   const night=(h<6||h>22)?0.52:(h<7||h>21)?0.72:1;
+  if(biome==="sea" && h>=10 && h<=17) cap*=1.12;
   if(typeof weatherI!=="undefined" && weatherI>0.45) cap*=0.84;
   return Math.max(18, Math.round(cap*night));
 }

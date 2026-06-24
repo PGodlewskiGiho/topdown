@@ -354,6 +354,9 @@ function drawPerson(p,color,down,targetCtx){
     c.fillStyle="#1a1a22"; roundRect(r*0.08,r*0.52,r*0.14,r*0.22,2); c.fill();
     c.fillStyle="rgba(120,180,255,.35)"; roundRect(r*0.09,r*0.54,r*0.11,r*0.16,1); c.fill();
   }
+  if(p.beachWear){
+    c.fillStyle="rgba(255,255,255,.18)"; c.beginPath(); c.ellipse(0,r*0.08,tw*0.92,th*0.55,0,0,7); c.fill();
+  }
   if(p.prop==="backpack"){
     c.fillStyle=p.propColor||"#5a5048";
     c.beginPath(); c.ellipse(-tw*0.42,0,r*0.36,r*0.52,0,0,7); c.fill();
@@ -468,6 +471,7 @@ function drawPerson(p,color,down,targetCtx){
   if(p.hostile){ c.strokeStyle="rgba(255,70,46,.9)"; c.lineWidth=1.6; c.beginPath(); c.arc(0,0,r*1.65,0,7); c.stroke(); }
   paintBlood(tw,th);
   c.restore();
+  if(p.beachUmbrella && !p.holdingPhone && mv<55 && p.idleAct!=="sunbathe") drawPersonUmbrella(p, p.beachUmbrella);
 }
 
 function vignette(){
@@ -1737,6 +1741,11 @@ function drawSandDetail(L){
       ctx.fillStyle=`rgba(255,220,160,${sh.toFixed(3)})`;
       ctx.fillRect(L.x,L.y,L.w,L.h);
     }
+    if(!isDesert && L.beach && typeof gameHour!=="undefined" && gameHour>8 && gameHour<18){
+      const tt=performance.now()*0.001, sh=0.03+0.015*Math.sin(tt*0.5+L.i*0.2);
+      ctx.fillStyle=`rgba(255,240,210,${sh.toFixed(3)})`;
+      ctx.fillRect(L.x,L.y,L.w,L.h);
+    }
   }
   ctx.strokeStyle="rgba(255,240,205,.13)"; ctx.lineWidth=1.5;
   for(const r of L.ripples){ ctx.save(); ctx.translate(r.x,r.y); ctx.rotate(r.a||0); ctx.beginPath(); ctx.moveTo(-r.w/2,0); ctx.quadraticCurveTo(0,-5,r.w/2,0); ctx.stroke(); ctx.restore(); }
@@ -2108,11 +2117,150 @@ function drawTreeCanopy(cx,cy,t,lod){
   if(t.lobes){ const lb=t.lobes.slice().sort((a,b)=>b.oy-a.oy); const round=t.kind==="bush"; for(const L of lb) drawCTLobe(map,R,pal,L.ox,L.oy,L.lr,round); }
   if(!lod) drawFoliageStipple(map,R,pal,t);                           // dense leaf-speck thicket (no outline)
 }
+function drawBeachUmbrella(p){
+  const x=p.x, y=p.y, s=p.s||24, col=p.c||"#e05040", a=p.a||0;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.fillStyle="rgba(40,40,48,.22)"; ctx.beginPath(); ctx.ellipse(4,5,s*0.55,s*0.18,0,0,7); ctx.fill();
+  ctx.strokeStyle="#8a8078"; ctx.lineWidth=2.2; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,s*0.95); ctx.stroke();
+  ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(0,0);
+  for(let k=0;k<8;k++){ const ang=(k/8)*6.283-0.4, rx=Math.cos(ang)*s*0.92, ry=Math.sin(ang)*s*0.55;
+    ctx.lineTo(rx,ry); }
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.22)"; ctx.beginPath(); ctx.ellipse(-s*0.12,-s*0.08,s*0.35,s*0.18,-0.3,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawBeachChair(p){
+  const x=p.x, y=p.y, s=p.s||14, col=p.c||"#d84838", a=p.a||0;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.fillStyle="rgba(40,40,48,.18)"; ctx.beginPath(); ctx.ellipse(2,3,s*0.7,s*0.14,0,0,7); ctx.fill();
+  ctx.fillStyle=col; ctx.fillRect(-s*0.55,-s*0.15,s*1.1,s*0.12);
+  ctx.fillRect(-s*0.08,-s*0.15,s*0.16,s*0.55);
+  ctx.fillStyle=shade(col,-18); ctx.fillRect(-s*0.5,-s*0.55,s*0.95,s*0.42);
+  ctx.fillStyle=shade(col,12); ctx.fillRect(-s*0.46,-s*0.52,s*0.35,s*0.12);
+  ctx.restore();
+}
+function drawBeachTowel(p){
+  const x=p.x, y=p.y, s=p.s||18, col=p.c||"#48a8c8", a=p.a||0;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.fillStyle=col; ctx.beginPath(); ctx.roundRect(-s*0.45,-s*0.22,s*0.9,s*0.44,3); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.28)"; ctx.fillRect(-s*0.38,-s*0.16,s*0.22,s*0.32);
+  ctx.strokeStyle=shade(col,-28); ctx.lineWidth=1; ctx.strokeRect(-s*0.45,-s*0.22,s*0.9,s*0.44);
+  ctx.restore();
+}
+function drawSurfboard(p){
+  const x=p.x, y=p.y, s=p.s||30, col=p.c||"#48a8c8", a=p.a||0;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.fillStyle="rgba(40,40,48,.2)"; ctx.beginPath(); ctx.ellipse(3,4,s*0.22,s*0.55,0,0,7); ctx.fill();
+  ctx.fillStyle=col; ctx.beginPath(); ctx.ellipse(0,0,s*0.22,s*0.58,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.35)"; ctx.beginPath(); ctx.ellipse(-s*0.06,-s*0.12,s*0.08,s*0.28,0,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawBeachBall(p){
+  const x=p.x, y=p.y, s=p.s||10;
+  ctx.fillStyle="rgba(40,40,48,.16)"; ctx.beginPath(); ctx.ellipse(x+2,y+2,s,s*0.35,0,0,7); ctx.fill();
+  ctx.fillStyle="#f0e848"; ctx.beginPath(); ctx.arc(x,y,s,0,7); ctx.fill();
+  ctx.fillStyle="#e05040"; ctx.beginPath(); ctx.arc(x,y,s,0.2,3.5); ctx.fill();
+  ctx.fillStyle="#48a8c8"; ctx.beginPath(); ctx.arc(x,y,s,3.8,5.8); ctx.fill();
+}
+function drawCooler(p){
+  const x=p.x, y=p.y, s=p.s||12, col=p.c||"#58a8c8";
+  ctx.fillStyle=col; ctx.fillRect(x-s*0.5,y-s*0.35,s,s*0.7);
+  ctx.fillStyle=shade(col,-22); ctx.fillRect(x-s*0.5,y-s*0.35,s,s*0.14);
+  ctx.fillStyle="rgba(255,255,255,.35)"; ctx.fillRect(x-s*0.38,y-s*0.18,s*0.22,s*0.38);
+}
+function drawVolleyball(p){
+  const x=p.x, y=p.y, s=p.s||34, a=p.a||0;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.strokeStyle="#e8e8e8"; ctx.lineWidth=1.8;
+  ctx.beginPath(); ctx.moveTo(-s*0.5,0); ctx.lineTo(s*0.5,0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0,-s*0.35); ctx.lineTo(0,s*0.35); ctx.stroke();
+  ctx.fillStyle="rgba(255,255,255,.12)"; ctx.fillRect(-s*0.5,-1,s,2);
+  ctx.restore();
+}
+function drawLifeguardChair(p){
+  const x=p.x, y=p.y, s=p.s||26, a=p.a||0;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.fillStyle="#c83828"; ctx.fillRect(-s*0.35,s*0.1,s*0.7,s*0.12);
+  ctx.fillStyle="#e84838"; ctx.fillRect(-s*0.08,-s*0.55,s*0.16,s*0.68);
+  ctx.fillStyle="#f0f848"; ctx.beginPath(); ctx.arc(0,-s*0.62,s*0.14,0,7); ctx.fill();
+  ctx.restore();
+}
+function drawSandcastle(p){
+  const x=p.x, y=p.y, s=p.s||14;
+  ctx.fillStyle="#c8a868"; ctx.fillRect(x-s*0.3,y-s*0.1,s*0.6,s*0.35);
+  ctx.fillRect(x-s*0.45,y,s*0.9,s*0.18);
+  ctx.fillStyle="#d8b878"; ctx.beginPath(); ctx.moveTo(x-s*0.12,y-s*0.38); ctx.lineTo(x,y-s*0.58); ctx.lineTo(x+s*0.12,y-s*0.38); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.2)"; for(let k=0;k<3;k++) ctx.fillRect(x-s*0.35+k*s*0.28,y+s*0.02,2,4);
+}
+function drawPier(p){
+  const x=p.x, y=p.y, s=p.s||40, a=p.a||0;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.fillStyle="#8a7868"; ctx.fillRect(-s,s*0.2,s*2,s*0.18);
+  ctx.fillStyle="#6a5848"; for(let k=0;k<5;k++) ctx.fillRect(-s+k*s*0.45,-s*0.5,s*0.12,s*0.72);
+  ctx.strokeStyle="rgba(90,70,50,.35)"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-s,s*0.28); ctx.lineTo(s,s*0.28); ctx.stroke();
+  ctx.restore();
+}
+function drawBeachFloorDetail(d){
+  const s=d.s||5, k=d.kind;
+  ctx.save(); ctx.translate(d.x,d.y); ctx.rotate(d.rot||0);
+  if(k==="shell"){
+    ctx.fillStyle="#f0e8d8"; ctx.beginPath(); ctx.ellipse(0,0,s,s*0.65,0.2,0,7); ctx.fill();
+    ctx.strokeStyle="#c8b8a0"; ctx.lineWidth=0.8; ctx.beginPath(); ctx.moveTo(-s*0.5,0); ctx.lineTo(s*0.5,0); ctx.stroke();
+  } else if(k==="starfish"){
+    ctx.fillStyle="#e87858"; ctx.beginPath();
+    for(let i=0;i<5;i++){ const ang=(i/5)*6.283-Math.PI/2, px=Math.cos(ang)*s, py=Math.sin(ang)*s;
+      i?ctx.lineTo(px,py):ctx.moveTo(px,py); ctx.lineTo(Math.cos(ang+0.35)*s*0.35,Math.sin(ang+0.35)*s*0.35); }
+    ctx.closePath(); ctx.fill();
+  } else if(k==="seaweed"){
+    ctx.strokeStyle="#2a6848"; ctx.lineWidth=1.4; ctx.beginPath(); ctx.moveTo(0,s*0.4);
+    for(let i=0;i<4;i++){ ctx.quadraticCurveTo((i%2?1:-1)*s*0.4,-s*0.2+i*s*0.15,(i%2?0.5:-0.5)*s*0.2,-s*0.35+i*s*0.2); }
+    ctx.stroke();
+  } else if(k==="footprint"){
+    ctx.fillStyle="rgba(100,80,55,.22)"; ctx.beginPath(); ctx.ellipse(0,0,s*0.35,s*0.55,0,0,7); ctx.fill();
+    for(let i=0;i<3;i++) ctx.beginPath().arc(-s*0.2+i*s*0.2,-s*0.45,s*0.08,0,7), ctx.fill();
+  } else if(k==="driftwood"){
+    ctx.fillStyle="#8a6848"; ctx.beginPath(); ctx.ellipse(0,0,s*1.1,s*0.35,0.3,0,7); ctx.fill();
+  } else if(k==="wet_sand"){
+    ctx.fillStyle="rgba(80,120,150,.12)"; ctx.beginPath(); ctx.ellipse(0,0,s,s*0.45,0,0,7); ctx.fill();
+  } else if(k==="barnacle"){
+    ctx.fillStyle="#8a9088"; for(let i=0;i<4;i++){ ctx.beginPath(); ctx.arc((i-1.5)*s*0.28,0,s*0.22,0,7); ctx.fill(); }
+  } else {
+    ctx.fillStyle="rgba(150,128,92,.55)"; ctx.beginPath(); ctx.arc(0,0,s*0.5,0,7); ctx.fill();
+  }
+  ctx.restore();
+}
+function drawBeachFloor(L){
+  if(!L.beachFloor||!L.beachFloor.length||VW>1700) return;
+  for(const d of L.beachFloor){
+    if(d.x<cam.x-VW/2-20||d.x>cam.x+VW/2+20||d.y<cam.y-VH/2-20||d.y>cam.y+VH/2+20) continue;
+    drawBeachFloorDetail(d);
+  }
+}
+function drawPersonUmbrella(p,col){
+  const c=col||p.beachUmbrella||"#e05040", s=16, ox=Math.cos(p.a+Math.PI/2)*10, oy=Math.sin(p.a+Math.PI/2)*10;
+  ctx.save(); ctx.translate(p.x+ox,p.y+oy-8);
+  ctx.strokeStyle="#8a8078"; ctx.lineWidth=1.6; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,s*0.7); ctx.stroke();
+  ctx.fillStyle=c; ctx.beginPath(); ctx.moveTo(0,0);
+  for(let k=0;k<7;k++){ const ang=(k/7)*3.4-0.2; ctx.lineTo(Math.cos(ang)*s*0.75,Math.sin(ang)*s*0.42); }
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
 function drawProps(L){
   const cl=cam.x-VW/2-34, cr=cam.x+VW/2+34, ct=cam.y-VH/2-34, cb=cam.y+VH/2+34, lod=VW>1500;
   for(const p of L.props){
     if(p.x<cl||p.x>cr||p.y<ct||p.y>cb) continue;                 // off-screen prop: skip
     if(p.t==="cactus"){ drawCactus(p);
+    } else if(p.t==="beach_umbrella"){ drawBeachUmbrella(p);
+    } else if(p.t==="beach_chair"){ drawBeachChair(p);
+    } else if(p.t==="beach_towel"){ drawBeachTowel(p);
+    } else if(p.t==="surfboard"){ drawSurfboard(p);
+    } else if(p.t==="beach_ball"){ drawBeachBall(p);
+    } else if(p.t==="cooler"){ drawCooler(p);
+    } else if(p.t==="volleyball"){ drawVolleyball(p);
+    } else if(p.t==="lifeguard"){ drawLifeguardChair(p);
+    } else if(p.t==="sandcastle"){ drawSandcastle(p);
+    } else if(p.t==="pier"){ drawPier(p);
     } else if(p.t==="palm"){
       ctx.fillStyle="#8a6a3a"; ctx.fillRect(p.x-2,p.y-p.s,4,p.s);
       ctx.fillStyle="#2f8a5a"; for(let a=0;a<6;a++){ const ang=a/6*6.283; ctx.save(); ctx.translate(p.x,p.y-p.s); ctx.rotate(ang); ctx.fillRect(0,-2,p.s*0.95,4); ctx.restore(); }

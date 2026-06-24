@@ -74,9 +74,27 @@ const NPC_ARCH={
     accessory:[null], prop:[null,"briefcase"], beard:["stubble","none"], speed:[24,38],
   },
   sea_tourist:{
-    shirts:["#e87858","#48a8c8","#f0c848","#58c8a8","#e8a838","#88b8e8"], pants:NPC_PANTS.sea,
+    shirts:["#e87858","#48a8c8","#f0c848","#58c8a8","#e8a838","#88b8e8","#ff9878","#ffffff"], pants:NPC_PANTS.sea,
     body:["male","female","female"], hairStyle:["short","long","ponytail"], shirtStyle:["tee","tee","hoodie"],
-    hat:["cap",null,"beanie"], accessory:["glasses",null], prop:[null,"bag"], beard:["none"], speed:[26,40],
+    hat:[null,"cap",null], accessory:["glasses",null], prop:[null,"bag","cooler"], beard:["none"], speed:[26,40],
+    beachWear:true, beachUmbrella:true,
+  },
+  sea_sunbather:{
+    shirts:["#ff9878","#f0c848","#58c8e8","#ffffff","#e87858","#ff6890"], pants:["#e05040","#48a8c8","#f0c848","#ff6890","#58c878"],
+    body:["female","male","female","male"], hairStyle:["long","ponytail","short"], shirtStyle:["tee","tee","tee"],
+    hat:[null,null,"cap"], accessory:["glasses",null], prop:[null,"bag"], beard:["none"], speed:[16,28],
+    beachWear:true, beachUmbrella:true, sunbather:true,
+  },
+  sea_swimmer:{
+    shirts:["#48a8c8","#58c8e8","#88d8f8","#38a8d8"], pants:["#2868a8","#3888b8","#2088a8"],
+    body:["male","female","male","female"], hairStyle:["short","ponytail","short"], shirtStyle:["tee","tee"],
+    hat:[null], accessory:[null], prop:[null,"bag"], beard:["none"], speed:[28,44],
+    beachWear:true,
+  },
+  sea_lifeguard:{
+    shirts:["#e83828","#d82818","#f04838"], pants:["#c82018","#b01810"],
+    body:["male","female","male"], hairStyle:["short","short","ponytail"], shirtStyle:["tee","vest"],
+    hat:["cap",null], accessory:[null,"glasses"], prop:[null,"whistle"], beard:["none","stubble"], speed:[24,38],
   },
   sea_fisher:{
     shirts:["#3a5878","#486888","#2a4868","#586878"], pants:NPC_PANTS.sea, body:["male","hardy","male"],
@@ -102,7 +120,8 @@ const NPC_BIOME_POOL={
     {id:"desert_nomad", w:40},{id:"desert_worker", w:28},{id:"city_casual", w:16},{id:"city_elder", w:8},
   ],
   sea:[
-    {id:"sea_tourist", w:38},{id:"sea_fisher", w:26},{id:"city_casual", w:20},{id:"city_teen", w:10},
+    {id:"sea_sunbather", w:28},{id:"sea_tourist", w:26},{id:"sea_swimmer", w:18},
+    {id:"sea_fisher", w:14},{id:"sea_lifeguard", w:8},{id:"city_casual", w:12},{id:"city_teen", w:8},
   ],
 };
 
@@ -146,6 +165,11 @@ function rollNpcAppearance(x,y,opts){
   const r=body==="hardy"?11:(body==="female"?8.5:9);
   const sp=arch.speed;
   const accessory=pick(arch.accessory);
+  const beachWear=!!arch.beachWear;
+  let beachUmbrella=null;
+  if(biome==="sea" && (arch.beachUmbrella||beachWear) && rng()<(arch.sunbather?0.78:0.52)){
+    beachUmbrella=pick(typeof BEACH_UMBRELLA_COL!=="undefined"?BEACH_UMBRELLA_COL:["#e05040","#48a8c8","#f0c848","#ff6890"]);
+  }
   return {
     archId:opts.armed?"armed_thug":archId,
     archetype:opts.armed?"armed_thug":archId,
@@ -159,12 +183,14 @@ function rollNpcAppearance(x,y,opts){
     prop, propColor:prop?propColors[prop]:null,
     r, speed:rand(sp[0],sp[1]),
     color:shirt,
+    beachWear, beachUmbrella,
+    sunbather:!!arch.sunbather,
   };
 }
 
 function applyNpcLook(p, look){
   if(!look) return p;
-  for(const k of ["skin","shirt","pants","shoes","body","hair","hairStyle","shirtStyle","beard","hat","hatColor","accessory","scarfColor","prop","propColor","r","speed","color","archetype","archId"]){
+  for(const k of ["skin","shirt","pants","shoes","body","hair","hairStyle","shirtStyle","beard","hat","hatColor","accessory","scarfColor","prop","propColor","r","speed","color","archetype","archId","beachWear","beachUmbrella","sunbather"]){
     if(look[k]!==undefined) p[k]=look[k];
   }
   return p;
