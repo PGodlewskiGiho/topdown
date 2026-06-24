@@ -27,17 +27,36 @@ let cHeld = false;           // one-shot guard for colour-cycle key
 const ped = { x:car.x, y:car.y, a:0, vx:0, vy:0, r:9, walk:96, run:178 };
 
 /* physics constants (px, seconds) */
-const ENGINE = 360, BRAKE = 620, REVERSE = 200;
-const AIR = 0.55;                 // drag
-const ROLL = 60;                  // rolling resistance
-const TURN = 2.7;                 // rad/s at grip
-const GRIP = 9.0, GRIP_HB = 1.1;  // lateral friction normal / handbrake
-const VK = {                       // per-vehicle-kind handling
+const ENGINE = 340, BRAKE = 780, REVERSE = 165;
+const AIR = 0.48, AIR2 = 0.0016;   // linear + quadratic drag
+const ROLL = 52;
+const TURN = 2.85;
+const GRIP = 11.5, GRIP_HB = 3.2;
+const VK = {
   car:  {acc:1.0,  turn:1.0, grip:1.0, cap:0},
-  moto: {acc:1.55, turn:1.5, grip:0.92, cap:600},
-  bike: {acc:0.85, turn:1.6, grip:1.1, cap:190},
+  moto: {acc:1.55, turn:1.55, grip:0.88, cap:600},
+  bike: {acc:0.85, turn:1.65, grip:1.05, cap:190},
 };
-const KMH = 0.34;                 // px/s -> km/h display scale
+const KMH = 0.34;
+const CAR_TYPE_HANDLING={
+  sedan:   {acc:1.00, turn:1.00, grip:1.00, drag:1.00},
+  coupe:   {acc:1.06, turn:1.10, grip:1.05, drag:0.97},
+  estate:  {acc:0.95, turn:0.90, grip:1.03, drag:1.03},
+  suv:     {acc:0.86, turn:0.76, grip:1.10, drag:1.10},
+  suvcoupe:{acc:0.88, turn:0.80, grip:1.07, drag:1.07},
+  supercar:{acc:1.14, turn:1.06, grip:1.14, drag:0.90},
+  wedge:   {acc:1.12, turn:1.02, grip:1.12, drag:0.88},
+};
+function carSpeedCap(){
+  const vk=VK[car.kind]||VK.car;
+  if(vk.cap) return vk.cap;
+  return (car.topSpeed||200)*KMH;
+}
+function carHandling(){
+  const vk=VK[car.kind]||VK.car;
+  const tm=CAR_TYPE_HANDLING[car.type]||CAR_TYPE_HANDLING.sedan;
+  return {acc:vk.acc*tm.acc, turn:vk.turn*tm.turn, grip:vk.grip*tm.grip, drag:tm.drag};
+}
 
 /* ---------- input ---------- */
 const keys = Object.create(null);

@@ -1,5 +1,15 @@
 /* TOPDOWN CITY — 05-movement.js */
 /* ---------- update: car ---------- */
+function surfaceGripAt(x,y){
+  const [ci,cj]=cellAt(x,y), b=biomeOf(ci,cj);
+  if(b==="city") return 1;
+  let nearRoad=false;
+  for(const[di,dj]of[[0,0],[1,0],[0,1],[-1,0],[0,-1]]){
+    if(getEdge(ci+di,cj+dj,1,0).exists||getEdge(ci+di,cj+dj,0,1).exists){ nearRoad=true; break; }
+  }
+  if(nearRoad) return b==="forest"?0.84:b==="desert"?0.86:0.88;
+  return b==="desert"?0.72:0.66;
+}
 function recoverCarToLand(){
   if(car._lx!==undefined && !inWater(car._lx,car._ly)){ car.x=car._lx; car.y=car._ly; car.a=car._la; }
   else { const ci=Math.round(car.x/GAP), cj=Math.round(car.y/GAP); outer:
@@ -11,76 +21,94 @@ function recoverCarToLand(){
   car.vx=0; car.vy=0; car.sinking=undefined;
 }
 function updateCar(dt){
-  if(car.sinking!==undefined){                       // car is going under
+  if(car.sinking!==undefined){
     car.sinking+=dt; car.vx*=0.86; car.vy*=0.86; car.x+=car.vx*dt; car.y+=car.vy*dt;
     if(car.sinking>1.1){ mode="foot"; ped.x=car.x; ped.y=car.y; ped.vx=0; ped.vy=0; ped.a=car.a; recoverCarToLand(); showBigMsg("PŁYŃ DO BRZEGU"); }
     return;
   }
   if(inWater(car.x,car.y)){ car.sinking=0; playSplash(); showBigMsg("AUTO TONIE!"); return; }
-  car._lx=car.x; car._ly=car.y; car._la=car.a;        // remember last dry spot
-  const throttle = (keys["w"]||keys["arrowup"]?1:0) - (keys["s"]||keys["arrowdown"]?1:0);
-  const steerIn  = (keys["d"]||keys["arrowright"]?1:0) - (keys["a"]||keys["arrowleft"]?1:0);
-  const hb = !!keys[" "];
+  car._lx=car.x; car._ly=car.y; car._la=car.a;
 
-  const vk = VK[car.kind] || VK.car;
-  const c = Math.cos(car.a), s = Math.sin(car.a);
-  // forward speed (signed) along heading
-  let fwd = car.vx*c + car.vy*s;
-  const speed = Math.hypot(car.vx, car.vy);
+  const throttle=(keys["w"]||keys["arrowup"]?1:0)-(keys["s"]||keys["arrowdown"]?1:0);
+  const steerIn=(keys["d"]||keys["arrowright"]?1:0)-(keys["a"]||keys["arrowleft"]?1:0);
+  const hb=!!keys[" "];
+  const h=carHandling();
+  const cap=carSpeedCap();
+  const surf=surfaceGripAt(car.x,car.y);
+  const c=Math.cos(car.a), s=Math.sin(car.a);
+  let fwd=car.vx*c+car.vy*s;
+  const speed=Math.hypot(car.vx,car.vy);
 
-  // engine / brake / reverse
-  if(throttle>0){ car.vx += c*ENGINE*car.power*vk.acc*throttle*dt; car.vy += s*ENGINE*car.power*vk.acc*throttle*dt; }
-  else if(throttle<0){
-    if(fwd > 4){ // braking
-      const dec = Math.min(fwd, BRAKE*dt);
-      car.vx -= c*dec; car.vy -= s*dec;
-    } else {     // reverse
-      car.vx += c*REVERSE*throttle*dt; car.vy += s*REVERSE*throttle*dt;
+  if(throttle>0){
+    const headroom=clamp(1-Math.pow(clamp(speed/cap,0,1),1.55),0.06,1);
+    const acc=ENGINE*car.power*h.acc*throttle*headroom*surf*dt;
+    car.vx+=c*acc; car.vy+=s*acc;
+  } else if(throttle<0){
+    if(fwd>5){
+      const dec=Math.min(Math.abs(fwd),(BRAKE+speed*0.42)*dt);
+      car.vx-=c*dec; car.vy-=s*dec;
+    } else {
+      car.vx-=c*REVERSE*throttle*dt; car.vy-=s*REVERSE*throttle*dt;
     }
   }
 
-  // steering (scaled by speed, inverted in reverse)
-  const sf = Math.min(1, speed/90);
-  const dir = fwd < -2 ? -1 : 1;
-  if(speed > 2) car.a += steerIn * TURN * vk.turn * sf * dir * dt;
+  const steerMul=h.turn*(0.38+0.62/(1+speed/130));
+  if(speed>2){
+    const dir=fwd<-3?-1:1;
+    car.a+=steerIn*TURN*steerMul*dir*dt;
+  } else if(Math.abs(steerIn)>0.01&&(throttle||hb)){
+    car.a+=steerIn*TURN*h.turn*1.25*dt;
+  }
 
-  // grip: split velocity into forward/lateral and damp lateral
-  const c2 = Math.cos(car.a), s2 = Math.sin(car.a);
-  let f = car.vx*c2 + car.vy*s2;          // forward comp
-  let lat = -car.vx*s2 + car.vy*c2;       // lateral comp
-  const g = (hb ? GRIP_HB : GRIP) * vk.grip;
-  lat -= lat * Math.min(1, g*dt);
-  car.vx = c2*f - s2*lat;
-  car.vy = s2*f + c2*lat;
+  const c2=Math.cos(car.a), s2=Math.sin(car.a);
+  let f=car.vx*c2+car.vy*s2;
+  let lat=-car.vx*s2+car.vy*c2;
+  const gripBase=hb?GRIP_HB:GRIP;
+  const gripSpd=clamp(0.55+speed/105,0.55,1.4);
+  const g=gripBase*h.grip*gripSpd*surf;
+  lat*=Math.max(0,1-Math.min(1,g*dt));
 
-  // drag + rolling resistance
-  car.vx *= (1 - Math.min(0.9, AIR*dt));
-  car.vy *= (1 - Math.min(0.9, AIR*dt));
-  const sp2 = Math.hypot(car.vx,car.vy);
-  if(sp2 > 0){ const rr = Math.min(sp2, ROLL*dt); car.vx -= car.vx/sp2*rr; car.vy -= car.vy/sp2*rr; }
+  if(!hb&&speed>18){
+    const align=clamp(1.1*dt*(1-speed/(cap*1.15)),0,0.045);
+    const spd=Math.abs(f);
+    if(spd>0.1) f+= (speed-spd)*align*Math.sign(f);
+  }
 
-  // integrate
+  car.vx=c2*f-s2*lat;
+  car.vy=s2*f+c2*lat;
+
+  const sp2=Math.hypot(car.vx,car.vy);
+  if(sp2>0){
+    const drag=(AIR*h.drag+sp2*AIR2)*dt;
+    const rr=Math.min(sp2,ROLL*dt);
+    const loss=Math.min(sp2,drag+rr);
+    car.vx-=car.vx/sp2*loss;
+    car.vy-=car.vy/sp2*loss;
+  }
+
   const px=car.x, py=car.y;
-  const tf=terrainSpeedFactor(car.x,car.y, car.vx, car.vy);
-  car.x += car.vx*dt*tf; car.y += car.vy*dt*tf;
-  if(resolveTerrainBlock(car, px, py, TERRAIN_SLOPE_CAR)){}
-  if(vk.cap){ const sc=Math.hypot(car.vx,car.vy); if(sc>vk.cap){ car.vx*=vk.cap/sc; car.vy*=vk.cap/sc; } }
+  const tf=terrainSpeedFactor(car.x,car.y,car.vx,car.vy);
+  car.x+=car.vx*dt*tf; car.y+=car.vy*dt*tf;
+  if(resolveTerrainBlock(car,px,py,TERRAIN_SLOPE_CAR)){}
 
-  // skid marks when sliding
-  if(Math.abs(lat) > 34 || (hb && sp2 > 30)){
-    const rx = -Math.cos(car.a)*car.L*0.32, ry = -Math.sin(car.a)*car.L*0.32;
-    const ox = -Math.sin(car.a)*car.W*0.34, oy =  Math.cos(car.a)*car.W*0.34;
-    skid.push({x:car.x+rx+ox, y:car.y+ry+oy, a:car.a});
-    skid.push({x:car.x+rx-ox, y:car.y+ry-oy, a:car.a});
-    while(skid.length > SKID_MAX) skid.shift();
+  const sc=Math.hypot(car.vx,car.vy);
+  const capEff=cap*(0.82+0.18*surf);
+  if(sc>capEff){ car.vx*=capEff/sc; car.vy*=capEff/sc; }
+
+  if(Math.abs(lat)>38||(hb&&sp2>28)){
+    const rx=-Math.cos(car.a)*car.L*0.32, ry=-Math.sin(car.a)*car.L*0.32;
+    const ox=-Math.sin(car.a)*car.W*0.34, oy=Math.cos(car.a)*car.W*0.34;
+    skid.push({x:car.x+rx+ox,y:car.y+ry+oy,a:car.a});
+    skid.push({x:car.x+rx-ox,y:car.y+ry-oy,a:car.a});
+    while(skid.length>SKID_MAX) skid.shift();
   }
 
   collide();
-  collideTerrain(car, TERRAIN_SLOPE_CAR, 0.35);
+  collideTerrain(car,TERRAIN_SLOPE_CAR,0.35);
   collideParked(car); collideLamps(car); collideSignals(car); collideTrees(car); collideRoundabouts(car); collideFences(car); collideGraves(car);
   carVsTraffic();
   carVsPeds();
-  if(!car.dead && car.maxHp && car.hp>0 && car.hp<car.maxHp*0.08) damageCar(car, 1.4*dt, car.x, car.y, "burn");
+  if(!car.dead&&car.maxHp&&car.hp>0&&car.hp<car.maxHp*0.08) damageCar(car,1.4*dt,car.x,car.y,"burn");
 }
 
 function collide(){ collideCircleBuildings(car, 0.25); collideMega(car,0.35); }
@@ -118,9 +146,12 @@ function updatePed(dt){
 /* ---------- camera ---------- */
 const cam = {x:car.x, y:car.y};
 function updateCam(dt){
-  const a = mode==="car" ? car : ped;
-  const tx = a.x + a.vx*0.18, ty = a.y + a.vy*0.18;     // slight look-ahead
-  cam.x += (tx-cam.x)*Math.min(1,8*dt);
-  cam.y += (ty-cam.y)*Math.min(1,8*dt);
+  const a=mode==="car"?car:ped;
+  const spd=mode==="car"?Math.hypot(car.vx,car.vy):Math.hypot(ped.vx,ped.vy);
+  const lead=mode==="car"?clamp(spd*0.22,0,120):0;
+  const tx=a.x+Math.cos(a.a)*lead, ty=a.y+Math.sin(a.a)*lead;
+  const ease=mode==="car"?Math.min(1,6+spd*0.012):8;
+  cam.x+=(tx-cam.x)*Math.min(1,ease*dt);
+  cam.y+=(ty-cam.y)*Math.min(1,ease*dt);
 }
 
