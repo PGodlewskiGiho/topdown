@@ -31,7 +31,8 @@ const ped = { x:car.x, y:car.y, a:0, vx:0, vy:0, r:9, walk:96, run:178 };
 const ENGINE = 340, BRAKE = 780, REVERSE = 165;
 const AIR = 0.48, AIR2 = 0.0016;   // linear + quadratic drag
 const ROLL = 52;
-const TURN = 2.85;
+const TURN = 2.85;                 // legacy ref; steering via 52-driving-model
+const ENGINE_BRAKE = 118;          // coast decel (px/s²) — mirrored in DRIVE_ENGINE_BRAKE
 const GRIP = 11.5, GRIP_HB = 2.35;
 const VK = {
   car:  {acc:1.0,  turn:1.0, grip:1.0, cap:0},

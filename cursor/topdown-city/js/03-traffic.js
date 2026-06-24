@@ -35,6 +35,8 @@ function placeTrafficOnEdge(c){
   const g=edgeGeom(c.ai,c.aj,c.bi,c.bj), p=bez(g.p0,g.cp,g.p1,c.t), tn=bezTan(g.p0,g.cp,g.p1,c.t), tl=Math.hypot(tn[0],tn[1])||1;
   const off=trafficRoadOffset(c, g.e.width, 1);
   c.x=p[0]-tn[1]/tl*off; c.y=p[1]+tn[0]/tl*off; c.a=Math.atan2(tn[1],tn[0]);
+  const sp=kmhToPx(c.speed||80);
+  c.vx=tn[0]/tl*sp; c.vy=tn[1]/tl*sp;
 }
 function spawnTrafficCell(){
   const ci=Math.round(focusX/GAP), cj=Math.round(focusY/GAP);
@@ -134,9 +136,67 @@ function isAhead(c,dx,dy,ox,oy,dist,lat){
   return fwd>0 && fwd<dist && side<lat;
 }
 function obstacleAhead(c,dx,dy){
-  if(isAhead(c,dx,dy,car.x,car.y,66,22)) return true;
-  for(const o of traffic){ if(o===c||o.state!=="drive") continue; if(isAhead(c,dx,dy,o.x,o.y,58,20)) return true; }
+  if(isAhead(c,dx,dy,car.x,car.y,72,24)) return true;
+  for(const o of traffic){ if(o===c||o.state!=="drive") continue; if(isAhead(c,dx,dy,o.x,o.y,64,22)) return true; }
   return false;
+}
+function obstacleDistAhead(c,dx,dy){
+  let best=1e9;
+  const scan=(ox,oy,dist,lat)=>{
+    const rx=ox-c.x, ry=oy-c.y, fwd=rx*dx+ry*dy, side=Math.abs(rx*(-dy)+ry*dx);
+    if(fwd>0 && fwd<dist && side<lat) best=Math.min(best, fwd);
+  };
+  scan(car.x,car.y,72,24);
+  for(const o of traffic){ if(o===c||o.state!=="drive") continue; scan(o.x,o.y,64,22); }
+  return best;
+}
+function pickAlternateLane(c, width){
+  const lanes=roadLanesPerSide(width);
+  const side=c.laneSide||1;
+  const curIdx=c.laneIdx!=null?c.laneIdx:0;
+  const opts=[];
+  for(let i=0;i<lanes;i++){
+    if(i===curIdx) continue;
+    if(Math.abs(i-curIdx)===1) opts.unshift(i);
+    else opts.push(i);
+  }
+  if(opts.length){
+    const idx=opts[0];
+    c.laneIdx=idx;
+    return side*trafficLaneOffset(width, idx);
+  }
+  const otherSide=-side;
+  const idx=(rng()*lanes)|0;
+  c.laneSide=otherSide; c.laneIdx=idx;
+  return otherSide*trafficLaneOffset(width, idx);
+}
+function updateTrafficDrivePhysics(c, g, fx, fy, targetX, targetY, targetSpeed, dt){
+  const cruisePx=kmhToPx(targetSpeed);
+  if(c.vx==null) c.vx=fx*cruisePx*0.4;
+  if(c.vy==null) c.vy=fy*cruisePx*0.4;
+  const body=driveVelBody(c.vx, c.vy, c.a);
+  let fwd=body.f, lat=body.l;
+  const desiredA=Math.atan2(fy, fx);
+  const dx=targetX-c.x, dy=targetY-c.y, dist=Math.hypot(dx, dy);
+  const steerIn=driveTrafficSteer(c, desiredA, dist, dt);
+  const accel=420*dt;
+  if(cruisePx>Math.abs(fwd)) fwd+=Math.min(cruisePx-Math.abs(fwd), accel)*Math.sign(cruisePx||1);
+  else fwd+=Math.sign(cruisePx-fwd)*Math.min(Math.abs(cruisePx-fwd), 560*dt);
+  if(Math.abs(fwd)>DRIVE_STEER_MIN_FWD||Math.abs(fwd)>8) c.a+=driveYawFromSteer(steerIn, fwd, 0.82, dt, false);
+  lat=driveApplyLatGrip(lat, fwd, 1, dt, 0.78, 10.5, 11.2);
+  const out=driveVelFromBody(fwd, lat, c.a);
+  c.vx=out.vx; c.vy=out.vy;
+  const px=c.x, py=c.y;
+  c.x+=c.vx*dt; c.y+=c.vy*dt;
+  if(dist>16){
+    const pull=clamp((dist-16)*0.06*dt, 0, 0.10);
+    c.x+=dx*pull; c.y+=dy*pull;
+  }
+  driveHeadingFromMotion(c, desiredA, dt);
+  if(Math.hypot(c.x-px, c.y-py)<0.4 && cruisePx>20){
+    c.x+=fx*cruisePx*dt*0.15;
+    c.y+=fy*cruisePx*dt*0.15;
+  }
 }
 function rejoinRoad(c){                                       // a stopped loose car returns to the road instead of vanishing
   const ci=Math.round(c.x/GAP), cj=Math.round(c.y/GAP); let best=null, bd=1e9;
@@ -267,46 +327,57 @@ function updateTrafficCar(c,dt){
   else {
     const g=edgeGeom(c.ai,c.aj,c.bi,c.bj);
     const tn=bezTan(g.p0,g.cp,g.p1,c.t), tl=Math.hypot(tn[0],tn[1])||1, fx=tn[0]/tl, fy=tn[1]/tl;
-    let target = obstacleAhead(c,fx,fy) ? 0 : c.cruise;
+    const edgeKey=c.ai+","+c.aj+","+c.bi+","+c.bj;
+    if(c._edgeKey!==edgeKey){
+      c._edgeKey=edgeKey;
+      assignTrafficLane(c, g.e.width);
+      c._laneOff=trafficRoadOffset(c, g.e.width, 1);
+      c._laneWant=c._laneOff;
+      c._laneHome=c._laneOff;
+      c._laneChangeT=0;
+    }
+    const blocked=obstacleAhead(c,fx,fy);
+    let targetSpeed=blocked?Math.min(c.cruise, 28):c.cruise;
+    if(blocked){
+      const dist=obstacleDistAhead(c,fx,fy);
+      if(dist<48) targetSpeed=Math.min(targetSpeed, dist*1.6);
+      if(!c._laneChangeT||c._laneChangeT<=0){
+        const alt=pickAlternateLane(c, g.e.width);
+        if(alt!=null){ c._laneWant=alt; c._laneChangeT=2.8; }
+        else if(dist<34) targetSpeed=0;
+      }
+    } else {
+      c._laneChangeT=Math.max(0,(c._laneChangeT||0)-dt);
+      if((c._laneChangeT||0)<=0 && c._laneHome!=null){
+        c._laneWant=c._laneHome;
+      }
+    }
+    driveLerpLaneOff(c, c._laneWant!=null?c._laneWant:(c._laneOff||0), dt);
     let stopT=1, redLight=false;
     if(isSignal(c.bi,c.bj)){ const axis=(c.bj===c.aj)?0:1;
-      if(signalState(c.bi,c.bj,axis)!=="green"){ redLight=true; stopT=1-(g.e.width*0.5+24)/g.e.len; if(c.t>=stopT-0.05) target=0; } }
+      if(signalState(c.bi,c.bj,axis)!=="green"){ redLight=true; stopT=1-(g.e.width*0.5+24)/g.e.len; if(c.t>=stopT-0.05) targetSpeed=0; } }
     if(typeof crossingBlocksRoad==="function"){
       const axis=(c.bj===c.aj)?0:1;
-      if(crossingBlocksRoad(c.bi,c.bj,axis)){ redLight=true; stopT=1-(g.e.width*0.5+24)/g.e.len; if(c.t>=stopT-0.05) target=0; }
+      if(crossingBlocksRoad(c.bi,c.bj,axis)){ redLight=true; stopT=1-(g.e.width*0.5+24)/g.e.len; if(c.t>=stopT-0.05) targetSpeed=0; }
     }
-    c.speed += (target-c.speed)*Math.min(1,3*dt);
-    { let budget=c.speed*dt, pp=bez(g.p0,g.cp,g.p1,c.t);             // walk the curve by true arc length -> constant px/frame on ANY curvature (no lurch/jump)
+    c.speed += (targetSpeed-c.speed)*Math.min(1,3.2*dt);
+    { let budget=c.speed*dt, pp=bez(g.p0,g.cp,g.p1,c.t);
       for(let s=0;s<48 && budget>0 && c.t<1;s++){ const nt=Math.min(1,c.t+0.025), np=bez(g.p0,g.cp,g.p1,nt), seg=Math.hypot(np[0]-pp[0],np[1]-pp[1]);
         if(seg<1e-6){ c.t=nt; continue; } if(seg<=budget){ budget-=seg; c.t=nt; pp=np; } else { c.t+=0.025*(budget/seg); budget=0; } } }
-    if(redLight && c.t>stopT){ c.t=stopT; c.speed=0; }
+    if(redLight && c.t>stopT){ c.t=stopT; c.speed=0; targetSpeed=0; }
     const rbN=isRoundabout(c.bi,c.bj);
     if(rbN && (c.t>=1 || Math.hypot(c.x-node(c.bi,c.bj)[0],c.y-node(c.bi,c.bj)[1]) < roundaboutR(c.bi,c.bj)+12)){
       enterRoundabout(c);
     } else if(c.t>=1){
       const nb=pickExit(c.ai,c.aj,c.bi,c.bj); c.ai=c.bi; c.aj=c.bj; c.bi=nb[0]; c.bj=nb[1]; c.t=0;
-      c.laneIdx=null; c.laneSide=null; c._edgeKey=null;
+      c.laneIdx=null; c.laneSide=null; c._edgeKey=null; c._laneWant=null; c._laneHome=null;
     } else {
       const tn2=bezTan(g.p0,g.cp,g.p1,c.t), tl2=Math.hypot(tn2[0],tn2[1])||1, fx2=tn2[0]/tl2, fy2=tn2[1]/tl2;
-      const edgeKey=c.ai+","+c.aj+","+c.bi+","+c.bj;
-      if(c._edgeKey!==edgeKey){
-        c._edgeKey=edgeKey;
-        assignTrafficLane(c, g.e.width);
-        c._laneOff=trafficRoadOffset(c, g.e.width, 1);
-      }
       const nodeBlend=Math.min(c.t/0.10, (1-c.t)/0.10, 1);
-      const off=c._laneOff*nodeBlend;
+      const off=(c._laneOff||0)*nodeBlend;
       const p=bez(g.p0,g.cp,g.p1,c.t);
-      const px=c.x, py=c.y;
-      c.x=p[0]-fy2*off; c.y=p[1]+fx2*off;
-      const mx=c.x-px, my=c.y-py, mv=Math.hypot(mx,my);
-      const ta=Math.atan2(fy2,fx2);
-      if(mv>1.2){
-        const va=Math.atan2(my,mx);
-        let da=va-c.a; while(da>Math.PI)da-=6.283185307; while(da<-Math.PI)da+=6.283185307;
-        if(Math.abs(da)<1.05) c.a+=da*Math.min(1,14*dt);
-        else c.a=ta;
-      } else c.a=ta;
+      const targetX=p[0]-fy2*off, targetY=p[1]+fx2*off;
+      updateTrafficDrivePhysics(c, g, fx2, fy2, targetX, targetY, c.speed, dt);
     }
   }
   collideParked(c); collideFences(c); collideGraves(c);
