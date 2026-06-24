@@ -65,6 +65,142 @@ function playerPos(){
   if(mode==="foot") return {x:ped.x,y:ped.y,r:ped.r};
   return null;
 }
+
+/* ── day rhythm + dens + anti-loop pathing ── */
+function wildHour(){ return typeof gameHour!=="undefined"?gameHour:12; }
+function wildDayPhase(h){
+  h=h??wildHour();
+  if(h<5.2||h>=21.8) return "night";
+  if(h<7.2) return "dawn";
+  if(h<17.5) return "day";
+  if(h<20.2) return "dusk";
+  return "night";
+}
+function wildIsNight(h){ return wildDayPhase(h)==="night"; }
+function wildDenOf(m){
+  if(m.kind==="bear"&&m.familyId){ const f=getFamily(m.familyId); return f?{x:f.hx,y:f.hy,r:f.denR||38,kind:"bear"}:null; }
+  if(m.kind==="deer"&&m.herdId){ const h=getHerd(m.herdId); return h?{x:h.hx,y:h.y,r:h.denR||32,kind:"deer"}:null; }
+  if(m.kind==="wolf"&&m.packId){ const p=getPack(m.packId); return p?{x:p.hx,y:p.hy,r:p.denR||34,kind:"wolf"}:null; }
+  if(m.kind==="boar") return {x:m.homeX,y:m.homeY,r:m.denR||28,kind:"boar"};
+  return null;
+}
+function wildAtDen(m,d){ if(!d) return false; return Math.hypot(m.x-d.x,m.y-d.y)<d.r+10; }
+function wildNearDen(m,d,pad){ if(!d) return false; return Math.hypot(m.x-d.x,m.y-d.y)<d.r+(pad||55); }
+function wildSetPath(m,x,y){ m.tx=x; m.ty=y; m._trail=[]; m._stuckT=0; }
+function wildFleeTarget(m,fromX,fromY,dist){
+  dist=dist||rand(200,320);
+  for(let t=0;t<22;t++){
+    const dx=m.x-fromX, dy=m.y-fromY, d=Math.hypot(dx,dy)||1;
+    const ang=Math.atan2(dy,dx)+(rng()-0.5)*1.4;
+    const tx=m.x+Math.cos(ang)*dist, ty=m.y+Math.sin(ang)*dist;
+    if(inForestAt(tx,ty)&&!inWater(tx,ty)&&!terrainSteepAt(tx,ty,TERRAIN_SLOPE_WALK)&&!inBuilding(tx,ty,18)){ wildSetPath(m,tx,ty); return true; }
+  }
+  wildWanderTarget(m,m.homeX,m.homeY); return false;
+}
+function wildGoDen(m,d){
+  if(!d) return;
+  wildSetPath(m,d.x+rand(-10,10),d.y+rand(-10,10));
+  m.state="return";
+}
+function wildGoalConflict(m,pp){
+  if(!pp) return false;
+  if(m.state==="flee"&&(m.targetKind==="player"||m.provokedT>0||m.state==="chase")) return true;
+  if((m.state==="chase"||m.state==="charge")&&m.fleeT>0) return true;
+  const td=Math.hypot(m.tx-m.x,m.ty-m.y);
+  if(m.state==="flee"&&td>16){
+    const vx=(m.tx-m.x)/td, vy=(m.ty-m.y)/td;
+    const px=pp.x-m.x, py=pp.y-m.y, pd=Math.hypot(px,py)||1;
+    if(vx*px/pd+vy*py/pd>0.45) return true;
+  }
+  return false;
+}
+function wildTrackStuck(m,dt){
+  if(!m.moving){ m._stuckT=0; return false; }
+  if(!m._trail) m._trail=[];
+  if(!m._trail.length||Math.hypot(m.x-m._trail[m._trail.length-1].x,m.y-m._trail[m._trail.length-1].y)>14)
+    m._trail.push({x:m.x,y:m.y});
+  while(m._trail.length>18) m._trail.shift();
+  if(m._trail.length<10) return false;
+  const a=m._trail[0], b=m._trail[m._trail.length-1];
+  let path=0;
+  for(let i=1;i<m._trail.length;i++) path+=Math.hypot(m._trail[i].x-m._trail[i-1].x,m._trail[i].y-m._trail[i-1].y);
+  const net=Math.hypot(b.x-a.x,b.y-a.y);
+  if(path>70&&net<32){ m._stuckT=(m._stuckT||0)+dt; if(m._stuckT>0.45) return true; }
+  else m._stuckT=Math.max(0,(m._stuckT||0)-dt*0.6);
+  return false;
+}
+function wildBreakLoop(m){
+  m._stuckT=0; m._trail=[];
+  const pp=playerPos();
+  if(pp&&(m.state==="flee"||m.fleeT>0||m.state==="avoid")){
+    wildFleeTarget(m,pp.x,pp.y,rand(240,360));
+    m.fleeT=Math.max(m.fleeT||0,2.2);
+    m.targetKind=null;
+    if(m.kind==="deer") m.state="flee";
+    else if(m.state==="chase"||m.state==="charge") m.state="wander";
+  } else if(pp&&m.provokedT>0){
+    m.targetKind="player"; m.state=m.kind==="boar"?"charge":"chase";
+    m.fleeT=0;
+  } else {
+    wildWanderTarget(m,m.homeX,m.homeY);
+    m.targetKind=null;
+    m.state=m.kind==="deer"?"graze":m.kind==="boar"?"root":m.kind==="wolf"?"patrol":"wander";
+  }
+  m.repick=rand(1.4,3.2);
+}
+function wildDisturbed(m,pp){
+  if(!pp) return false;
+  if(m.provokedT>0||m.state==="chase"||m.state==="attack"||m.state==="charge") return true;
+  const d=Math.hypot(pp.x-m.x,pp.y-m.y);
+  return d<(m.kind==="deer"?155:m.kind==="wolf"?120:100);
+}
+function wildApplyDayRhythm(m,dt){
+  if(wildDisturbed(m,playerPos())) return false;
+  const phase=wildDayPhase(), h=wildHour(), den=wildDenOf(m);
+  if(!den) return false;
+
+  if(phase==="night"){
+    if(!wildAtDen(m,den)){ wildGoDen(m,den); m.activity="sleep"; return false; }
+    m.state="sleep"; m.activity="sleep"; m.moving=false; m.tx=m.x; m.ty=m.y;
+    m.eatT=rand(2,5);
+    return true;
+  }
+  if(phase==="dawn"&&h<6.4){
+    if(wildAtDen(m,den)){ m.state="sleep"; m.activity="sleep"; m.moving=false; return true; }
+    wildGoDen(m,den); m.activity="sleep"; return false;
+  }
+  if(phase==="dusk"&&h>19.2){
+    if(!wildAtDen(m,den)){ wildGoDen(m,den); m.activity="return"; return false; }
+    if(rng()<dt*0.04){ m.state="sleep"; m.activity="sleep"; m.moving=false; return true; }
+  }
+  if(m.state==="sleep"){
+    if(phase==="day"||phase==="dusk"){
+      m.state=m.kind==="deer"?"graze":m.kind==="boar"?"root":m.kind==="wolf"?"patrol":"wander";
+      m.activity="eat";
+      wildWanderTarget(m,den.x,den.y,HOME_R*0.45);
+      m.repick=rand(2,4);
+    } else return true;
+  }
+  if(phase==="day"&&m.activity!=="eat"&&!m.provokedT){
+    m.activity="eat";
+    m.eatT=(m.eatT||0)-dt;
+    if(m.eatT<=0){
+      if(wildNearDen(m,den,90)||rng()<0.35){
+        m.state=m.kind==="deer"?"graze":m.kind==="boar"?"root":"wander";
+        m.moving=false;
+        m.eatT=rand(2.5,6);
+        if(rng()<0.45) wildWanderTarget(m,den.x,den.y,HOME_R*0.55);
+        return true;
+      }
+      wildWanderTarget(m,den.x,den.y,HOME_R*0.65);
+      m.repick=rand(3,6);
+      m.eatT=rand(4,9);
+    }
+  }
+  if(m.activity==="eat"&&m.eatT>0) m.eatT-=dt;
+  return false;
+}
+
 function pushWildFromBuildings(m){
   const ci=Math.floor((m.x-ROAD)/GAP), cj=Math.floor((m.y-ROAD)/GAP);
   for(let a=ci-1;a<=ci+1;a++) for(let c=cj-1;c<=cj+1;c++){
@@ -86,6 +222,12 @@ function wildWanderTarget(m,hx,hy,hr){
   m.tx=m.x+rand(-120,120); m.ty=m.y+rand(-120,120);
 }
 function wildMove(m,dt,destX,destY,spd){
+  if(destX!==undefined&&destY!==undefined){ m.tx=destX; m.ty=destY; }
+  if(m.state==="sleep"){ m.moving=false; return; }
+  if(m.activity==="eat"&&m.eatT>0&&spd<=0){ m.moving=false; return; }
+  const pp=playerPos();
+  if(wildGoalConflict(m,pp)||wildTrackStuck(m,dt)) wildBreakLoop(m);
+  destX=m.tx; destY=m.ty;
   const dx=destX-m.x, dy=destY-m.y, d=Math.hypot(dx,dy)||1;
   if(d>8){
     m.a=Math.atan2(dy,dx);
@@ -104,6 +246,7 @@ function wildMove(m,dt,destX,destY,spd){
     if(!inWater(px,m.y)) m.x=px; else if(!inWater(m.x,py)) m.y=py;
     else wildWanderTarget(m,m.homeX,m.homeY);
   }
+  if(wildTrackStuck(m,dt)) wildBreakLoop(m);
 }
 function wildTargetPos(m){
   if(m.targetKind==="player"){
@@ -170,7 +313,7 @@ function makeBear(x,y,fam,opts){
     repick:rand(1.5,4), speed:rand(52,78)*scale, run:rand(95,128)*scale,
     attackCd:rand(0.3,0.9), attackCdBase:0.82, attackT:0, walkT:rng()*0.5, moving:false,
     target:null, targetKind:null, roarCd:0,
-    provokedT:0, fleeT:0,
+    provokedT:0, fleeT:0, activity:"wander", eatT:rand(2,5),
   };
 }
 function spawnBearFamily(){
@@ -181,7 +324,7 @@ function spawnBearFamily(){
     let ok=true;
     for(const f of bearFamilies) if(Math.hypot(f.hx-hx,f.hy-hy)<520) ok=false;
     if(!ok) continue;
-    const fam={id:nextFamilyId++, hx, hy, hunger:rand(0.08,0.35), anger:0};
+    const fam={id:nextFamilyId++, hx, hy, hunger:rand(0.08,0.35), anger:0, denR:34+rand(0,10)};
     bearFamilies.push(fam);
     const adults=rand(1,2)|0, cubs=rng()<0.55?1:0, n=adults+cubs;
     const spawned=[];
@@ -223,6 +366,7 @@ function bearHit(b,dmg,kx,ky,bloodAmt){
 }
 function killBear(b){ killWildMammal(b,bears); }
 function updateBear(b,dt){
+  if(wildApplyDayRhythm(b,dt) && (b.state==="sleep"||(b.activity==="eat"&&b.eatT>0))) return;
   const fam=getFamily(b.familyId);
   if(fam){
     fam.hunger=Math.min(1,fam.hunger+dt*0.000018);
@@ -237,13 +381,17 @@ function updateBear(b,dt){
   if(pp){
     const d=Math.hypot(pp.x-b.x,pp.y-b.y);
     const hungry=fam&&fam.hunger>0.82, angry=fam&&fam.anger>0.55;
-    if(b.provokedT>0||angry||(hungry&&d<130)||(fam&&fam.hunger>0.65&&d<95)){
-      b.state="chase"; b.targetKind="player"; b.fleeT=0;
+    const wantsFight=b.provokedT>0||angry||(hungry&&d<130)||(fam&&fam.hunger>0.65&&d<95);
+    const wantsFlee=!wantsFight&&!angry&&(!hungry||d>175)&&d<175&&(!fam||fam.hunger<0.75);
+    if(wantsFight){
+      b.state="chase"; b.targetKind="player"; b.fleeT=0; b.activity="hunt";
       if(b.roarCd<=0&&d<110){ b.roarCd=3.5; playBoom(0.06); if(typeof playForestBearGrowl==="function") playForestBearGrowl(0.16); }
-    } else if(!b.provokedT&&!angry&&(!hungry||d>175)&&d<175&&(!fam||fam.hunger<0.75)){
-      b.state="flee"; b.targetKind=null;
-      destX=b.x+(b.x-pp.x)/d*220; destY=b.y+(b.y-pp.y)/d*220; spd=b.run*1.05;
-    } else if(b.state==="chase"||b.state==="attack"){ b.state="wander"; b.targetKind=null; b.repick=rand(0.6,1.6); }
+    } else if(wantsFlee){
+      b.state="flee"; b.targetKind=null; b.provokedT=0;
+      wildFleeTarget(b,pp.x,pp.y,220); destX=b.tx; destY=b.ty; spd=b.run*1.05;
+    } else if(b.state==="chase"||b.state==="attack"){
+      b.state="wander"; b.targetKind=null; b.repick=rand(0.6,1.6);
+    }
   } else if(b.state==="chase"||b.state==="attack"){ b.state="wander"; b.targetKind=null; b.repick=0.8; }
 
   if(b.state==="chase"||b.state==="attack"){
@@ -256,6 +404,7 @@ function updateBear(b,dt){
   } else if(b.state!=="flee"){
     b.repick-=dt;
     if(b.repick<=0){ bearWanderTarget(b,fam); b.repick=rand(2.5,6); }
+    if(fam&&fam.hunger>0.55&&wildDayPhase()==="day"&&rng()<dt*0.05){ b.activity="eat"; b.eatT=rand(2,4); b.moving=false; destX=b.x; destY=b.y; spd=0; }
     if(fam){
       let cx=0,cy=0,n=0;
       for(const o of bears) if(o.familyId===fam.id){ cx+=o.x; cy+=o.y; n++; }
@@ -286,6 +435,7 @@ function makeDeer(x,y,herd,opts){
     repick:rand(2,5), speed:rand(36,52)*scale, run:rand(118,152)*scale,
     attackCd:9, attackCdBase:9, attackT:0, walkT:rng()*0.5, moving:false,
     target:null,targetKind:null, provokedT:0, fleeT:0, alertT:0,
+    activity:"graze", eatT:rand(2,5),
   };
 }
 function spawnDeerHerd(){
@@ -297,7 +447,7 @@ function spawnDeerHerd(){
     for(const h of deerHerds) if(Math.hypot(h.hx-hx,h.hy-hy)<480) ok=false;
     for(const f of bearFamilies) if(Math.hypot(f.hx-hx,f.hy-hy)<380) ok=false;
     if(!ok) continue;
-    const herd={id:nextHerdId++, hx,hy, spooked:0};
+    const herd={id:nextHerdId++, hx,hy, spooked:0, denR:28+rand(0,8)};
     deerHerds.push(herd);
     const n=4+(rng()*3|0), bucks=rng()<0.45?1:0;
     const spawned=[];
@@ -319,12 +469,14 @@ function spookDeerHerd(herdId,fromX,fromY,str){
   if(typeof playForestDeerSnort==="function"&&rng()<0.45) playForestDeerSnort(0.1+str*0.08);
   for(const d of deer){
     if(d.herdId!==herdId) continue;
+    if(d.state==="sleep") d.state="graze";
     d.state="flee"; d.fleeT=Math.max(d.fleeT,2.5); d.alertT=Math.max(d.alertT,4);
-    const dx=d.x-fromX, dy=d.y-fromY, dd=Math.hypot(dx,dy)||1;
-    d.tx=d.x+dx/dd*280; d.ty=d.y+dy/dd*280;
+    d.targetKind=null; d.provokedT=0;
+    wildFleeTarget(d,fromX,fromY,rand(260,340));
   }
 }
 function updateDeer(d,dt){
+  if(wildApplyDayRhythm(d,dt) && (d.state==="sleep"||(d.activity==="eat"&&d.eatT>0))) return;
   const herd=getHerd(d.herdId);
   if(herd&&herd.spooked>0) herd.spooked=Math.max(0,herd.spooked-dt*0.35);
   if(d.provokedT>0) d.provokedT=Math.max(0,d.provokedT-dt);
@@ -340,10 +492,9 @@ function updateDeer(d,dt){
       spookDeerHerd(d.herdId,pp.x,pp.y,carNear?1:0.65);
     }
     if(d.state==="flee"||d.fleeT>0||d.alertT>0){
-      d.state="flee";
-      destX=d.x+(d.x-pp.x)/(dist||1)*320;
-      destY=d.y+(d.y-pp.y)/(dist||1)*320;
-      spd=d.run;
+      d.state="flee"; d.targetKind=null;
+      if(Math.hypot(d.tx-d.x,d.ty-d.y)<40) wildFleeTarget(d,pp.x,pp.y,rand(280,360));
+      destX=d.tx; destY=d.ty; spd=d.run;
     } else if(dist<55&&d.buck){
       d.state="stand"; destX=d.x; destY=d.y; spd=0;
     } else if(d.state==="chase"){ d.state="graze"; d.targetKind=null; }
@@ -352,12 +503,13 @@ function updateDeer(d,dt){
   if(d.state==="graze"||d.state==="wander"){
     d.repick-=dt;
     if(d.repick<=0){ wildWanderTarget(d,d.homeX,d.homeY,HOME_R*0.9); d.repick=rand(3,7); }
-    if(herd){
+    if(d.activity==="eat"&&d.eatT>0){ destX=d.x; destY=d.y; spd=0; d.moving=false; }
+    else if(Math.random()<dt*0.08){ d.state="graze"; d.activity="eat"; d.eatT=rand(1.5,3.5); d.moving=false; destX=d.x; destY=d.y; spd=0; }
+    if(d.activity!=="eat"&&herd){
       let cx=0,cy=0,n=0;
       for(const o of deer) if(o.herdId===herd.id){ cx+=o.x; cy+=o.y; n++; }
       if(n>1){ cx/=n; cy/=n; d.tx+=(cx-d.tx)*0.018; d.ty+=(cy-d.ty)*0.018; }
     }
-    if(Math.random()<dt*0.08){ d.state="graze"; d.moving=false; }
   }
   wildMove(d,dt,destX,destY,spd);
   if(mode==="car"&&!car.dead){
@@ -379,6 +531,7 @@ function makeWolf(x,y,pack,opts){
     repick:rand(1.5,4), speed:rand(58,76)*scale, run:rand(102,138)*scale,
     attackCd:rand(0.2,0.7), attackCdBase:0.72, attackT:0, walkT:rng()*0.5, moving:false,
     target:null,targetKind:null, provokedT:0, stalkT:0,
+    activity:"patrol", eatT:rand(2,5),
     onHurt(w,killed){
       const pk=getPack(w.packId);
       if(pk) pk.aggro=Math.min(1,(pk.aggro||0)+0.45);
@@ -399,7 +552,7 @@ function spawnWolfPack(){
     let ok=true;
     for(const p of wolfPacks) if(Math.hypot(p.hx-hx,p.hy-hy)<540) ok=false;
     if(!ok) continue;
-    const pack={id:nextPackId++, hx,hy, hunger:rand(0.15,0.45), aggro:0};
+    const pack={id:nextPackId++, hx,hy, hunger:rand(0.15,0.45), aggro:0, denR:32+rand(0,10)};
     wolfPacks.push(pack);
     const n=2+(rng()*2|0);
     const spawned=[makeWolf(hx,hy,pack,{alpha:true})];
@@ -415,6 +568,7 @@ function spawnWolfPack(){
   return null;
 }
 function updateWolf(w,dt){
+  if(wildApplyDayRhythm(w,dt) && (w.state==="sleep"||(w.activity==="eat"&&w.eatT>0))) return;
   const pack=getPack(w.packId);
   if(pack){
     pack.hunger=Math.min(1,pack.hunger+dt*0.000022);
@@ -425,22 +579,21 @@ function updateWolf(w,dt){
 
   const pp=playerPos();
   let destX=w.tx, destY=w.ty, spd=w.speed;
-  const night=typeof gameHour!=="undefined"&&(gameHour<6||gameHour>20);
+  const night=wildIsNight();
   const hunt=(pack&&pack.aggro>0.35)||w.provokedT>0||(pack&&pack.hunger>0.72)||(night&&pack&&pack.hunger>0.5);
 
   if(pp){
     const d=Math.hypot(pp.x-w.x,pp.y-w.y);
     if(hunt&&d<155){
-      w.state="chase"; w.targetKind="player"; w.stalkT=0;
+      w.state="chase"; w.targetKind="player"; w.stalkT=0; w.fleeT=0; w.activity="hunt";
     } else if(hunt&&d<240){
-      w.state="stalk";
+      w.state="stalk"; w.targetKind=null;
       const flank=Math.atan2(pp.y-w.y,pp.x-w.x)+Math.PI*0.55*(w.alpha?1:-1);
-      destX=pp.x+Math.cos(flank)*120; destY=pp.y+Math.sin(flank)*120;
-      spd=w.run*0.72; w.stalkT=Math.max(w.stalkT,1.5);
+      wildSetPath(w,pp.x+Math.cos(flank)*120,pp.y+Math.sin(flank)*120);
+      destX=w.tx; destY=w.ty; spd=w.run*0.72; w.stalkT=Math.max(w.stalkT,1.5);
     } else if(!hunt&&d<130&&!w.provokedT){
-      w.state="avoid";
-      destX=w.x+(w.x-pp.x)/d*180; destY=w.y+(w.y-pp.y)/d*180;
-      spd=w.run*0.85;
+      w.state="avoid"; w.targetKind=null;
+      wildFleeTarget(w,pp.x,pp.y,180); destX=w.tx; destY=w.ty; spd=w.run*0.85;
     } else if(w.state==="chase"&&!hunt){ w.state="patrol"; w.targetKind=null; w.repick=0.8; }
   } else if(w.state==="chase"){ w.state="patrol"; w.targetKind=null; }
 
@@ -454,6 +607,7 @@ function updateWolf(w,dt){
   } else if(w.state!=="avoid"){
     w.repick-=dt;
     if(w.repick<=0){ wildWanderTarget(w,w.homeX,w.homeY); w.repick=rand(2,5); }
+    if(w.activity==="eat"&&w.eatT>0){ destX=w.x; destY=w.y; spd=0; }
     if(pack){
       let cx=0,cy=0,n=0;
       for(const o of wolves) if(o.packId===pack.id){ cx+=o.x; cy+=o.y; n++; }
@@ -482,6 +636,7 @@ function makeBoar(x,y,homeX,homeY){
     repick:rand(2,5), speed:rand(44,58)*scale, run:rand(108,132)*scale, charge:rand(118,148)*scale,
     attackCd:rand(0.15,0.55), attackCdBase:0.68, attackT:0, walkT:rng()*0.5, moving:false,
     target:null,targetKind:null, provokedT:0, chargeT:0,
+    activity:"root", eatT:rand(2,5), denR:24+rand(0,8),
     onHurt(b,killed){
       b.provokedT=Math.max(b.provokedT,killed?20:16);
       b.state="charge"; b.targetKind="player";
@@ -514,6 +669,7 @@ function spawnBoarGroup(){
   return null;
 }
 function updateBoar(b,dt){
+  if(wildApplyDayRhythm(b,dt) && (b.state==="sleep"||(b.activity==="eat"&&b.eatT>0))) return;
   if(b.provokedT>0) b.provokedT=Math.max(0,b.provokedT-dt);
   if(b.chargeT>0) b.chargeT=Math.max(0,b.chargeT-dt);
 
@@ -541,11 +697,12 @@ function updateBoar(b,dt){
   } else {
     b.repick-=dt;
     if(b.repick<=0){ wildWanderTarget(b,b.homeX,b.homeY,HOME_R*0.65); b.repick=rand(3,7); }
+    if(b.activity==="eat"&&b.eatT>0){ destX=b.x; destY=b.y; spd=0; b.moving=false; }
+    else if(Math.random()<dt*0.07){ b.state="root"; b.activity="eat"; b.eatT=rand(2,4); b.moving=false; destX=b.x; destY=b.y; spd=0; }
     if(b.hp/b.maxHp<0.28&&pp){
       const d=Math.hypot(pp.x-b.x,pp.y-b.y);
-      if(d<160){ destX=b.x+(b.x-pp.x)/d*140; destY=b.y+(b.y-pp.y)/d*140; spd=b.run; b.state="flee"; }
+      if(d<160){ wildFleeTarget(b,pp.x,pp.y,140); destX=b.tx; destY=b.ty; spd=b.run; b.state="flee"; }
     }
-    if(Math.random()<dt*0.06) b.moving=false;
   }
   wildMove(b,dt,destX,destY,spd);
   if(b.state==="attack"||b.state==="charge") wildTryAttack(b,dt,[16,26],[18,28]);
@@ -726,7 +883,46 @@ function updateWildlife(dt){
   if(wolfPacks.length<MAX_WOLF_PACKS&&wolfTimer<=0){ wolfTimer=rand(3,6); const g=spawnWolfPack(); if(g) wolves.push(...g); }
   if(boars.length<MAX_BOAR_GROUPS*2&&boarTimer<=0){ boarTimer=rand(2,4.5); const g=spawnBoarGroup(); if(g) boars.push(...g); }
 }
+function drawWildDen(d,kind){
+  if(!d) return;
+  const r=d.denR||32;
+  ctx.fillStyle="rgba(18,14,10,0.28)"; ctx.beginPath(); ctx.ellipse(d.x+2,d.y+3,r*1.05,r*0.72,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(42,34,26,0.55)"; ctx.beginPath(); ctx.ellipse(d.x,d.y,r,r*0.62,0,0,7); ctx.fill();
+  ctx.fillStyle="rgba(28,22,16,0.85)"; ctx.beginPath(); ctx.ellipse(d.x,d.y,r*0.38,r*0.28,0,0,7); ctx.fill();
+  if(kind==="wolf"||kind==="bear"){
+    ctx.fillStyle="rgba(52,44,36,0.35)"; ctx.beginPath(); ctx.ellipse(d.x-r*0.55,d.y+r*0.08,r*0.22,r*0.16,0,0,7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(d.x+r*0.55,d.y+r*0.08,r*0.22,r*0.16,0,0,7); ctx.fill();
+  }
+  ctx.fillStyle="rgba(48,72,38,0.22)"; ctx.beginPath(); ctx.ellipse(d.x-r*0.3,d.y+r*0.35,r*0.35,r*0.18,0,0,7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(d.x+r*0.25,d.y+r*0.32,r*0.3,r*0.16,0,0,7); ctx.fill();
+}
+function drawWildDens(ox,oy){
+  const seen=new Set();
+  for(const f of bearFamilies){
+    if(seen.has("b"+f.id)) continue;
+    if(f.hx<ox-80||f.hx>ox+VW+80||f.hy<oy-80||f.hy>oy+VH+80) continue;
+    seen.add("b"+f.id); drawWildDen({x:f.hx,y:f.hy,denR:f.denR},"bear");
+  }
+  for(const h of deerHerds){
+    if(seen.has("d"+h.id)) continue;
+    if(h.hx<ox-80||h.hx>ox+VW+80||h.hy<oy-80||h.hy>oy+VH+80) continue;
+    seen.add("d"+h.id); drawWildDen({x:h.hx,y:h.hy,denR:h.denR},"deer");
+  }
+  for(const p of wolfPacks){
+    if(seen.has("w"+p.id)) continue;
+    if(p.hx<ox-80||p.hx>ox+VW+80||p.hy<oy-80||p.hy>oy+VH+80) continue;
+    seen.add("w"+p.id); drawWildDen({x:p.hx,y:p.hy,denR:p.denR},"wolf");
+  }
+  for(const b of boars){
+    const k="o"+b.homeX+","+b.homeY;
+    if(seen.has(k)) continue;
+    if(b.homeX<ox-80||b.homeX>ox+VW+80||b.homeY<oy-80||b.homeY>oy+VH+80) continue;
+    seen.add(k); drawWildDen({x:b.homeX,y:b.homeY,denR:b.denR},"boar");
+  }
+}
+
 function drawWildlife(ox,oy){
+  drawWildDens(ox,oy);
   for(const d of deer) if(d.x>=ox-60&&d.x<=ox+VW+60&&d.y>=oy-60&&d.y<=oy+VH+60) drawForestMammal(d);
   for(const b of boars) if(b.x>=ox-60&&b.x<=ox+VW+60&&b.y>=oy-60&&b.y<=oy+VH+60) drawForestMammal(b);
   for(const w of wolves) if(w.x>=ox-60&&w.x<=ox+VW+60&&w.y>=oy-60&&w.y<=oy+VH+60) drawForestMammal(w);
