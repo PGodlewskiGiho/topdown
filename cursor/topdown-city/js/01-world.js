@@ -682,24 +682,6 @@ function drawRoads(ox,oy){
       fillRoadSurface(A[0],A[1],jr,js.tex,js.col);
     }
   }
-  // lane markings — short dashes between lanes + double centre on fast roads
-  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
-    for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||!e.markings||e.bridge) continue;
-      if(isRoundabout(i,j)||isRoundabout(i+di,j+dj)) continue;
-      const halfLanes=Math.max(1, Math.floor((e.width*0.5-10)/ROAD_LANE_W));
-      for(let k=1;k<halfLanes;k++){ const off=k*ROAD_LANE_W;
-        if(off>e.width*0.5-10) break;
-        strokeEdgeOffset(i,j,di,dj, off,1.1,"rgba(225,228,233,.48)",[5,9]);
-        strokeEdgeOffset(i,j,di,dj,-off,1.1,"rgba(225,228,233,.48)",[5,9]);
-      }
-      if(e.hwy||e.klass==="blvd"){
-        strokeEdgeOffset(i,j,di,dj, 2.2, 2.0, "rgba(222,206,96,.88)");
-        strokeEdgeOffset(i,j,di,dj,-2.2, 2.0, "rgba(222,206,96,.88)");
-      } else {
-        strokeEdge(i,j,di,dj, 2.2, "rgba(216,197,74,.68)", [8,12]);
-      }
-    }
-  }
 }
 function lotRng(i,j){
   const s=(Math.imul(i|0,374761393)^Math.imul(j|0,668265263)^Math.imul(worldSeed|0,1597334677))>>>0;
@@ -1990,7 +1972,7 @@ function getLot(i,j){
     }
     }
   }
-  const pn=(r()*2.2)|0; for(let k=0;k<pn;k++) lot.puddles.push({x:left+r()*lw, y:top+r()*lh, rx:8+r()*22, ry:5+r()*12});
+  const pn=0;
   if(!lot.mega && !lot.water && !lot.mountain && !lot.parking && !lot.salon && !lot.gunshop && !lot.farm) addCurbside(lot,i,j,r);
   if(biome==="city" && !lot.mega && !lot.water && !lot.mountain && !lot.parking && !lot.salon && !lot.gunshop && !lot.motodealer && !lot.cemetery && !lot.farm) addStreetTrees(lot,i,j,r);
   if(!lot.mega && !lot.water && !lot.mountain) addLamps(lot,i,j,r);

@@ -69,26 +69,7 @@ function spawnRainPuddle(x,y){
 }
 function updateRainPuddles(dt){
   puddleT+=dt;
-  const drying=weatherI<0.14;
-  for(let i=rainPuddles.length-1;i>=0;i--){
-    const p=rainPuddles[i];
-    if(drying) p.size-=dt*(0.10+0.18*(1-weatherI));
-    else if(weatherI>0.18) p.size=Math.min(1, p.size+dt*(0.12+weatherI*0.42));
-    const d=puddleDims(p);
-    p.rx=d.rx; p.ry=d.ry;
-    if(p.size<=0.03){ rainPuddles.splice(i,1); continue; }
-    if(weatherI>0.35) p.ripple=(p.ripple||0)+dt*(2.4+weatherI*3.2);
-  }
-  if(weatherI<0.22||rainPuddles.length>=MAX_RAIN_PUDDLES) return;
-  let budget=Math.ceil(dt*(6+weatherI*28)*wetness);
-  while(budget-->0){
-    const x=focusX+(Math.random()-0.5)*VW*0.92, y=focusY+(Math.random()-0.5)*VH*0.92;
-    if(!nearPavedSurface(x,y)) continue;
-    const rx0=7+Math.random()*22, ry0=rx0*0.55;
-    if(puddleTooClose(x,y,rx0,ry0)) continue;
-    spawnRainPuddle(x,y);
-    if(rainPuddles.length>=MAX_RAIN_PUDDLES) break;
-  }
+  if(rainPuddles.length) rainPuddles.length=0;
 }
 function puddleParallax(p){
   const px=(p.x-cam.x)*0.045, py=(p.y-cam.y)*0.028;
@@ -167,109 +148,8 @@ function collectPuddlesInView(ox,oy){
   }
   return out;
 }
-function drawPuddleBody(p){
-  const {rx,ry}=puddleDims(p);
-  if(rx<1.4) return;
-  const a=clamp(0.10+0.22*wetness*(p.size!=null?p.size:1),0,0.32);
-  const [gr,gg,gb]=puddleGroundTint(p.x,p.y);
-  const R=Math.max(rx,ry*0.92);
-  ctx.save(); ctx.translate(p.x,p.y); ctx.rotate((p.a||0)*0.15);
-  const g=ctx.createRadialGradient(0,0,R*0.08, 0,0,R*1.05);
-  g.addColorStop(0,`rgba(${gr-6|0},${gg-4|0},${gb-2|0},${a.toFixed(3)})`);
-  g.addColorStop(0.55,`rgba(${gr-12|0},${gg-8|0},${gb-6|0},${(a*0.45).toFixed(3)})`);
-  g.addColorStop(1,"rgba(0,0,0,0)");
-  ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(0,0,R,R*0.88,0,0,7); ctx.fill();
-  ctx.restore();
-}
-function drawPuddleReflections(ox,oy){
-  return;
-  if(wetness<0.06) return;
-  let puddles=collectPuddlesInView(ox,oy);
-  if(!puddles.length) return;
-  if(puddles.length>MAX_PUDDLE_REFL){
-    puddles=puddles.slice().sort((a,b)=>puddleReflPriority(b,ox,oy)-puddleReflPriority(a,ox,oy)).slice(0,MAX_PUDDLE_REFL);
-  }
-  const N=typeof nightFactor!=="undefined"?nightFactor(gameHour):0.35;
-  const skyTop=lerp(150,40,N)|0, skyMid=lerp(190,70,N)|0;
-  const sun=typeof sunShadow!=="undefined"?sunShadow(gameHour):null;
-  for(const p of puddles){
-    const {rx,ry}=puddleDims(p);
-    if(rx<2) continue;
-    const str=clamp(0.2+0.85*wetness*(p.size!=null?p.size:1),0,1);
-    const {px,py,rip}=puddleParallax(p);
-    ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a||0);
-    ctx.beginPath(); ctx.ellipse(0,0,rx,ry,0,0,7); ctx.clip();
-    const sky=ctx.createLinearGradient(px*0.5,-ry+py*0.3, px*0.3,ry*0.4);
-    sky.addColorStop(0,`rgba(${skyTop},${skyMid+20},${skyMid+40},${(0.32*str).toFixed(3)})`);
-    sky.addColorStop(0.5,`rgba(${skyMid},${skyMid+10},${skyMid+30},${(0.12*str).toFixed(3)})`);
-    sky.addColorStop(1,"rgba(0,0,0,0)");
-    ctx.fillStyle=sky; ctx.beginPath(); ctx.ellipse(px*0.25,-ry*0.06+py*0.2,rx*0.94,ry*0.64,0,0,7); ctx.fill();
-    if(sun&&N<0.72){
-      const warm=`rgba(255,${200-(N*40|0)},${120-(N*30|0)},${(0.18*str*sun).toFixed(3)})`;
-      ctx.fillStyle=warm;
-      ctx.beginPath(); ctx.ellipse(px*0.4+rx*0.1,-ry*0.22,rx*0.28,ry*0.14,0,0,7); ctx.fill();
-    }
-    if(flash>0.02){
-      ctx.fillStyle=`rgba(220,235,255,${(flash*0.38*str).toFixed(3)})`;
-      ctx.beginPath(); ctx.ellipse(0,0,rx*0.7,ry*0.7,0,0,7); ctx.fill();
-    }
-    for(const b of getPuddleBuildingRefs(p,rx,ry)){
-      const dx=b.bx-p.x, dy=b.by-p.y;
-      const fall=1-Math.hypot(dx,dy)/(rx*2.2+ry*1.8+b.bh);
-      if(fall<=0) continue;
-      const fa=0.22*str*fall*fall;
-      const mx=dx*0.08+px*0.35, my=Math.abs(dy)*0.42+py*0.25+rip;
-      const rw=Math.min(rx*0.9,b.bw*0.22), rh=Math.min(ry*0.85,b.bh*0.14);
-      ctx.save(); ctx.translate(mx,my); ctx.globalAlpha=fa;
-      ctx.fillStyle=b.roof; ctx.fillRect(-rw*0.5,-rh*0.35,rw,rh*0.4);
-      ctx.fillStyle=b.wall; ctx.fillRect(-rw*0.5,rh*0.05,rw,rh*0.55);
-      ctx.restore();
-    }
-    const reflectors=[];
-    const pushRef=(x,y,w,h,ang,col,kind)=>{
-      if(x<ox-120||x>ox+VW+120||y<oy-120||y>oy+VH+120) return;
-      const dx=x-p.x, dy=y-p.y;
-      if(Math.hypot(dx,dy)>rx*2.8+ry*2.2+50) return;
-      reflectors.push({x,y,w,h,ang,col,kind,dx,dy});
-    };
-    if(typeof car!=="undefined"&&!car.dead) pushRef(car.x,car.y,car.W||36,car.L||80,car.a,car.color,"veh");
-    for(const c of traffic){ if(!c.dead) pushRef(c.x,c.y,c.W||32,c.L||58,c.a,c.color,"veh"); }
-    for(const c of cops){ if(!c.dead) pushRef(c.x,c.y,c.W||40,c.L||88,c.a,c.color,"veh"); }
-    for(const ped of peds){ if(ped.state!=="down") pushRef(ped.x,ped.y,10,10,ped.a,ped.shirt||"#888","ped"); }
-    const li0=Math.floor((ox-ROAD)/GAP)-1,li1=Math.floor((ox+VW)/GAP)+1,lj0=Math.floor((oy-ROAD)/GAP)-1,lj1=Math.floor((oy+VH)/GAP)+1;
-    for(let i=li0;i<=li1;i++) for(let j=lj0;j<=lj1;j++){
-      const L=getLot(i,j); if(!L.lamps) continue;
-      for(const lm of L.lamps){ if(!lm.dead) pushRef(lm.hx,lm.hy,6,6,0,"#ffd898","lamp"); }
-    }
-    reflectors.sort((a,b)=>Math.hypot(a.dx,a.dy)-Math.hypot(b.dx,b.dy));
-    const reflSlice=reflectors.slice(0,MAX_PUDDLE_ENT_REFL);
-    for(const r of reflSlice){
-      const dist=Math.hypot(r.dx,r.dy), fall=1-dist/(rx*2.6+ry*2+48);
-      if(fall<=0) continue;
-      const fa=0.20*str*fall*fall;
-      const mx=r.dx*0.10+px*0.2, my=Math.abs(r.dy)*0.48+py*0.18+Math.sin(puddleT*3+r.dx*0.02)*0.6;
-      ctx.save();
-      ctx.translate(mx,my);
-      ctx.globalAlpha=fa;
-      if(r.kind==="lamp"){
-        const g=ctx.createLinearGradient(0,-ry*0.4,0,ry*0.5);
-        g.addColorStop(0,`rgba(255,220,160,${(0.9).toFixed(3)})`); g.addColorStop(1,"rgba(255,220,160,0)");
-        ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(0,0,2.8,ry*0.45,0,0,7); ctx.fill();
-      }else if(r.kind==="ped"){
-        ctx.fillStyle=r.col;
-        ctx.beginPath(); ctx.ellipse(0,0,3.2,2.2,r.ang,0,7); ctx.fill();
-      }else{
-        ctx.rotate(r.ang);
-        ctx.fillStyle=r.col;
-        ctx.beginPath(); ctx.ellipse(0,0,Math.max(4,r.w*0.34),Math.max(3,r.h*0.16),0,0,7); ctx.fill();
-        ctx.fillStyle="rgba(255,240,210,0.55)";
-        ctx.beginPath(); ctx.ellipse(r.h*0.08,0,2,1.2,0,0,7); ctx.fill();
-      }
-      ctx.restore();
-    }
-    ctx.restore();
-  }
-}
+function drawPuddleBody(p){}
+function drawPuddleReflections(ox,oy){}
 function cycleWeather(){ wIdx=(wIdx+1)%WPRESET.length; weatherTarget=WPRESET[wIdx]; weatherTimer=60; }
 function updateWeather(dt){
   weatherTimer-=dt;
@@ -324,8 +204,6 @@ function drawWet(ox,oy){
   }
   ctx.restore();
   if(typeof drawWetRoadReflections==="function") drawWetRoadReflections(ox,oy);
-  const puddles=collectPuddlesInView(ox,oy);
-  for(const p of puddles) drawPuddleBody(p);
 }
 function drawRain(){
   if(weatherI<0.02) return;

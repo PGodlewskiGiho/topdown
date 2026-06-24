@@ -149,15 +149,7 @@ function drawPuddleBodySim(sim,p,rx,ry,a){
   ctx.restore();
 }
 
-const _drawPuddleBodyOrig=typeof drawPuddleBody==="function"?drawPuddleBody:null;
-function drawPuddleBody(p){
-  const {rx,ry}=puddleDims(p);
-  if(rx<1.2||ry<0.8) return;
-  const a=clamp(0.35+0.65*wetness*(p.size!=null?p.size:1),0,1);
-  const sim=getWaterSim();
-  if(sim) drawPuddleBodySim(sim,p,rx,ry,a);
-  else if(_drawPuddleBodyOrig) _drawPuddleBodyOrig(p);
-}
+function drawPuddleBody(p){}
 
 Game.register({
   id:"puddle-water",
@@ -165,6 +157,7 @@ Game.register({
   update(dt){
     if(typeof gamePhase!=="undefined"&&gamePhase!=="playing") return;
     if((typeof wetness==="undefined"||wetness<0.02)&&(typeof weatherI==="undefined"||weatherI<0.06)) return;
-    updatePuddleWaterSim(dt);
+    const sim=getWaterSim();
+    if(sim) sim.step(dt);
   },
 });

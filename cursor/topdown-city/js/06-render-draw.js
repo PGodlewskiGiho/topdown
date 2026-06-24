@@ -150,10 +150,9 @@ function draw(){
   drawLamps(ox,oy);                                     // 3D lamp posts over vehicles
   drawSignals(ox,oy);                                   // 3D traffic-light posts over vehicles
   if(typeof perfEnd==="function") perfEnd("actors");
-  if(typeof perfBegin==="function") perfBegin("weather");
-  drawPuddleReflections(ox,oy);                           // sky + entity reflections in rain puddles
   drawCanopies(ox,oy);                                  // tree crowns over everything -> drive/walk under them
   if(typeof perfEnd==="function") perfEnd("trees");
+  if(typeof perfBegin==="function") perfBegin("weather");
   drawTreeWildlife(ox,oy);                              // squirrels on branches (above canopy layer)
   drawBirds(ox,oy);                                     // gulls over water + city pigeons
   drawWindLeaves(ox,oy);                                // forest leaves on the wind (scales with gusts)

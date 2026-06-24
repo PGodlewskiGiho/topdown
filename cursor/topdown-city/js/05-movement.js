@@ -58,14 +58,13 @@ function updateCar(dt){
     }
   }
 
-  const steerMul=h.turn*(0.42+0.58/(1+speed/118));
-  if(speed>2){
-    const dir=fwd<-3?-1:1;
+  const steerMul=h.turn*(0.38+0.52/(1+speed/95));
+  const minSteerSpd=14;
+  if(speed>minSteerSpd||Math.abs(fwd)>10){
+    const dir=fwd<-6?-1:1;
     let turnRate=steerIn*TURN*steerMul*dir;
-    if(hb&&speed>28) turnRate*=1.55+clamp(speed/220,0,0.45);
+    if(hb&&speed>32) turnRate*=1.45+clamp(speed/240,0,0.38);
     car.a+=turnRate*dt;
-  } else if(Math.abs(steerIn)>0.01&&(throttle||hb)){
-    car.a+=steerIn*TURN*h.turn*1.25*dt;
   }
 
   const c2=Math.cos(car.a), s2=Math.sin(car.a);
@@ -76,6 +75,7 @@ function updateCar(dt){
   const gripSpd=clamp(0.48+speed/95,0.48,1.55);
   let rearGrip=(hb?GRIP_HB:GRIP)*h.grip*surf*gripSpd*driftMul;
   let frontGrip=GRIP*h.grip*surf*gripSpd*1.04*driftMul;
+  if(!hb&&slipPre<0.28){ rearGrip*=1.42; frontGrip*=1.38; }
   if(hb){
     rearGrip*=0.42;
     frontGrip*=0.88;
@@ -91,6 +91,16 @@ function updateCar(dt){
 
   if(hb&&throttle>0&&speed>32&&Math.abs(steerIn)>0.05){
     f+=ENGINE*car.power*throttle*0.14*dt*(0.6+slipPre);
+  }
+
+  if(!hb&&speed>22&&slipPre<0.16){
+    const align=clamp(2.4*dt*(1-speed/(cap*1.05)),0,0.10);
+    const va=Math.atan2(car.vy,car.vx), sp=Math.hypot(car.vx,car.vy);
+    if(sp>0.5){
+      let da=car.a-va; while(da>Math.PI)da-=6.283185307; while(da<-Math.PI)da+=6.283185307;
+      const na=va+da*align;
+      car.vx=Math.cos(na)*sp; car.vy=Math.sin(na)*sp;
+    }
   }
 
   if(!hb&&speed>18&&slipPre<0.22){

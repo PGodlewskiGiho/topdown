@@ -285,13 +285,28 @@ function updateTrafficCar(c,dt){
       enterRoundabout(c);
     } else if(c.t>=1){
       const nb=pickExit(c.ai,c.aj,c.bi,c.bj); c.ai=c.bi; c.aj=c.bj; c.bi=nb[0]; c.bj=nb[1]; c.t=0;
-      c.laneIdx=null; c.laneSide=null;
+      c.laneIdx=null; c.laneSide=null; c._edgeKey=null;
     } else {
       const tn2=bezTan(g.p0,g.cp,g.p1,c.t), tl2=Math.hypot(tn2[0],tn2[1])||1, fx2=tn2[0]/tl2, fy2=tn2[1]/tl2;
-      const taper=Math.max(0,Math.min(1, c.t/0.18, (1-c.t)/0.18));      // lane offset fades to 0 at nodes -> no sideways jump on turns
-      const off=trafficRoadOffset(c, g.e.width, taper), p=bez(g.p0,g.cp,g.p1,c.t);
+      const edgeKey=c.ai+","+c.aj+","+c.bi+","+c.bj;
+      if(c._edgeKey!==edgeKey){
+        c._edgeKey=edgeKey;
+        assignTrafficLane(c, g.e.width);
+        c._laneOff=trafficRoadOffset(c, g.e.width, 1);
+      }
+      const nodeBlend=Math.min(c.t/0.10, (1-c.t)/0.10, 1);
+      const off=c._laneOff*nodeBlend;
+      const p=bez(g.p0,g.cp,g.p1,c.t);
+      const px=c.x, py=c.y;
       c.x=p[0]-fy2*off; c.y=p[1]+fx2*off;
-      let ta=Math.atan2(fy2,fx2), da=ta-c.a; while(da>Math.PI)da-=6.283185307; while(da<-Math.PI)da+=6.283185307; c.a+=da*Math.min(1,9*dt);   // smooth heading through curves
+      const mx=c.x-px, my=c.y-py, mv=Math.hypot(mx,my);
+      const ta=Math.atan2(fy2,fx2);
+      if(mv>1.2){
+        const va=Math.atan2(my,mx);
+        let da=va-c.a; while(da>Math.PI)da-=6.283185307; while(da<-Math.PI)da+=6.283185307;
+        if(Math.abs(da)<1.05) c.a+=da*Math.min(1,14*dt);
+        else c.a=ta;
+      } else c.a=ta;
     }
   }
   collideParked(c); collideFences(c); collideGraves(c);
