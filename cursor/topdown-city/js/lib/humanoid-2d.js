@@ -19,6 +19,7 @@ function normHex(col, fb){
 }
 
 function hShade(hex, amt){
+  if(!isFinite(amt)) amt=0;
   hex=normHex(hex);
   const n=parseInt(hex.slice(1),16);
   const r0=(n>>16)&255, g0=(n>>8)&255, b0=n&255;
@@ -177,8 +178,14 @@ function drawMohawk(c,hx,r,hair){
 }
 
 function drawTorso(c,tw,th,shirt,md,lit){
+  shirt=normHex(shirt);
+  lit=isFinite(lit)?clamp(lit,0,1):0.5;
+  tw=Math.max(1,isFinite(tw)?tw:8);
+  th=Math.max(1,isFinite(th)?th:8);
   const g=c.createRadialGradient(-tw*0.12,-th*0.08,th*0.08, 0,0, Math.max(tw,th));
-  g.addColorStop(0,hShade(shirt,clamp(lit*0.30,0,0.28))); g.addColorStop(0.55,shirt); g.addColorStop(1,hShade(shirt,-0.22));
+  g.addColorStop(0,normHex(hShade(shirt,clamp(lit*0.30,0,0.28))));
+  g.addColorStop(0.55,shirt);
+  g.addColorStop(1,normHex(hShade(shirt,-0.22)));
   c.fillStyle=g; c.beginPath(); c.ellipse(0,0,tw,th,0,0,7); c.fill();
   if(md.suit){
     c.fillStyle=hShade(shirt,-28); c.beginPath(); c.ellipse(-tw*0.38,0,tw*0.3,th*0.9,0,0,7); c.fill();
@@ -378,7 +385,7 @@ function draw(c,p,color,down){
   c.restore();
 }
 
-const Humanoid2D={draw,MODELS,ARCH_MODEL,resolveModel,
+const Humanoid2D={draw,MODELS,ARCH_MODEL,resolveModel,BUILD:20260624,
   modelForArchetype(id, age, build){
     if(id==="city_elder"||age==="senior") return "civilian";
     return ARCH_MODEL[id]||"civilian";
