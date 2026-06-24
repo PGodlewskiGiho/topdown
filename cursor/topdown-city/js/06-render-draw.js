@@ -152,6 +152,7 @@ function draw(){
   if(N<0.55){ const S=sunShadow(gameHour);                                // golden-hour warm sun wash
     if(S){ const warm=1-Math.sin(Math.PI*((gameHour-6.2)/13.1));
       if(warm>0.06){ ctx.fillStyle=`rgba(255,168,86,${(0.08*warm*(1-N)).toFixed(3)})`; ctx.fillRect(0,0,VW,VH); } } }
+  if(typeof drawSunFlareScreen==="function") drawSunFlareScreen();
   drawRain();
   vignette();
   drawCrosshair();
