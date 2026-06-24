@@ -3,12 +3,37 @@
 "use strict";
 
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
-const shade=typeof global.shade==="function"?global.shade:(hex,amt)=>{
-  const n=parseInt(hex.slice(1),16), r=(n>>16)&255, g=(n>>8)&255, b=n&255;
-  const f=amt>=0?255:0, t=Math.abs(amt);
-  const R=clamp((r+(f-r)*t)|0,0,255), G=clamp((g+(f-g)*t)|0,0,255), B=clamp((b+(f-b)*t)|0,0,255);
-  return "#"+((1<<24)+(R<<16)+(G<<8)+B).toString(16).slice(1);
-};
+
+function normHex(col, fb){
+  fb=fb||"#808080";
+  if(col==null||typeof col!=="string") return fb;
+  let h=col.trim();
+  if(!h) return fb;
+  if(!h.startsWith("#")) h="#"+h;
+  if(/^#[0-9a-fA-F]{3}$/.test(h)) return "#"+h[1]+h[1]+h[2]+h[2]+h[3]+h[3];
+  if(/^#[0-9a-fA-F]{6}$/.test(h)) return h.toLowerCase();
+  const n=parseInt(h.slice(1),16);
+  if(!isFinite(n)) return fb;
+  const r=clamp((n>>16)&255,0,255), g=clamp((n>>8)&255,0,255), b=clamp(n&255,0,255);
+  return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+
+function hShade(hex, amt){
+  hex=normHex(hex);
+  const n=parseInt(hex.slice(1),16);
+  const r0=(n>>16)&255, g0=(n>>8)&255, b0=n&255;
+  if(Math.abs(amt)>1.05){
+    const d=clamp(amt,-64,64)|0;
+    const r=clamp(r0+d,0,255), g=clamp(g0+d,0,255), b=clamp(b0+d,0,255);
+    return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+  }
+  const t=clamp(Math.abs(amt),0,1);
+  const f=amt>=0?255:0;
+  const r=clamp((r0+(f-r0)*t)|0,0,255);
+  const g=clamp((g0+(f-g0)*t)|0,0,255);
+  const b=clamp((b0+(f-b0)*t)|0,0,255);
+  return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
 
 /** Silhouette + pose modifiers per archetype. */
 const MODELS={
@@ -87,7 +112,7 @@ function paintBlood(c,p,down,r,tw,th){
 
 function drawHelmet(c,hx,r,col){
   c.fillStyle=col; c.beginPath(); c.arc(hx,-r*0.06,r*0.62,0,7); c.fill();
-  c.fillStyle=shade(col,-22); c.beginPath(); c.arc(hx+r*0.04,r*0.04,r*0.5,2.0,5.4); c.fill();
+  c.fillStyle=hShade(col,-22); c.beginPath(); c.arc(hx+r*0.04,r*0.04,r*0.5,2.0,5.4); c.fill();
   c.fillStyle="rgba(255,255,255,.12)"; c.beginPath(); c.arc(hx-r*0.12,-r*0.18,r*0.22,0,7); c.fill();
   c.strokeStyle="rgba(0,0,0,.28)"; c.lineWidth=1; c.beginPath(); c.arc(hx,0,r*0.58,0,7); c.stroke();
 }
@@ -100,7 +125,7 @@ function drawHardhat(c,hx,r){
 
 function drawBucketHat(c,hx,r,col){
   c.fillStyle=col; c.beginPath(); c.ellipse(hx,r*0.08,r*0.62,r*0.18,0,0,7); c.fill();
-  c.fillStyle=shade(col,-12); c.beginPath(); c.arc(hx,-r*0.02,r*0.48,0,7); c.fill();
+  c.fillStyle=hShade(col,-12); c.beginPath(); c.arc(hx,-r*0.02,r*0.48,0,7); c.fill();
 }
 
 function drawCurlyHair(c,hx,r,hair,headR){
@@ -109,12 +134,12 @@ function drawCurlyHair(c,hx,r,hair,headR){
     const a=i/7*6.283, rad=r*0.46;
     c.beginPath(); c.arc(hx+Math.cos(a)*rad*0.5, Math.sin(a)*rad*0.5, r*0.18, 0, 7); c.fill();
   }
-  c.fillStyle=shade(hair,-14); c.beginPath(); c.arc(hx,0,headR*0.92,0,7); c.fill();
+  c.fillStyle=hShade(hair,-14); c.beginPath(); c.arc(hx,0,headR*0.92,0,7); c.fill();
 }
 
 function drawBuzzHair(c,hx,r,hair){
   c.fillStyle=hair; c.beginPath(); c.arc(hx,0,r*0.52,0,7); c.fill();
-  c.fillStyle=shade(hair,-20); c.beginPath(); c.arc(hx+r*0.06,0,r*0.44,2.2,5.6); c.fill();
+  c.fillStyle=hShade(hair,-20); c.beginPath(); c.arc(hx+r*0.06,0,r*0.44,2.2,5.6); c.fill();
 }
 
 function drawBunHair(c,hx,r,hair){
@@ -153,10 +178,10 @@ function drawMohawk(c,hx,r,hair){
 
 function drawTorso(c,tw,th,shirt,md,lit){
   const g=c.createRadialGradient(-tw*0.12,-th*0.08,th*0.08, 0,0, Math.max(tw,th));
-  g.addColorStop(0,shade(shirt,lit*18)); g.addColorStop(0.55,shirt); g.addColorStop(1,shade(shirt,-22));
+  g.addColorStop(0,hShade(shirt,clamp(lit*0.30,0,0.28))); g.addColorStop(0.55,shirt); g.addColorStop(1,hShade(shirt,-0.22));
   c.fillStyle=g; c.beginPath(); c.ellipse(0,0,tw,th,0,0,7); c.fill();
   if(md.suit){
-    c.fillStyle=shade(shirt,-28); c.beginPath(); c.ellipse(-tw*0.38,0,tw*0.3,th*0.9,0,0,7); c.fill();
+    c.fillStyle=hShade(shirt,-28); c.beginPath(); c.ellipse(-tw*0.38,0,tw*0.3,th*0.9,0,0,7); c.fill();
     c.beginPath(); c.ellipse(tw*0.38,0,tw*0.3,th*0.9,0,0,7); c.fill();
     c.fillStyle=shirt; c.beginPath(); c.ellipse(0,-th*0.02,tw*0.48,th*0.62,0,0,7); c.fill();
   }
@@ -174,21 +199,25 @@ function drawTorso(c,tw,th,shirt,md,lit){
     }
   }
   if(md.raincoat){
-    c.fillStyle=shade(shirt,-8); c.beginPath(); c.ellipse(0,th*0.04,tw*1.08,th*1.2,0,0,7); c.fill();
+    c.fillStyle=hShade(shirt,-8); c.beginPath(); c.ellipse(0,th*0.04,tw*1.08,th*1.2,0,0,7); c.fill();
     c.strokeStyle="rgba(0,0,0,.18)"; c.lineWidth=1; c.beginPath(); c.moveTo(0,-th*0.5); c.lineTo(0,th*0.55); c.stroke();
   }
 }
 
 function draw(c,p,color,down){
-  const skin=p.skin||"#e8b888", shirt=p.shirt||color, pants=p.pants||"#2a3444";
-  const hair=("hair"in p)?p.hair:"#3a2a18", hat=p.hat||null, hatC=p.hatColor||"#444";
+  const skin=normHex(p.skin,"#e8b888");
+  const shirt=normHex(p.shirt||color,"#3a6ea5");
+  const pants=normHex(p.pants,"#2a3444");
+  let hair=("hair"in p)?p.hair:null;
+  if(hair!=null) hair=normHex(hair,"#3a2a18");
+  const hat=p.hat||null, hatC=normHex(p.hatColor,"#444444");
   const body=p.body||"male", hairStyle=p.hairStyle||(hair===null?"bald":"short"), beard=p.beard||null;
   const md=resolveModel(p);
   const br=body==="hardy"?1.14:body==="female"?0.9:1;
   const r=(p.r||9)*br;
   const lit=sunLit();
   const roundRect=(x,y,w,h,rad)=>{ c.beginPath(); c.roundRect(x,y,w,h,rad); };
-  const shoe=p.shoes||shade(pants,-42);
+  const shoe=p.shoes||hShade(pants,-42);
 
   c.save(); c.translate(p.x,p.y); c.rotate(p.a);
   if(md.hunch) c.translate(-r*md.hunch,0);
@@ -228,7 +257,7 @@ function draw(c,p,color,down){
   drawLeg(frontLeg?1:-1,true);
   drawLeg(frontLeg?-1:1,false);
 
-  const sleeve=shade(shirt,-14);
+  const sleeve=hShade(shirt,-14);
   c.fillStyle=sleeve;
   c.beginPath(); c.ellipse(-r*0.04-limb*0.18,r*0.6,r*0.22*md.shoulder,r*0.36,0.2,0,7); c.fill();
   c.beginPath(); c.ellipse(-r*0.04+limb*0.18,-r*0.6,r*0.22*md.shoulder,r*0.36,-0.2,0,7); c.fill();
@@ -237,23 +266,23 @@ function draw(c,p,color,down){
   c.beginPath(); c.arc(-r*0.02+limb*0.26,-r*0.74,r*0.13,0,7); c.fill();
 
   if(p.prop==="backpack"||md.bigPack){
-    const pc=p.propColor||"#5a5048";
+    const pc=normHex(p.propColor,"#5a5048");
     c.fillStyle=pc; c.beginPath(); c.ellipse(-tw*0.44,0,r*(md.bigPack?0.44:0.36),r*(md.bigPack?0.58:0.52),0,0,7); c.fill();
-    c.fillStyle=shade(pc,-18); c.beginPath(); c.ellipse(-tw*0.5,0,r*0.12,r*0.38,0,0,7); c.fill();
+    c.fillStyle=hShade(pc,-18); c.beginPath(); c.ellipse(-tw*0.5,0,r*0.12,r*0.38,0,0,7); c.fill();
   }
 
   if(p.shirtStyle==="coat"){
     drawTorso(c,tw*1.04,th*1.12,shirt,md,lit);
   } else if(p.shirtStyle==="jacket"){
     drawTorso(c,tw,th,shirt,md,lit);
-    c.fillStyle=shade(shirt,-22); c.beginPath(); c.ellipse(-tw*0.38,0,tw*0.34,th*0.88,0,0,7); c.fill();
+    c.fillStyle=hShade(shirt,-22); c.beginPath(); c.ellipse(-tw*0.38,0,tw*0.34,th*0.88,0,0,7); c.fill();
     c.beginPath(); c.ellipse(tw*0.38,0,tw*0.34,th*0.88,0,0,7); c.fill();
   } else if(p.shirtStyle==="vest"){
     drawTorso(c,tw,th,shirt,{...md,reflectVest:true},lit);
   } else {
     drawTorso(c,tw,th,shirt,md,lit);
     if(p.shirtStyle==="hoodie"||md.hoodie){
-      c.fillStyle=shade(shirt,8); c.beginPath(); c.ellipse(r*0.04,0,tw*0.38,th*0.55,0,0,7); c.fill();
+      c.fillStyle=hShade(shirt,8); c.beginPath(); c.ellipse(r*0.04,0,tw*0.38,th*0.55,0,0,7); c.fill();
     }
   }
 
@@ -269,10 +298,10 @@ function draw(c,p,color,down){
     c.fillStyle="#888"; c.fillRect(-tw*0.06,th*0.08,r*0.12,r*0.1);
   }
   if(md.pouches){
-    c.fillStyle=shade(shirt,-30); c.fillRect(-tw*0.3,th*0.02,tw*0.18,th*0.2); c.fillRect(tw*0.12,th*0.02,tw*0.18,th*0.2);
+    c.fillStyle=hShade(shirt,-30); c.fillRect(-tw*0.3,th*0.02,tw*0.18,th*0.2); c.fillRect(tw*0.12,th*0.02,tw*0.18,th*0.2);
   }
   if(p.accessory==="scarf"||md.layered){
-    c.fillStyle=p.scarfColor||shade(shirt,30);
+    c.fillStyle=p.scarfColor||hShade(shirt,30);
     c.beginPath(); c.ellipse(hx-r*0.12,0,r*0.28,r*0.14,0,0,7); c.fill();
     c.fillRect(hx-r*0.08,r*0.02,r*0.12,r*0.22);
   }
@@ -286,7 +315,7 @@ function draw(c,p,color,down){
     else if(hairStyle==="bun"&&hair&&!hat) drawBunHair(c,hx,r,hair);
     else if(hairStyle!=="bald"&&hair&&!hat){
       c.fillStyle=hair; c.beginPath(); c.arc(hx,0,r*0.58*md.head,0,7); c.fill();
-      c.fillStyle=shade(hair,-16); c.beginPath(); c.arc(hx-r*0.04,0,r*0.48*md.head,2.4,5.5); c.fill();
+      c.fillStyle=hShade(hair,-16); c.beginPath(); c.arc(hx-r*0.04,0,r*0.48*md.head,2.4,5.5); c.fill();
     }
     if(hairStyle==="ponytail"&&hair&&!hat){
       c.fillStyle=hair; c.beginPath(); c.ellipse(-r*0.62,-r*0.06,r*0.24,r*0.46,-0.55,0,7); c.fill();
@@ -298,7 +327,7 @@ function draw(c,p,color,down){
 
   if(!lost.head){
   c.fillStyle=skin; c.beginPath(); c.arc(hx,0,headR,0,7); c.fill();
-  c.fillStyle=shade(skin,lit*14); c.beginPath(); c.arc(hx+r*0.1,-r*0.1,r*0.15,0,7); c.fill();
+  c.fillStyle=hShade(skin,clamp(lit*0.22,0,0.20)); c.beginPath(); c.arc(hx+r*0.1,-r*0.1,r*0.15,0,7); c.fill();
   c.fillStyle="#1a1410";
   c.beginPath(); c.arc(hx+r*0.16,-r*0.11,r*0.055,0,7); c.fill();
   c.beginPath(); c.arc(hx+r*0.16,r*0.11,r*0.055,0,7); c.fill();
@@ -321,7 +350,7 @@ function draw(c,p,color,down){
   else if(md.bucketHat) drawBucketHat(c,hx,r,hatC);
   else if(!lost.hat&&hat==="cap"){
     c.fillStyle=hatC; c.beginPath(); c.arc(hx,-r*0.04,r*0.56,-2.1,2.1); c.fill();
-    c.fillStyle=shade(hatC,-18); c.fillRect(hx+r*0.38,-r*0.4,r*0.58,r*0.12);
+    c.fillStyle=hShade(hatC,-18); c.fillRect(hx+r*0.38,-r*0.4,r*0.58,r*0.12);
   } else if(!lost.hat&&hat==="beanie"){
     c.fillStyle=hatC; c.beginPath(); c.arc(hx,0,r*0.58,0,7); c.fill();
   } else if(!lost.hat&&hat==="hood"){
