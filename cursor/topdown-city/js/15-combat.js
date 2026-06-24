@@ -38,9 +38,14 @@ function pedHit(p,dmg,kx,ky,bloodAmt,noHeat){
   p._hp-=dmg;
   const ang=Math.atan2(ky,kx);
   stainCharacter(p,bloodAmt);
-  if(p._hp>0){ spawnBlood(p.x,p.y,kx,ky,0.35,ang); return; }
+  if(p._hp>0){
+    spawnBlood(p.x,p.y,kx,ky,0.35,ang);
+    if(!noHeat && dmg>=18 && typeof pedLifeCrimeWitness==="function") pedLifeCrimeWitness(p.x,p.y,0.35);
+    return;
+  }
   p.state="down"; p.vx=kx*0.5; p.vy=ky*0.5; p.downT=0;
   if(!noHeat) addHeat(p.armed?0.5:0.8);
+  if(typeof pedLifeCrimeWitness==="function") pedLifeCrimeWitness(p.x,p.y,0.9);
   spawnBlood(p.x,p.y,kx,ky,bloodAmt,ang);
   spawnBlood(p.x,p.y,kx*0.15,ky*0.15,bloodAmt*0.85,ang);
   if(p.armed && p.weapon!=null) dropWeapon(p.x,p.y,p.weapon);

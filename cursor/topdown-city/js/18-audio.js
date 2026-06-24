@@ -353,7 +353,8 @@ function playBicycleBell(){ if(!actx||!audioOn) return; const t0=actx.currentTim
     const g=actx.createGain(); g.gain.setValueAtTime(0.0001,tt); g.gain.exponentialRampToValueAtTime(0.2,tt+0.005); g.gain.exponentialRampToValueAtTime(0.001,tt+0.45);
     o.connect(g); g.connect(master); o.start(tt); o.stop(tt+0.5); }
 }
-function honk(){ initAudio(); if(mode!=="car") return; if(car.kind==="bike") playBicycleBell(); else playHorn(); }
+function honk(){ initAudio(); if(mode!=="car") return; if(car.kind==="bike") playBicycleBell(); else playHorn();
+  if(typeof alertPedsHonk==="function") alertPedsHonk(car.x,car.y); }
 function updateAudio(){
   if(!actx) return;
   const sp=Math.hypot(car.vx,car.vy);

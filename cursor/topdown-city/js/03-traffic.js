@@ -75,6 +75,7 @@ function spawnPed(){
           onGraph:false, pside: rng()<0.5?1:-1, pt:0, cross:0, crossProg:0, _wait:false, waitT:0, waitAxis:0,
           act:null, actCd:rand(4,12), chatT:0, bubT:0, partner:null, tcar:null, tlot:null, panic:0, threatX:0, threatY:0};
   applyNpcLook(p, look);
+  if(typeof initPedLife==="function") initPedLife(p);
   const nd=nearestCityNode(fx,fy);
   if(nd){ const nb=neighbors(nd[0],nd[1]); if(nb.length){
       p.pa=nd; p.pb=nb[(rng()*nb.length)|0]; p.pt=rng()*0.85+0.07; p.onGraph=true;
@@ -99,11 +100,21 @@ function trafficCap(){
 }
 function pedCap(){
   const ci=Math.round(focusX/GAP), cj=Math.round(focusY/GAP);
-  if(biomeOf(ci,cj)!=="city") return 42;
-  const z=cityZone(ci,cj);
-  if(z==="downtown") return 88;
-  if(z==="midrise") return 68;
-  return 46;
+  const biome=biomeOf(ci,cj);
+  let cap;
+  if(biome==="sea") cap=62;
+  else if(biome!=="city") cap=42;
+  else {
+    const z=cityZone(ci,cj);
+    if(z==="downtown") cap=88;
+    else if(z==="midrise") cap=68;
+    else cap=46;
+  }
+  const h=typeof gameHour!=="undefined"?gameHour:12;
+  const night=(h<6||h>22)?0.52:(h<7||h>21)?0.72:1;
+  if(biome==="sea" && h>=10 && h<=17) cap*=1.12;
+  if(typeof weatherI!=="undefined" && weatherI>0.45) cap*=0.84;
+  return Math.max(18, Math.round(cap*night));
 }
 function maintainTraffic(){
   const cap=trafficCap();
@@ -206,6 +217,7 @@ function pedPos(p,B){ B=B||pedBasis(p);
   return [B.pt[0]+B.nx*B.off*s, B.pt[1]+B.ny*B.off*s];
 }
 function pedPickTurn(p){
+  if(typeof pedPickTurnLife==="function" && p.dest && pedPickTurnLife(p)) return;
   const at=p.pb, from=p.pa;
   let nb=neighbors(at[0],at[1]).filter(n=>!(n[0]===from[0]&&n[1]===from[1]));
   if(!nb.length) nb=neighbors(at[0],at[1]);
@@ -220,6 +232,7 @@ function pedClear(p){ const c=node(p.pb[0],p.pb[1]);
 function pedStartCross(p){ const g=edgeGeom(p.pa[0],p.pa[1],p.pb[0],p.pb[1]);
   p._wait=false; p.cross=1; p.crossProg=0; p.crossW=g.e.width+22; }
 function pedDecide(p){
+  if(typeof pedDecideLife==="function" && pedDecideLife(p)) return;
   if(isPlaza(p.pb[0],p.pb[1]) && rng()<0.7){ pedEnterPlaza(p); return; }
   if(rng()<0.42){                                   // cross to the opposite sidewalk at this crosswalk
     p.waitAxis=(p.pb[1]===p.pa[1])?0:1; p._wait=true; p.waitT=0;
@@ -282,7 +295,9 @@ function updateTrafficCar(c,dt){
 }
 function alertPeds(x,y,R){
   for(const p of peds){ if(p.state==="down"||p.hostile) continue;
-    if((p.x-x)**2+(p.y-y)**2 < R*R){ p.panic=rand(2.4,4.2); p.threatX=x; p.threatY=y; p.act=null; p.onGraph=p.onGraph; } }
+    if((p.x-x)**2+(p.y-y)**2 < R*R){ p.panic=rand(2.4,4.2); p.threatX=x; p.threatY=y; p.act=null; p.idleAct=null; p.onGraph=p.onGraph;
+      if(typeof pedSay==="function" && rng()<0.35) pedSay(p,typeof PED_LINES!=="undefined"?PED_LINES.gun:["!"],1.8); } }
+  if(typeof pedLifeCrimeWitness==="function") pedLifeCrimeWitness(x,y,0.65);
 }
 function startChat(p){
   let q=null, bd=150*150;
@@ -292,6 +307,7 @@ function startChat(p){
   const T=rand(4,8);
   p.act="chat"; p.partner=q; p.chatT=T; p.talking=false;
   q.act="chat"; q.partner=p; q.chatT=T; q.talking=false; q.cross=0; q._wait=false;
+  if(typeof pedSay==="function"){ pedSay(p,PED_LINES.chat,2.2); pedSay(q,PED_LINES.chat,2); }
 }
 function startBoard(p){
   const ci=Math.floor((p.x-ROAD)/GAP), cj=Math.floor((p.y-ROAD)/GAP);
@@ -327,6 +343,8 @@ function updateNpcPed(p,dt){
   }
   if(Math.hypot(p.x-focusX,p.y-focusY)>1900){ respawnPed(p); return; }   // recycle distant peds
   if(p.bloodPulse>0) p.bloodPulse=Math.max(0,p.bloodPulse-dt*2.2);
+  const lifeMove=typeof updatePedLife==="function" && updatePedLife(p,dt);
+  if(!lifeMove){
   if(p.hostile){                                                          // armed & provoked -> shoots back
     const tgx=mode==="car"?car.x:ped.x, tgy=mode==="car"?car.y:ped.y;
     const dxp=tgx-p.x, dyp=tgy-p.y, dd=Math.hypot(dxp,dyp)||1;
@@ -369,8 +387,12 @@ function updateNpcPed(p,dt){
       p.x+=dx/d*p.speed*1.15*dt; p.y+=dy/d*p.speed*1.15*dt; }
     return;
   }
-  if(!p.hostile && !p.cross && !p._wait){ p.actCd-=dt;
-    if(p.actCd<=0){ p.actCd=rand(7,15); const roll=rng(); if(roll<0.5) startChat(p); else if(roll<0.72) startBoard(p); } }
+  if(!p.hostile && !p.cross && !p._wait && !p.idleAct){ p.actCd-=dt;
+    if(p.actCd<=0){ p.actCd=rand(7,15); const roll=rng();
+      if(roll<0.42) startChat(p);
+      else if(roll<0.58) startBoard(p);
+      else if(roll<0.72 && p.phone){ p.idleAct="phone"; p.idleT=rand(3,7); if(typeof pedSay==="function") pedSay(p,PED_LINES.phone,2); }
+    } }
   if(p.onGraph){ pedWalkGraph(p,dt); }
   else {
     if(p.plaza){                                                        // free roam inside a plaza, then rejoin the graph
@@ -391,6 +413,7 @@ function updateNpcPed(p,dt){
     p.a=Math.atan2(dy,dx);
     p.x+=dx/d*p.speed*dt; p.y+=dy/d*p.speed*dt;
   }
+  }
   { const ci=Math.floor((p.x-ROAD)/GAP), cj=Math.floor((p.y-ROAD)/GAP);
     for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){ const L=getLot(i,j); for(const b of L.buildings){
       const cx=clamp(p.x,b.x,b.x+b.w), cy=clamp(p.y,b.y,b.y+b.h), ex=p.x-cx, ey=p.y-cy, dd=Math.hypot(ex,ey);
@@ -398,6 +421,7 @@ function updateNpcPed(p,dt){
     } } }
   if(!p.onGraph) collideFences(p);
   p.vx=(p.x-_wx)/Math.max(dt,0.001); p.vy=(p.y-_wy)/Math.max(dt,0.001);
+  if(typeof pedLifeAfterMove==="function") pedLifeAfterMove(p,dt);
   } finally { if(inWater(p.x,p.y)){ p.x=_wx; p.y=_wy; p.vx=0; p.vy=0; } }
 }
 

@@ -80,6 +80,8 @@ function checkBiome(){
   if(b==="city"){ const c=nearestCity(i,j), loc="c"+c.id; if(loc!==curLoc){ curLoc=loc; showDistrict(c.name); } }
   else if(b==="forest"){ const ft=forestType(i,j), loc="f"+ft; if(loc!==curLoc){ curLoc=loc; showDistrict(FOREST_NAMES[ft]||BIOMES.forest.name); } }
   else if(b==="desert"){ const dt=desertType(i,j), loc="d"+dt; if(loc!==curLoc){ curLoc=loc; showDistrict(DESERT_NAMES[dt]||BIOMES.desert.name); } }
+  else if(b==="sea"){ const bt=typeof beachType==="function"?beachType(i,j):"sand", loc="s"+bt;
+    if(loc!==curLoc){ curLoc=loc; showDistrict((typeof BEACH_NAMES!=="undefined"?BEACH_NAMES:{})[bt]||BIOMES.sea.name); } }
   else if(b!==curLoc){ curLoc=b; showDistrict(BIOMES[b].name); }
 }
 initMini();
