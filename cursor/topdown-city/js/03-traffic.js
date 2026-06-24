@@ -232,6 +232,7 @@ function pedClear(p){ const c=node(p.pb[0],p.pb[1]);
 function pedStartCross(p){ const g=edgeGeom(p.pa[0],p.pa[1],p.pb[0],p.pb[1]);
   p._wait=false; p.cross=1; p.crossProg=0; p.crossW=g.e.width+22; }
 function pedDecide(p){
+  if(typeof isMarketNode==="function"&&isMarketNode(p.pb[0],p.pb[1])&&rng()<0.78){ pedEnterRynek(p); return; }
   if(isPlaza(p.pb[0],p.pb[1]) && rng()<0.7){ pedEnterPlaza(p); return; }
   if(rng()<0.42){                                   // cross to the opposite sidewalk at this crosswalk
     p.waitAxis=(p.pb[1]===p.pa[1])?0:1; p._wait=true; p.waitT=0;

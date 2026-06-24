@@ -758,6 +758,7 @@ function roadJunctionAtCell(i,j){
 }
 const CITY_SPAWN_PRESETS=[
   {i:0, j:0, label:"Vesper City — skrzyżowanie startowe"},
+  {i:4, j:3, label:"Rynek — Starówka Vesper City"},
   {i:1, j:2, label:"Salon samochodowy"},
   {i:2, j:1, label:"Sklep z bronią"},
   {i:8, j:6, label:"Peryferie Vesper City"},
@@ -839,11 +840,14 @@ function buildMotoDealer(lot){
 }
 const HOUSE_WALL=["#d9cdb8","#cbb89a","#c8d0d6","#d6c2b0","#bcc9b4","#e0d3c0","#c9b9c2"];
 const HOUSE_ROOF=["#9c4a3a","#7a4030","#5e6670","#8a5a3a","#4f5b66","#6a4a3a"];
+const OLD_TOWN_WALL=["#e8dcc8","#ddd0b8","#d4c4a8","#c9b89a","#e0d2c0","#cdb8a0","#b8a888"];
+const OLD_TOWN_ROOF=["#8b4518","#7a3a2a","#6a4a32","#5c4030","#9a5038","#704028"];
 const BLOK_WALL=["#b9b2a6","#ad9078","#9aa0a8","#c2b9ad","#9c8f86","#b0a690"];
 const TOWER_WALL=["#5d7e9a","#6f8ea8","#52718c","#7d96aa","#586d88","#6a8296"];
 const SHOP_WALL=["#cdbb96","#c2a87e","#b6bec4","#d0c4a8","#c8b0a0"];
 const SIGN_COL=["#c43a3a","#e0a32e","#2f7ec4","#3f9a52","#a23fa2","#e06a2e"];
 function cityZone(i,j){
+  if(typeof isOldTownCell==="function"&&isOldTownCell(i,j)) return "oldtown";
   const c=nearestCity(i,j), n=hsh(i,j,303), f=(c.dist+(n-0.5)*1.6)/c.R;
   if(f<0.48) return "downtown";                                // wider dense core
   if(f<0.82) return n<0.38?"downtown":"midrise";
@@ -864,6 +868,7 @@ const megaCellCache=new Map();
 function landmarkCell(i,j){
   if(i===1&&j===1) return false; if(i===1&&j===2) return false;          // spawn + salon
   if(i===2&&j===1) return false; if(i===2&&j===2) return false;          // gun shop + moto dealer
+  if(typeof isOldTownCell==="function"&&isOldTownCell(i,j)) return false;
   if(biomeOf(i,j)!=="city") return false;
   const z=cityZone(i,j);
   return z==="downtown"||z==="midrise";
@@ -1143,9 +1148,29 @@ function addBuilding(lot,bx,by,bw,bh,r,type){
     b.color=pick(["#bcb6a8","#c4bdae","#aca596"]); b.roofC=pick(["#46505a","#3f4a52","#574b42"]);
     b.floors=type==="church"?(8+(r()*13|0)):(5+(r()*8|0)); b.H=b.floors*(24+r()*6); b.chimney=null;
   } else { b.color=pick(HOUSE_WALL); b.roofC=pick(HOUSE_ROOF); b.H=16+r()*7;
+    if(lot.zone==="oldtown"||b.historic){ b.color=pick(OLD_TOWN_WALL); b.roofC=pick(OLD_TOWN_ROOF); b.historic=true; b.H=14+r()*9; }
     b.chimney=[bx+(r()<0.5?bw*0.2:bw*0.68), by+bh*0.2+r()*bh*0.4];
   }
   lot.buildings.push(b);
+}
+function placeOldTownBuildings(lot,r){
+  const m=8, x0=lot.x+m, y0=lot.y+m, w=lot.w-2*m, h=lot.h-2*m;
+  if(w<36||h<32) return;
+  const cols=Math.max(1,Math.round(w/150)), rows=Math.max(1,Math.round(h/130));
+  for(let cI=0;cI<cols;cI++) for(let rI=0;rI<rows;rI++){
+    if(r()<0.10) continue;
+    const pw=w/cols, ph=h/rows;
+    const bw=pw*(0.70+r()*0.20), bh=ph*(0.66+r()*0.18);
+    if(bw<20||bh<16) continue;
+    const cx=x0+cI*pw+pw*0.5, cy=y0+rI*ph+ph*0.5;
+    if(typeof inRynek==="function"&&inRynek(cx,cy)) continue;
+    const ty=r()<0.68?"house":(r()<0.5?"shop":"house");
+    addBuilding(lot, x0+cI*pw+(pw-bw)/2, y0+rI*ph+(ph-bh)/2, bw, bh, r, ty);
+    const b=lot.buildings[lot.buildings.length-1];
+    b.historic=true;
+    if(ty==="house"){ b.color=pick(OLD_TOWN_WALL); b.roofC=pick(OLD_TOWN_ROOF); }
+    else { b.color=pick(SHOP_WALL); b.sign=pick(SIGN_COL); }
+  }
 }
 function placeBuildings(lot, zone, r, biome){
   const m=zone==="downtown"?2:zone==="midrise"?4:10, x0=lot.x+m, y0=lot.y+m, w=lot.w-2*m, h=lot.h-2*m;
@@ -1617,6 +1642,7 @@ function genForestTrees(lot,r,ci,cj){
 }
 /* ===== plazas (open pedestrian squares) ===== */
 function isPlaza(i,j){
+  if(typeof isMarketNode==="function"&&isMarketNode(i,j)) return false;
   if(biomeOf(i,j)!=="city"||isRoundabout(i,j)) return false;
   if(nodeDegree(i,j)<3) return false;
   const cc=nearestCity(i,j); if(cc.dist>cc.R*0.58) return false;
@@ -1663,7 +1689,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=36;
+const LOT_CACHE_VER=37;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 const DESERT_FLOOR_VARIANTS=["ripple_light","ripple_dark","dune_crest","cracked_earth","salt_patch","pebble_cluster","sage_bush","dry_grass"];
 const DESERT_FLORA=["sage","tumbleweed","driftwood","bone","pebble","crack","salt_crust"];
@@ -1922,6 +1948,15 @@ function getLot(i,j){
   }
   else {
     lot.zone=zone;
+    if(zone==="oldtown"){
+      lot.oldtown=true;
+      if(!tiny) placeOldTownBuildings(lot,r);
+      lot.empty=!lot.buildings.length;
+      if(lot.empty){
+        const n=1+(r()*2|0);
+        for(let k=0;k<n;k++) lot.props.push(makeTree(lot.x+16+r()*Math.max(2,lot.w-32), lot.y+16+r()*Math.max(2,lot.h-32), 52+r()*28, r, "deciduous", {city:true}));
+      }
+    } else {
     const cemOK=(zone==="suburb"||zone==="transition"||biome!=="city");
     if(cemOK && lw>150 && lh>150 && hsh(i,j,505)<0.06){ lot.cemetery=true; lot.empty=true; lot.zone="cemetery"; genCemetery(lot,r); }
     else if(!denseCore && biome==="city" && (zone==="midrise"||zone==="transition"||zone==="suburb") && lw>160 && lh>160 && hsh(i,j,617)<0.05){
@@ -1939,6 +1974,7 @@ function getLot(i,j){
         lot.props.push(B.prop==="tree"?makeTree(px,py,s,r,null,{city:biome==="city"}):{x:px,y:py,s,t:B.prop}); }
         if(lot.hill && biome==="desert" && r()<0.55){ for(let k=0;k<1+(r()*2|0);k++) lot.props.push({x:left+20+r()*(lw-40), y:top+20+r()*(lh-40), s:12+r()*20, t:"rock"}); } }
     }
+    }
   }
   const pn=(r()*2.2)|0; for(let k=0;k<pn;k++) lot.puddles.push({x:left+r()*lw, y:top+r()*lh, rx:8+r()*22, ry:5+r()*12});
   if(!lot.mega && !lot.water && !lot.mountain && !lot.parking && !lot.salon && !lot.gunshop) addCurbside(lot,i,j,r);
@@ -1946,7 +1982,10 @@ function getLot(i,j){
   if(!lot.mega && !lot.water && !lot.mountain) addLamps(lot,i,j,r);
   if(!lot.mega) addSignals(lot,i,j);
   Game.onLot(lot,i,j);
-  if(lot.buildings.length) lot.buildings=lot.buildings.filter(b=>!inPlaza(b.x+b.w/2,b.y+b.h/2));
+  if(lot.buildings.length) lot.buildings=lot.buildings.filter(b=>{
+    const mx=b.x+b.w/2, my=b.y+b.h/2;
+    return !inPlaza(mx,my) && !(typeof inRynek==="function"&&inRynek(mx,my));
+  });
   // ---- surface detail (visual only; stable per lot) ----
   lot.tufts=[]; lot.flowers=[]; lot.ripples=[]; lot.pebbles=[];
   if(lot.water){

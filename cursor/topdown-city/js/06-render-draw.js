@@ -39,6 +39,7 @@ function draw(){
     }
     else if(L.zone==="suburb"){ fillCell(L, L.B.ground); texFill(L,"grass"); drawGrassDetail(L); drawProps(L); drawFences(L); }
     else { fillCell(L, L.B.walk); texFill(L,"concrete"); pavingLines(L); }
+    if(L.oldtown){ fillCell(L, "#a89e8c"); }
   }
   drawTerrainRelief(ox,oy);   // elevation shading over ground (before water)
   drawMountainRelief(ox,oy);

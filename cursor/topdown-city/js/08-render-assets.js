@@ -474,6 +474,7 @@ function drawWallWindows(b,a,cc,ar,face){
   const P=(t,u)=>[a[0]+ux*t+hx*u, a[1]+uy*t+hy*u];                    // wall-space (along t, up u) -> world
   const t=b.type;
   if(t==="house"){
+    if(b.historic&&typeof drawHistoricFacade==="function"&&drawHistoricFacade(b,a,cc,ar,P,fillPoly)) return;
     if(b.church){
       // ashlar stone texture over the church facade
       { const cr=[cc[0]+hx, cc[1]+hy]; const wp=getTex("stonetex");
