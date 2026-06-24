@@ -20,6 +20,8 @@ let pboat = null;            // the boat the player is piloting
 let fHeld = false;           // one-shot guard for enter/exit key
 let hHeld = false;           // one-shot guard for horn key
 let rHeld = false;           // one-shot guard for weather key
+let gHeld = false;           // one-shot guard for reload key
+let iHeld = false;           // one-shot guard for inventory key
 let bHeld = false;           // one-shot guard for buy key
 let cHeld = false;           // one-shot guard for colour-cycle key
 const ped = { x:car.x, y:car.y, a:0, vx:0, vy:0, r:9, walk:96, run:178 };
@@ -46,6 +48,10 @@ function setKey(e,down){
   if(!down && (k==="f"||k==="enter")) fHeld=false;
   if(down && k==="r"){ if(!rHeld){ rHeld=true; cycleWeather(); } }
   if(!down && k==="r") rHeld=false;
+  if(down && k==="g"){ if(!gHeld){ gHeld=true; if(typeof reloadEquippedWeapon==="function") reloadEquippedWeapon(); } }
+  if(!down && k==="g") gHeld=false;
+  if(down && (k==="i"||k==="tab")){ if(!iHeld){ iHeld=true; if(typeof toggleInventory==="function") toggleInventory(); } e.preventDefault(); }
+  if(!down && (k==="i"||k==="tab")) iHeld=false;
   if(down && k==="b"){ if(!bHeld){ bHeld=true; tryBuy(); } }
   if(!down && k==="b") bHeld=false;
   if(down && k==="c"){ if(!cHeld){ cHeld=true; cyclePadColor(); } }
@@ -55,9 +61,15 @@ function setKey(e,down){
   if(down && k==="h"){ if(!hHeld){ hHeld=true; honk(); } }
   if(!down && k==="h") hHeld=false;
   if(typeof gamePhase!=="undefined" && gamePhase!=="playing") return;
+  if(typeof invOpen!=="undefined"&&invOpen){
+    if(down && k==="escape") toggleInventory();
+    return;
+  }
   if(down && ((k>="1"&&k<="9")||k==="0")){
     const idx = k==="0" ? 9 : (+k)-1;
-    if(inGunShop) buyWeapon(idx); else if(owned[idx]) curWeapon=idx;
+    if(inGunShop) buyWeapon(idx);
+    else if(typeof equipWeaponByIdx==="function") equipWeaponByIdx(idx);
+    else if(owned[idx]) curWeapon=idx;
   }
   if(down && k==="q"){ if(!qHeld){ qHeld=true; cycleWeapon(-1); } }  if(!down && k==="q") qHeld=false;
   if(down && k==="e"){ if(!eHeld){ eHeld=true; cycleWeapon(1); } }   if(!down && k==="e") eHeld=false;

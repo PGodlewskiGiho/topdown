@@ -30,7 +30,27 @@
     <b>F</b> wsiądź / wejdź / wysiądź (auto, łódź lub budynek) &nbsp; <b>SHIFT</b> bieg (pieszo)<br>
     <b>T</b> przewiń czas (dzień/noc) &nbsp; <b>R</b> zmień pogodę<br>
     <b>MYSZ / SPACJA</b> strzał (pieszo) &nbsp; <b>B</b> kup auto (w salonie) &nbsp; <b>M</b> dźwięk<br>
-    <b>1–0 / Q E / kółko</b> wybór broni &nbsp; <b>sklep z bronią:</b> wejdź i kup klawiszami 2–0
+    <b>Tab / I</b> ekwipunek &nbsp; <b>G</b> przeładuj &nbsp; <b>1–0 / Q E</b> szybki wybór broni<br>
+    <b>sklep z bronią:</b> wejdź i kup klawiszami 2–0
+  </div>
+</div>
+<div id="inventory" class="hidden">
+  <div class="inv-panel">
+    <header class="inv-header">
+      <h2>EKWIPUNEK</h2>
+      <span class="inv-hint">Tab / I · zamknij · PPM obrót · dwuklik użyj · G przeładuj</span>
+    </header>
+    <div class="inv-body">
+      <div class="inv-left">
+        <canvas id="inv-char-preview" width="120" height="150"></canvas>
+        <div class="inv-equip-label">Wyposażona broń</div>
+        <div id="inv-equip-weapon">Pięści</div>
+      </div>
+      <div class="inv-grid-wrap">
+        <div id="inv-grid"></div>
+      </div>
+      <aside id="inv-detail"><em>Wybierz przedmiot</em></aside>
+    </div>
   </div>
 </div>
 <div id="menu">
@@ -137,7 +157,8 @@
   <script src="js/12-weather.js?v=2"></script>
   <script src="js/13-police.js"></script>
   <script src="js/14-missions.js"></script>
-  <script src="js/15-combat.js?v=2"></script>
+  <script src="js/15-combat.js?v=3"></script>
+  <script src="js/29-inventory.js?v=1"></script>
   <script src="js/16-shop.js"></script>
   <script src="js/17-effects.js"></script>
   <script src="js/18-audio.js?v=4"></script>

@@ -5,7 +5,7 @@ const bullets=[], muzzles=[];
 let firing=false, pointerActive=false, mx=0, my=0, playerFireCd=0;
 const healthFill=document.getElementById("healthfill");
 window.addEventListener("pointermove", e=>{ mx=e.clientX; my=e.clientY; pointerActive=true; });
-window.addEventListener("pointerdown", e=>{ mx=e.clientX; my=e.clientY; pointerActive=true; if(typeof gamePhase!=="undefined"&&gamePhase==="playing") firing=true; });
+window.addEventListener("pointerdown", e=>{ mx=e.clientX; my=e.clientY; pointerActive=true; if(typeof gamePhase!=="undefined"&&gamePhase==="playing"&&!(typeof invOpen!=="undefined"&&invOpen)) firing=true; });
 window.addEventListener("pointerup",   ()=>{ firing=false; });
 window.addEventListener("blur",         ()=>{ firing=false; });
 function spawnBullet(x,y,ang,spd,owner,dmg,type){
@@ -28,17 +28,10 @@ const WEAPONS=[
   {name:"Wyrzutnia",     kind:"rocket",  dmg:140,cd:1.4,  spd:430,  spread:0.0,  price:16000, cap:10},
 ];
 let curWeapon=0, qHeld=false, eHeld=false;
-/* ---- weapon ownership, ammo, shop, drops ---- */
-const owned = WEAPONS.map((w,i)=> i===0);                 // start with fists only
+/* ---- weapon ownership (synced from inventory) ---- */
+const owned = WEAPONS.map((w,i)=> i===0);
 const ammo  = WEAPONS.map(w=> w.kind==="melee" ? Infinity : 0);
 function ownedIndices(){ const o=[]; for(let i=0;i<WEAPONS.length;i++) if(owned[i]) o.push(i); return o; }
-function giveWeapon(wi,amt){ owned[wi]=true; if(WEAPONS[wi].kind!=="melee") ammo[wi]+=amt; if(curWeapon===0||(WEAPONS[curWeapon].kind!=="melee"&&ammo[curWeapon]<=0)) curWeapon=wi; }
-function buyWeapon(idx){
-  if(idx<=0) return; const w=WEAPONS[idx];
-  if(!owned[idx]){ if(money<w.price){ showBigMsg("ZA MAŁO KASY"); return; } money-=w.price; owned[idx]=true; if(w.kind!=="melee") ammo[idx]=w.cap; curWeapon=idx; showBigMsg("KUPIONO: "+w.name); saveGame(); }
-  else if(w.kind==="melee"){ showBigMsg("JUŻ MASZ"); }
-  else { const rc=Math.max(40,(w.price*0.3)|0); if(money<rc){ showBigMsg("ZA MAŁO KASY"); return; } money-=rc; ammo[idx]=Math.min(w.cap*3, ammo[idx]+w.cap); showBigMsg("AMUNICJA +"+w.cap); saveGame(); }
-}
 function pedHit(p,dmg,kx,ky,bloodAmt,noHeat){
   if(p.state==="down") return;
   if(p.armed) p.hostile=true;
@@ -81,9 +74,20 @@ const gunshopEl=document.getElementById("gunshop");
 function drawGunShopHUD(){
   if(!inGunShop){ gunshopEl.style.opacity="0"; return; }
   let rows="<b>SKLEP Z BRONIĄ</b><br>";
-  for(let i=1;i<WEAPONS.length;i++){ const w=WEAPONS[i], key=i<9?(i+1):0, has=owned[i], am=w.kind==="melee"?"∞":ammo[i];
-    const tag = !has ? ("$"+w.price) : (w.kind==="melee"?"✓":("dokup $"+Math.max(40,(w.price*0.3)|0)));
-    const col = has ? "#7fe0a8" : (money>=w.price ? "#e9ecf1" : "#8a8f99");
+  for(let i=1;i<WEAPONS.length;i++){
+    const w=WEAPONS[i], key=i<9?(i+1):0;
+    const shop=typeof WEAPON_SHOP!=="undefined"?WEAPON_SHOP[i]:null;
+    const def=shop&&typeof ITEM_DEFS!=="undefined"?ITEM_DEFS[shop.defId]:null;
+    const has=typeof hasInvWeapon==="function"&&shop?hasInvWeapon(shop.defId):owned[i];
+    let am="∞";
+    if(w.kind!=="melee"&&def&&typeof countReserveAmmo==="function"){
+      const eq=typeof getEquippedInvItem==="function"?getEquippedInvItem():null;
+      const loaded=eq&&eq.defId===shop.defId?(eq.loaded||0):0;
+      am=loaded+"+"+countReserveAmmo(def.ammoType);
+    } else if(w.kind!=="melee") am=ammo[i];
+    const price=shop?shop.price:w.price;
+    const tag = !has ? ("$"+price) : (w.kind==="melee"?"✓":("dokup $"+Math.max(40,(price*0.3)|0)));
+    const col = has ? "#7fe0a8" : (money>=price ? "#e9ecf1" : "#8a8f99");
     rows += '<span style="color:'+col+'">['+key+'] '+w.name+' — '+tag+(has&&w.kind!=="melee"?' ('+am+')':'')+'</span><br>';
   }
   gunshopEl.innerHTML=rows; gunshopEl.style.opacity="1";
@@ -181,8 +185,12 @@ function drawWrecks(ox,oy){ for(const w of wrecks){ if(w.x<ox-50||w.x>ox+VW+50||
   }
   ctx.restore(); } }
 const weaponEl=document.getElementById("weapon");
-function cycleWeapon(d){ const o=ownedIndices(); if(!o.length) return; let k=o.indexOf(curWeapon); if(k<0)k=0; k=(k+d+o.length)%o.length; curWeapon=o[k]; }
-window.addEventListener("wheel", e=>{ cycleWeapon(e.deltaY>0?1:-1); }, {passive:true});
+function cycleWeapon(d){
+  if(typeof cycleEquippedWeapon==="function"){ cycleEquippedWeapon(d); return; }
+  const o=ownedIndices(); if(!o.length) return;
+  let k=o.indexOf(curWeapon); if(k<0)k=0; k=(k+d+o.length)%o.length; curWeapon=o[k];
+}
+window.addEventListener("wheel", e=>{ if(typeof invOpen!=="undefined"&&invOpen) return; cycleWeapon(e.deltaY>0?1:-1); }, {passive:true});
 function fireWeapon(w,x,y,ang,owner){
   const ox=x+Math.cos(ang)*14, oy=y+Math.sin(ang)*14;
   if(typeof alertPeds==="function") alertPeds(x,y,200);
@@ -229,7 +237,6 @@ function drawSlashes(){
     ctx.strokeStyle=`rgba(255,255,255,${s.life/0.12*0.8})`; ctx.lineWidth=3;
     ctx.beginPath(); ctx.arc(0,0,s.range*0.8,-0.7,0.7); ctx.stroke(); ctx.restore(); }
 }
-function drawWeaponHUD(){ const w=WEAPONS[curWeapon], a=w.kind==="melee"?"∞":ammo[curWeapon]; weaponEl.textContent=(curWeapon+1)+". "+w.name+"  ["+a+"]"; }
 function playBoom(v){ noiseBurst(0.6,"lowpass",120,0,Math.min(0.85,v)); }
 function playSwoosh(){ noiseBurst(0.12,"highpass",500,0,0.25); }
 function playerAim(){
@@ -282,15 +289,20 @@ function updateBullets(dt){
   for(let i=muzzles.length-1;i>=0;i--){ muzzles[i].life-=dt; if(muzzles[i].life<=0) muzzles.splice(i,1); }
 }
 function updateCombat(dt){
+  if(typeof invOpen!=="undefined"&&invOpen) return;
   playerFireCd-=dt;
   if(mode==="foot" && (firing||keys[" "]) && playerFireCd<=0){
     const w=WEAPONS[curWeapon];
-    if(w.kind==="melee" || ammo[curWeapon]>0){
+    const canFire=typeof playerCanFire==="function"?playerCanFire():(w.kind==="melee"||ammo[curWeapon]>0);
+    if(canFire){
       const ang=playerAim(); ped.a=ang;
       fireWeapon(w, ped.x, ped.y, ang, "player");
-      if(w.kind!=="melee" && ammo[curWeapon]!==Infinity){ ammo[curWeapon]--; if(ammo[curWeapon]<=0) curWeapon=0; }
+      if(w.kind!=="melee"){
+        if(typeof playerConsumeAmmo==="function") playerConsumeAmmo();
+        else if(ammo[curWeapon]!==Infinity){ ammo[curWeapon]--; if(ammo[curWeapon]<=0) curWeapon=0; }
+      }
       playerFireCd=w.cd;
-    } else { curWeapon=0; playerFireCd=0.1; }
+    } else { if(typeof syncCurWeaponFromEquip==="function") syncCurWeaponFromEquip(); else curWeapon=0; playerFireCd=0.1; }
   }
   for(const c of cops){
     c.fireCd-=dt;

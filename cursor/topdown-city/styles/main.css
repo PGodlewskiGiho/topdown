@@ -107,3 +107,43 @@
     #char-preview{max-width:120px}
   }
   @media (prefers-reduced-motion:reduce){#menu,.menu-panel{transition:none}}
+  /* RE-style inventory */
+  #inventory{position:fixed;inset:0;z-index:8000;display:grid;place-items:center;
+    background:rgba(4,6,10,.88);font-family:var(--mono);color:var(--ink);pointer-events:auto}
+  #inventory.hidden{display:none!important}
+  body.inv-open #hud .keys,#weapon,#health,#gunshop{opacity:.25}
+  .inv-panel{width:min(920px,96vw);background:linear-gradient(165deg,rgba(18,22,28,.97),rgba(10,12,16,.98));
+    border:1px solid rgba(180,150,90,.22);border-radius:4px;box-shadow:0 0 0 1px rgba(0,0,0,.6),0 24px 64px rgba(0,0,0,.65);
+    padding:18px 20px 20px}
+  .inv-header{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;
+    padding-bottom:10px;border-bottom:1px solid rgba(180,150,90,.18)}
+  .inv-header h2{font-size:15px;letter-spacing:.28em;color:#c8a860;font-weight:600}
+  .inv-hint{font-size:10px;color:#7a8290;letter-spacing:.06em}
+  .inv-body{display:grid;grid-template-columns:140px 1fr min(240px,30vw);gap:16px;align-items:start}
+  .inv-left{display:flex;flex-direction:column;align-items:center;gap:8px}
+  #inv-char-preview{display:block;border:1px solid rgba(180,150,90,.15);border-radius:2px;background:#0a0e14;
+    image-rendering:pixelated}
+  .inv-equip-label{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:#8a919e}
+  #inv-equip-weapon{font-size:11px;text-align:center;line-height:1.45;color:#dfffe8;padding:6px 8px;
+    border:1px solid rgba(127,224,168,.25);background:rgba(127,224,168,.06);border-radius:2px;width:100%}
+  .inv-grid-wrap{padding:8px;background:rgba(0,0,0,.35);border:1px solid rgba(180,150,90,.12);border-radius:2px}
+  #inv-grid{display:grid;gap:2px}
+  .inv-cell{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:1px;min-height:44px}
+  .inv-item{border:1px solid rgba(0,0,0,.5);border-radius:2px;color:#eef2f6;font-size:9px;font-weight:600;
+    letter-spacing:.02em;line-height:1.25;white-space:pre-wrap;cursor:pointer;padding:4px;text-align:center;
+    font-family:var(--mono);box-shadow:inset 0 1px 0 rgba(255,255,255,.12);transition:border-color .12s,box-shadow .12s}
+  .inv-item:hover{border-color:rgba(200,168,96,.45)}
+  .inv-item.sel{border-color:#c8a860;box-shadow:0 0 0 1px rgba(200,168,96,.35),inset 0 0 12px rgba(200,168,96,.12)}
+  .inv-item.eq{border-color:rgba(127,224,168,.55);box-shadow:0 0 0 1px rgba(127,224,168,.35)}
+  #inv-detail{font-size:12px;line-height:1.65;color:#c9ced7;padding:12px 14px;min-height:280px;
+    background:rgba(0,0,0,.32);border:1px solid rgba(180,150,90,.12);border-radius:2px}
+  #inv-detail b{color:#e9ecf1;font-size:13px}
+  #inv-detail .inv-type{color:#c8a860;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+  .inv-action{margin-top:8px;margin-right:6px;font-family:var(--mono);font-size:11px;padding:6px 10px;
+    border-radius:2px;border:1px solid rgba(180,150,90,.28);background:rgba(180,150,90,.08);color:#e9ecf1;cursor:pointer}
+  .inv-action:hover{background:rgba(180,150,90,.16)}
+  .inv-action.inv-danger{border-color:rgba(255,91,70,.35);background:rgba(255,91,70,.1);color:#ffb8a8}
+  @media (max-width:720px){
+    .inv-body{grid-template-columns:1fr}
+    .inv-left{flex-direction:row;flex-wrap:wrap;justify-content:center}
+  }

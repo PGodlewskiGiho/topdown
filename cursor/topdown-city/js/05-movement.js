@@ -87,6 +87,7 @@ function collide(){ collideCircleBuildings(car, 0.25); collideMega(car,0.35); }
 
 /* ---------- update: on foot ---------- */
 function updatePed(dt){
+  if(typeof invOpen!=="undefined"&&invOpen) return;
   const ix=(keys["d"]||keys["arrowright"]?1:0)-(keys["a"]||keys["arrowleft"]?1:0);
   const iy=(keys["s"]||keys["arrowdown"]?1:0)-(keys["w"]||keys["arrowup"]?1:0);
   const len=Math.hypot(ix,iy);
