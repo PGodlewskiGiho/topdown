@@ -426,7 +426,8 @@ function drawLeaving(ox,oy){ for(const cpc of leaving){ if(cpc.x<ox-50||cpc.x>ox
 function updateNpcPed(p,dt){
   const _wx=p.x, _wy=p.y; try{
   if(p.state==="down"){
-    p.x+=p.vx*dt; p.y+=p.vy*dt; const f=1-Math.min(0.9,2.2*dt); p.vx*=f; p.vy*=f;
+    if(typeof updatePedRagdoll==="function") updatePedRagdoll(p,dt);
+    else { p.x+=p.vx*dt; p.y+=p.vy*dt; const f=1-Math.min(0.9,2.2*dt); p.vx*=f; p.vy*=f; }
     p.downT+=dt; if(p.downT>3) respawnPed(p); return;
   }
   if(Math.hypot(p.x-focusX,p.y-focusY)>1900){ respawnPed(p); return; }   // recycle distant peds

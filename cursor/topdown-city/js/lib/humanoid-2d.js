@@ -155,27 +155,65 @@ function drawBunHair(c,hx,r,hair){
   c.beginPath(); c.arc(hx-r*0.42,-r*0.18,r*0.22,0,7); c.fill();
 }
 
+function _ragSeg(c,x0,y0,len,ang,w,col){
+  c.save(); c.translate(x0,y0); c.rotate(ang);
+  c.fillStyle=col; c.beginPath(); c.ellipse(len*0.5,0,len*0.52,w,0,0,7); c.fill();
+  c.restore();
+  return {x:x0+Math.cos(ang)*len, y:y0+Math.sin(ang)*len};
+}
+
 function drawDownPose(c,p,r,shirt,skin,pants,shoe){
   const lost=p.lostParts||{};
+  const rd=p.ragdoll;
   c.fillStyle="rgba(0,0,0,.28)"; c.beginPath(); c.ellipse(0,1,r*1.75,r*0.78,0,0,7); c.fill();
+  if(!rd){
+    if(!lost.leg){
+      c.fillStyle=pants; c.beginPath(); c.ellipse(-r*0.35,r*0.15,r*0.42,r*0.28,0.2,0,7); c.fill();
+      c.beginPath(); c.ellipse(r*0.2,r*0.2,r*0.38,r*0.26,-0.1,0,7); c.fill();
+      c.fillStyle=shoe; c.beginPath(); c.ellipse(-r*0.55,r*0.22,r*0.22,r*0.14,0.3,0,7); c.fill();
+    }
+    if(!lost.torso){
+      c.fillStyle=shirt; c.beginPath(); c.roundRect(-r*1.55,-r*0.5,r*3.1,r*1.05,r*0.5); c.fill();
+    } else {
+      c.fillStyle=shirt; c.beginPath(); c.roundRect(-r*0.9,-r*0.42,r*1.8,r*0.82,r*0.4); c.fill();
+      c.fillStyle="#6a0808"; c.beginPath(); c.ellipse(r*0.2,0,r*0.35,r*0.28,0,0,7); c.fill();
+    }
+    if(!lost.arm_l){ c.fillStyle=skin; c.beginPath(); c.ellipse(-r*0.95,-r*0.08,r*0.38,r*0.16,0.5,0,7); c.fill(); }
+    if(!lost.arm_r){ c.fillStyle=skin; c.beginPath(); c.ellipse(r*0.55,-r*0.12,r*0.36,r*0.15,-0.2,0,7); c.fill(); }
+    if(!lost.head){
+      c.fillStyle=skin; c.beginPath(); c.arc(r*1.22,0,r*0.48,0,7); c.fill();
+      if(p.hair){ c.fillStyle=p.hair; c.beginPath(); c.arc(r*1.22,0,r*0.52,0,7); c.fill(); c.fillStyle=skin; c.beginPath(); c.arc(r*1.22,0,r*0.44,0,7); c.fill(); }
+    } else {
+      c.fillStyle="#7a1018"; c.beginPath(); c.ellipse(r*1.05,0,r*0.28,r*0.22,0,0,7); c.fill();
+    }
+    return;
+  }
+  const hipX=-r*0.62, shX=r*0.28, legLen=r*1.08, armLen=r*0.92, headR=r*0.46;
   if(!lost.leg){
-    c.fillStyle=pants; c.beginPath(); c.ellipse(-r*0.35,r*0.15,r*0.42,r*0.28,0.2,0,7); c.fill();
-    c.beginPath(); c.ellipse(r*0.2,r*0.2,r*0.38,r*0.26,-0.1,0,7); c.fill();
-    c.fillStyle=shoe; c.beginPath(); c.ellipse(-r*0.55,r*0.22,r*0.22,r*0.14,0.3,0,7); c.fill();
+    const l1=_ragSeg(c,hipX,0,legLen,rd.legL,r*0.24,pants);
+    const l2=_ragSeg(c,hipX,0,legLen,rd.legR,r*0.24,pants);
+    c.fillStyle=shoe;
+    c.beginPath(); c.ellipse(l1.x,l1.y,r*0.2,r*0.13,rd.legL,0,7); c.fill();
+    c.beginPath(); c.ellipse(l2.x,l2.y,r*0.2,r*0.13,rd.legR,0,7); c.fill();
   }
   if(!lost.torso){
-    c.fillStyle=shirt; c.beginPath(); c.roundRect(-r*1.55,-r*0.5,r*3.1,r*1.05,r*0.5); c.fill();
+    c.fillStyle=shirt; c.beginPath(); c.roundRect(-r*1.55,-r*0.48,r*3.1,r*0.96,r*0.45); c.fill();
   } else {
-    c.fillStyle=shirt; c.beginPath(); c.roundRect(-r*0.9,-r*0.42,r*1.8,r*0.82,r*0.4); c.fill();
-    c.fillStyle="#6a0808"; c.beginPath(); c.ellipse(r*0.2,0,r*0.35,r*0.28,0,0,7); c.fill();
+    c.fillStyle=shirt; c.beginPath(); c.roundRect(-r*0.9,-r*0.4,r*1.8,r*0.8,r*0.38); c.fill();
+    c.fillStyle="#6a0808"; c.beginPath(); c.ellipse(r*0.15,0,r*0.32,r*0.26,0,0,7); c.fill();
   }
-  if(!lost.arm_l){ c.fillStyle=skin; c.beginPath(); c.ellipse(-r*0.95,-r*0.08,r*0.38,r*0.16,0.5,0,7); c.fill(); }
-  if(!lost.arm_r){ c.fillStyle=skin; c.beginPath(); c.ellipse(r*0.55,-r*0.12,r*0.36,r*0.15,-0.2,0,7); c.fill(); }
+  if(!lost.arm_l) _ragSeg(c,shX,0,armLen,rd.armL,r*0.15,skin);
+  if(!lost.arm_r) _ragSeg(c,shX,0,armLen,rd.armR,r*0.15,skin);
   if(!lost.head){
-    c.fillStyle=skin; c.beginPath(); c.arc(r*1.22,0,r*0.48,0,7); c.fill();
-    if(p.hair){ c.fillStyle=p.hair; c.beginPath(); c.arc(r*1.22,0,r*0.52,0,7); c.fill(); c.fillStyle=skin; c.beginPath(); c.arc(r*1.22,0,r*0.44,0,7); c.fill(); }
+    const neckX=shX+r*0.52, neckY=0;
+    const hx=neckX+Math.cos(rd.head)*r*0.58, hy=neckY+Math.sin(rd.head)*r*0.58;
+    c.fillStyle=skin; c.beginPath(); c.arc(hx,hy,headR,0,7); c.fill();
+    if(p.hair){
+      c.fillStyle=p.hair; c.beginPath(); c.arc(hx,hy,headR*1.08,0,7); c.fill();
+      c.fillStyle=skin; c.beginPath(); c.arc(hx,hy,headR*0.9,0,7); c.fill();
+    }
   } else {
-    c.fillStyle="#7a1018"; c.beginPath(); c.ellipse(r*1.05,0,r*0.28,r*0.22,0,0,7); c.fill();
+    c.fillStyle="#7a1018"; c.beginPath(); c.ellipse(shX+r*0.5,0,r*0.28,r*0.22,0,0,7); c.fill();
   }
 }
 
