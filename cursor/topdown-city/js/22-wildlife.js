@@ -237,7 +237,7 @@ function updateBear(b,dt){
     const hungry=fam&&fam.hunger>0.82, angry=fam&&fam.anger>0.55;
     if(b.provokedT>0||angry||(hungry&&d<130)||(fam&&fam.hunger>0.65&&d<95)){
       b.state="chase"; b.targetKind="player"; b.fleeT=0;
-      if(b.roarCd<=0&&d<110){ b.roarCd=3.5; playBoom(0.08); }
+      if(b.roarCd<=0&&d<110){ b.roarCd=3.5; playBoom(0.06); if(typeof playForestBearGrowl==="function") playForestBearGrowl(0.16); }
     } else if(!b.provokedT&&!angry&&(!hungry||d>175)&&d<175&&(!fam||fam.hunger<0.75)){
       b.state="flee"; b.targetKind=null;
       destX=b.x+(b.x-pp.x)/d*220; destY=b.y+(b.y-pp.y)/d*220; spd=b.run*1.05;
@@ -314,6 +314,7 @@ function spookDeerHerd(herdId,fromX,fromY,str){
   const herd=getHerd(herdId);
   if(!herd) return;
   herd.spooked=Math.max(herd.spooked,str||0.8);
+  if(typeof playForestDeerSnort==="function"&&rng()<0.45) playForestDeerSnort(0.1+str*0.08);
   for(const d of deer){
     if(d.herdId!==herdId) continue;
     d.state="flee"; d.fleeT=Math.max(d.fleeT,2.5); d.alertT=Math.max(d.alertT,4);
@@ -379,6 +380,7 @@ function makeWolf(x,y,pack,opts){
     onHurt(w,killed){
       const pk=getPack(w.packId);
       if(pk) pk.aggro=Math.min(1,(pk.aggro||0)+0.45);
+      if(!killed&&typeof playForestWolfHowl==="function"&&rng()<0.35) playForestWolfHowl(0.12);
       for(const o of wolves){
         if(o.packId!==w.packId||Math.hypot(o.x-w.x,o.y-w.y)>360) continue;
         o.provokedT=Math.max(o.provokedT,killed?22:14);
@@ -518,6 +520,7 @@ function updateBoar(b,dt){
   if(pp){
     const d=Math.hypot(pp.x-b.x,pp.y-b.y);
     if(b.provokedT>0||d<105){
+      if(b.state!=="charge"&&b.state!=="attack"&&typeof playForestBoarGrunt==="function"&&rng()<0.55) playForestBoarGrunt(0.13);
       b.state="charge"; b.targetKind="player"; b.chargeT=Math.max(b.chargeT,1.4);
     } else if(d<170&&Math.hypot(car.vx||0,car.vy||0)>50&&mode==="car"){
       b.state="charge"; b.targetKind="player";
