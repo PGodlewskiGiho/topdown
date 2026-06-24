@@ -107,12 +107,13 @@ const NPC_BIOME_POOL={
 };
 
 function npcPickArch(biome, armed){
-  if(armed) return NPC_ARCH.armed_thug;
+  if(armed) return {id:"armed_thug", arch:NPC_ARCH.armed_thug};
   const pool=NPC_BIOME_POOL[biome]||NPC_BIOME_POOL.city;
   let roll=rng()*pool.reduce((s,e)=>s+e.w,0);
-  for(const e of pool){ roll-=e.w; if(roll<=0) return NPC_ARCH[e.id]; }
-  return NPC_ARCH.city_casual;
+  for(const e of pool){ roll-=e.w; if(roll<=0) return {id:e.id, arch:NPC_ARCH[e.id]}; }
+  return {id:"city_casual", arch:NPC_ARCH.city_casual};
 }
+function npcPickArchLegacy(biome, armed){ return npcPickArch(biome, armed).arch; }
 
 function npcPickSkin(arch){
   if(arch===NPC_ARCH.city_elder) return pick(["#e8b888","#d49a6a","#c89068","#b87a48"]);
@@ -125,7 +126,7 @@ function rollNpcAppearance(x,y,opts){
   opts=opts||{};
   const ci=Math.floor((x-ROAD)/GAP), cj=Math.floor((y-ROAD)/GAP);
   const biome=biomeOf(ci,cj);
-  const arch=npcPickArch(biome,!!opts.armed);
+  const archPick=npcPickArch(biome,!!opts.armed), arch=archPick.arch, archId=archPick.id;
   const body=pick(arch.body);
   const hairStyle=pick(arch.hairStyle);
   const hairCol=arch.hair?pick(arch.hair):pick(NPC_HAIR);
@@ -146,7 +147,8 @@ function rollNpcAppearance(x,y,opts){
   const sp=arch.speed;
   const accessory=pick(arch.accessory);
   return {
-    archetype:opts.armed?"armed_thug":biome,
+    archId:opts.armed?"armed_thug":archId,
+    archetype:opts.armed?"armed_thug":archId,
     skin:npcPickSkin(arch),
     shirt, pants, shoes:pick(NPC_SHOES),
     body, hair, hairStyle,
@@ -162,7 +164,7 @@ function rollNpcAppearance(x,y,opts){
 
 function applyNpcLook(p, look){
   if(!look) return p;
-  for(const k of ["skin","shirt","pants","shoes","body","hair","hairStyle","shirtStyle","beard","hat","hatColor","accessory","scarfColor","prop","propColor","r","speed","color","archetype"]){
+  for(const k of ["skin","shirt","pants","shoes","body","hair","hairStyle","shirtStyle","beard","hat","hatColor","accessory","scarfColor","prop","propColor","r","speed","color","archetype","archId"]){
     if(look[k]!==undefined) p[k]=look[k];
   }
   return p;

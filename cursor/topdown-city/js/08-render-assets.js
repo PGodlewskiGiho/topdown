@@ -350,6 +350,10 @@ function drawPerson(p,color,down,targetCtx){
   c.fillStyle=skin;
   c.beginPath(); c.arc(-r*0.02-limb*0.26,r*0.74,r*0.13,0,7); c.fill();
   c.beginPath(); c.arc(-r*0.02+limb*0.26,-r*0.74,r*0.13,0,7); c.fill();
+  if(p.holdingPhone){
+    c.fillStyle="#1a1a22"; roundRect(r*0.08,r*0.52,r*0.14,r*0.22,2); c.fill();
+    c.fillStyle="rgba(120,180,255,.35)"; roundRect(r*0.09,r*0.54,r*0.11,r*0.16,1); c.fill();
+  }
   if(p.prop==="backpack"){
     c.fillStyle=p.propColor||"#5a5048";
     c.beginPath(); c.ellipse(-tw*0.42,0,r*0.36,r*0.52,0,0,7); c.fill();
