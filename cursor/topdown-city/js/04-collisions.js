@@ -1,5 +1,31 @@
 /* TOPDOWN CITY — 04-collisions.js */
 /* ---- shared collisions ---- */
+// OBB vs immobile vehicle: separation + impulse with restitution and slide friction.
+function resolveVehicleStaticCollision(mover, stat, cfg){
+  cfg=cfg||{};
+  const skin=cfg.skin||1, rest=cfg.restitution??0.2, friction=cfg.friction??0.65;
+  const ov=vehicleOverlap(mover,stat,cfg.padM||0,cfg.padS||0);
+  if(!ov) return null;
+  const push=ov.pen+skin;
+  mover.x+=ov.nx*push; mover.y+=ov.ny*push;
+  if(mover.vx===undefined) return {nx:ov.nx,ny:ov.ny,pen:ov.pen,push,relInto:0};
+  const vn=mover.vx*ov.nx+mover.vy*ov.ny;
+  const tvx=mover.vx-vn*ov.nx, tvy=mover.vy-vn*ov.ny;
+  if(vn<0){
+    const vn2=-vn*rest;
+    mover.vx=tvx*(1-friction)+ov.nx*vn2;
+    mover.vy=tvy*(1-friction)+ov.ny*vn2;
+  }else if(ov.pen>0.25){
+    mover.vx=tvx*(1-friction*0.5)+ov.nx*vn;
+    mover.vy=tvy*(1-friction*0.5)+ov.ny*vn;
+  }
+  return {nx:ov.nx,ny:ov.ny,pen:ov.pen,push,relInto:vn};
+}
+function parkedCollisionCfg(e){
+  if(typeof car!=="undefined" && e===car) return {skin:1.4,restitution:0.15,friction:0.55,padS:-2};
+  if(e.vx!==undefined && e.W) return {skin:1.0,restitution:0.12,friction:0.62,padS:-2};
+  return {skin:0.5,restitution:0,friction:0.88,padS:-3};
+}
 function collideCircleBuildings(e,bounce){
   const ci=Math.floor((e.x-ROAD)/GAP), cj=Math.floor((e.y-ROAD)/GAP);
   for(let ii=ci-1;ii<=ci+1;ii++) for(let jj=cj-1;jj<=cj+1;jj++){ const L=getLot(ii,jj); for(const b of L.buildings){

@@ -184,8 +184,12 @@ function pickTrafficModel(){ return TRAFFIC_POOL[(rng()*TRAFFIC_POOL.length)|0];
 function parkedModelProps(r){   // deterministic (uses lot RNG)
   const m=TRAFFIC_POOL[(r()*TRAFFIC_POOL.length)|0];
   const col=(m.colors&&m.colors[(r()*m.colors.length)|0])||m.color;
+  const cr=vehicleHitRadius(m.W,m.L,"car");
   return {model:m, brand:m.brand, carName:m.name, type:m.type, era:m.era,
-          accent:m.accent, W:m.W, L:m.L, color:col, cr:vehicleHitRadius(m.W,m.L,"car")};
+          accent:m.accent, W:m.W, L:m.L, color:col, cr, R:cr, parked:true, vx:0, vy:0};
+}
+function makeParkedCar(x,y,a,r,extra){
+  return Object.assign({kind:"car", hp:190, maxHp:190, dmgSeed:(r()*1e9)|0, dead:false}, parkedModelProps(r), {x,y,a}, extra);
 }
 function applyTrafficModel(c){
   const m=pickTrafficModel();
@@ -1155,7 +1159,7 @@ function genParkingLot(lot,r){
   for(let cI=0;cI<cols;cI++) for(let rI=0;rI<rows;rI++){
     const sx=x+8+cI*cw+cw/2, sy=y+6+rI*ch+ch/2;
     lot.stalls.push({x:sx,y:sy,w:cw,h:ch});
-    if(r()<fill) lot.parked.push(Object.assign({x:sx, y:sy, a:(rI%2?1:-1)*Math.PI/2, kind:"car", cr:22, hp:190, maxHp:190, dmgSeed:(r()*1e9)|0, dead:false}, parkedModelProps(r)));
+    if(r()<fill) lot.parked.push(makeParkedCar(sx, sy, (rI%2?1:-1)*Math.PI/2, r));
   }
 }
 function curbsideDensity(lot){
@@ -1173,7 +1177,7 @@ function addPlazaParking(lot,r){
     let blocked=false;
     for(const b of lot.buildings){ if(cx>b.x-16&&cx<b.x+b.w+16&&cy>b.y-16&&cy<b.y+b.h+16){ blocked=true; break; } }
     if(blocked) continue;
-    lot.parked.push(Object.assign({x:cx,y:cy,a:-Math.PI/2+(r()-0.5)*0.5,kind:"car",cr:22,hp:190,maxHp:190,dmgSeed:(r()*1e9)|0,dead:false}, parkedModelProps(r)));
+    lot.parked.push(makeParkedCar(cx, cy, -Math.PI/2+(r()-0.5)*0.5, r));
   }
 }
 function addCurbside(lot,i,j,r){
@@ -1201,7 +1205,7 @@ function addCurbside(lot,i,j,r){
       const rk=r();
       if(rk<0.09) lot.parked.push({x:cx, y:cy, a:ang, kind:"moto", W:16, L:42, color:pick(CARCOL), cr:12, hp:72, maxHp:72, dmgSeed:(r()*1e9)|0, dead:false, rider:false});
       else if(rk<0.19) lot.parked.push({x:cx, y:cy, a:ang, kind:"bike", W:14, L:36, color:pick(["#c0392b","#2980b9","#27ae60","#e67e22","#34404a","#d6d6d6"]), cr:11, hp:44, maxHp:44, dmgSeed:(r()*1e9)|0, dead:false, rider:false});
-      else lot.parked.push(Object.assign({x:cx, y:cy, a:ang, kind:"car", cr:22, hp:190, maxHp:190, dmgSeed:(r()*1e9)|0, dead:false}, parkedModelProps(r)));
+      else lot.parked.push(makeParkedCar(cx, cy, ang, r));
     }
   }
 }
@@ -1364,31 +1368,41 @@ function collideTrees(e){
   }
 }
 function collideParked(e){
+  const cfg=parkedCollisionCfg(e);
   const ci=Math.floor((e.x-ROAD)/GAP), cj=Math.floor((e.y-ROAD)/GAP);
-  for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){ const L=getLot(i,j); if(!L.parked.length) continue;
-    for(let k=L.parked.length-1;k>=0;k--){ const pc=L.parked[k];
-      const ov=vehicleOverlap(e,pc,0,0);
-      if(!ov) continue;
-      e.x+=ov.nx*ov.pen; e.y+=ov.ny*ov.pen;
-      let relInto=0;
-      if(e.vx!==undefined){ relInto=e.vx*ov.nx+e.vy*ov.ny; if(relInto<0){ const damp=pc.kind==="car"?1.20:0.92; e.vx-=relInto*ov.nx*damp; e.vy-=relInto*ov.ny*damp; } }
-      // parked bikes/motos should not feel like stone blocks: they get pushed around a bit
-      if(pc.kind!=="car"){
-        const slide=clamp(ov.pen*0.45, 0, 9);
-        pc.x-=ov.nx*slide; pc.y-=ov.ny*slide;
-        pc.a += (e.vx!==undefined?clamp((e.vx*ov.ny-e.vy*ov.nx)*0.0008,-0.08,0.08):0);
-      }
-      if(e===car){
-        const sp=Math.hypot(e.vx,e.vy);
-        if(sp>95 && relInto<-26){
-          const mul = pc.kind==="car" ? 0.06 : (pc.kind==="moto" ? 0.034 : 0.028);
-          const selfMul = pc.kind==="car" ? 0.026 : 0.017;
-          damageCar(pc, sp*mul, car.x, car.y, "impact");
-          damageCar(car, sp*selfMul, pc.x, pc.y, "impact");
-          if(pc.dead){ L.parked.splice(k,1); continue; }
+  for(let pass=0;pass<3;pass++){
+    let hitAny=false;
+    for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){ const L=getLot(i,j); if(!L.parked.length) continue;
+      for(let k=L.parked.length-1;k>=0;k--){ const pc=L.parked[k];
+        if(pc.dead) continue;
+        const hit=resolveVehicleStaticCollision(e,pc,cfg);
+        if(!hit) continue;
+        hitAny=true;
+        if(pc.kind!=="car"){
+          const slide=clamp(hit.pen*0.45, 0, 9);
+          pc.x-=hit.nx*slide; pc.y-=hit.ny*slide;
+          pc.a += (e.vx!==undefined?clamp((e.vx*hit.ny-e.vy*hit.nx)*0.0008,-0.08,0.08):0);
+        }else if(e.vx!==undefined && hit.relInto<-30){
+          const sp=Math.hypot(e.vx,e.vy);
+          const sh=clamp(sp*0.0016, 0, 1.6);
+          pc.x-=hit.nx*sh; pc.y-=hit.ny*sh;
+        }
+        if(pass===0 && typeof car!=="undefined" && e===car){
+          const sp=Math.hypot(e.vx,e.vy);
+          if(sp>80 && hit.relInto<-22){
+            if(typeof playThud==="function") playThud(0.12+Math.min(0.28,sp/1600));
+            if(sp>95){
+              const mul=pc.kind==="car"?0.06:(pc.kind==="moto"?0.034:0.028);
+              const selfMul=pc.kind==="car"?0.026:0.017;
+              damageCar(pc, sp*mul, car.x, car.y, "impact");
+              damageCar(car, sp*selfMul, pc.x, pc.y, "impact");
+              if(pc.dead){ L.parked.splice(k,1); continue; }
+            }
+          }
         }
       }
     }
+    if(!hitAny) break;
   }
 }
 function addGardens(lot, r){
