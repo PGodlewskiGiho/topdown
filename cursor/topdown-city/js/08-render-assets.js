@@ -828,9 +828,37 @@ function getTex(key){
     let seed=0; for(let i=0;i<key.length;i++) seed+=key.charCodeAt(i)*131; seed=(seed*2654435761)>>>0;
     const rr=()=>{ seed=(seed*1664525+1013904223)>>>0; return seed/4294967296; };
     const grain=(n,dark,light,sz)=>{ for(let i=0;i<n;i++){ const x=rr()*S,y=rr()*S; t.fillStyle = rr()<0.5?`rgba(${dark},${(0.04+rr()*0.08).toFixed(3)})`:`rgba(${light},${(0.03+rr()*0.06).toFixed(3)})`; t.fillRect(x,y,1+rr()*sz,1+rr()*sz); } };
+    const bladeStrokes=(n,dark,light)=>{
+      for(let i=0;i<n;i++){
+        const x=rr()*S,y=rr()*S, len=1.5+rr()*5.5, ang=rr()*6.283;
+        t.strokeStyle=rr()<0.52?`rgba(${dark},${(0.10+rr()*0.20).toFixed(3)})`:`rgba(${light},${(0.08+rr()*0.18).toFixed(3)})`;
+        t.lineWidth=0.45+rr()*0.85; t.lineCap="round";
+        t.beginPath(); t.moveTo(x,y); t.lineTo(x+Math.cos(ang)*len,y+Math.sin(ang)*len*0.75); t.stroke();
+      }
+    };
     const crack=(n,al)=>{ for(let i=0;i<n;i++){ t.strokeStyle=`rgba(0,0,0,${al})`; t.lineWidth=1; t.beginPath(); let x=rr()*S,y=rr()*S; t.moveTo(x,y); for(let k=0;k<5;k++){ x+=(rr()-0.5)*34; y+=(rr()-0.5)*34; t.lineTo(x,y);} t.stroke(); } };
-    if(key==="grass"){ grain(1000,"24,52,20","120,160,72",1.6);
-      for(let i=0;i<30;i++){ const x=rr()*S,y=rr()*S,r=6+rr()*18; t.fillStyle=rr()<0.5?"rgba(28,58,24,0.10)":"rgba(112,150,72,0.08)"; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); } }
+    if(key==="grass"){
+      for(let i=0;i<90;i++){ const x=rr()*S,y=rr()*S,w=6+rr()*20,h=5+rr()*16;
+        t.fillStyle=rr()<0.5?`rgba(18,44,14,${(0.05+rr()*0.09).toFixed(3)})`:`rgba(92,138,56,${(0.04+rr()*0.08).toFixed(3)})`;
+        t.fillRect(x,y,w,h); }
+      grain(3400,"16,38,12","128,172,74",0.95); grain(1600,"10,28,8","148,192,86",0.55);
+      bladeStrokes(480,"20,48,16","108,158,68");
+      for(let i=0;i<120;i++){ const x=rr()*S,y=rr()*S; t.fillStyle=`rgba(${rr()<0.5?"24,56,20":"72,118,48"},${(0.06+rr()*0.10).toFixed(3)})`; t.fillRect(x,y,0.8+rr()*1.4,0.8+rr()*1.4); }
+    }
+    else if(key==="grass_forest"){
+      for(let i=0;i<110;i++){ const x=rr()*S,y=rr()*S,w=8+rr()*26,h=6+rr()*18;
+        t.fillStyle=rr()<0.58?`rgba(10,28,8,${(0.07+rr()*0.11).toFixed(3)})`:`rgba(34,68,28,${(0.05+rr()*0.09).toFixed(3)})`;
+        t.fillRect(x,y,w,h); }
+      grain(4000,"8,24,6","88,132,48",1.05); grain(2400,"6,18,5","68,108,38",0.62);
+      for(let i=0;i<320;i++){ const x=rr()*S,y=rr()*S;
+        t.fillStyle=rr()<0.45?`rgba(30,52,24,${(0.07+rr()*0.13).toFixed(3)})`:`rgba(48,82,36,${(0.06+rr()*0.11).toFixed(3)})`;
+        t.fillRect(x,y,0.9+rr()*1.8,0.9+rr()*1.8); }
+      bladeStrokes(360,"14,36,12","78,124,52");
+      bladeStrokes(220,"58,40,22","42,68,30");
+      for(let i=0;i<55;i++){ const x=rr()*S,y=rr()*S, rx=1+rr()*2.4, ry=0.6+rr()*1.6, rot=rr()*6.283;
+        t.fillStyle=rr()<0.55?"rgba(62,44,24,0.14)":"rgba(36,58,26,0.12)";
+        t.save(); t.translate(x,y); t.rotate(rot); t.beginPath(); t.ellipse(0,0,rx,ry,0,0,7); t.fill(); t.restore(); }
+    }
     else if(key==="concrete"){ grain(1200,"0,0,0","255,255,255",1.3);
       t.strokeStyle="rgba(0,0,0,0.10)"; t.lineWidth=1.5; t.strokeRect(0.5,0.5,S-1,S-1); t.beginPath(); t.moveTo(S/2,0); t.lineTo(S/2,S); t.moveTo(0,S/2); t.lineTo(S,S/2); t.stroke(); crack(3,0.07); }
     else if(key==="asphalt"){ grain(1400,"0,0,0","205,210,215",1.4); crack(2,0.10); }
@@ -881,6 +909,7 @@ function getTex(key){
   _tex[key]=pat; return pat;
 }
 function texFillPoly(poly,key){ const p=getTex(key); if(!p) return; ctx.fillStyle=p; ctx.beginPath(); ctx.moveTo(poly[0][0],poly[0][1]); for(let k=1;k<poly.length;k++) ctx.lineTo(poly[k][0],poly[k][1]); ctx.closePath(); ctx.fill(); }
+function groundTexKey(L,sandy){ return sandy?"sand":(L.biome==="forest"?"grass_forest":"grass"); }
 function texFill(L,key){ texFillPoly(L.poly,key); }
 function fillCell(L,color){ const p=L.poly; ctx.fillStyle=color; ctx.beginPath(); ctx.moveTo(p[0][0],p[0][1]); ctx.lineTo(p[1][0],p[1][1]); ctx.lineTo(p[2][0],p[2][1]); ctx.lineTo(p[3][0],p[3][1]); ctx.closePath(); ctx.fill(); }
 function drawParkingLot(L){ if(!L.stalls) return; ctx.strokeStyle="rgba(230,230,235,.5)"; ctx.lineWidth=1.5; for(const s of L.stalls) ctx.strokeRect(s.x-s.w/2+2,s.y-s.h/2+2,s.w-4,s.h-4); }

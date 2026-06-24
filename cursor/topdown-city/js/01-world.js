@@ -1262,7 +1262,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=20;
+const LOT_CACHE_VER=21;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 function getLot(i,j){
   const key=i+","+j+","+LOT_CACHE_VER; let lot=lotCache.get(key); if(lot) return lot;
@@ -1359,8 +1359,8 @@ function getLot(i,j){
       }
       if(dense||lot.zone==="forest"){
         lot.forestFloor=[];
-        const nf=68+(r()*52|0);
-        const kinds=["leaf","fern","moss","twig","shroom","needle","log","blade"];
+        const nf=105+(r()*85|0);
+        const kinds=["leaf","leaf","fern","moss","moss","moss","moss","twig","needle","needle","blade","blade","blade","shroom","log"];
         for(let k=0;k<nf;k++) lot.forestFloor.push({x:left+r()*lw,y:top+r()*lh,kind:kinds[(r()*kinds.length)|0],s:3+r()*11,rot:r()*6.28});
       }
       const nf=(r()*6|0); for(let k=0;k<nf;k++) lot.flowers.push({x:left+r()*lw, y:top+r()*lh, c:["#e8d24a","#e07a9a","#c95ad8","#f0f0f0","#e88a3a"][(r()*5)|0]});
