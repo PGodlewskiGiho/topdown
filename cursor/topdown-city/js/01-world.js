@@ -125,8 +125,45 @@ function waterScore(x,y){                                        // smooth SIGNE
 }
 function coastalLot(i,j){ for(let di=-1;di<=1;di++)for(let dj=-1;dj<=1;dj++){ if(isWaterCell(i+di,j+dj)) return true; } return false; }
 function inWater(x,y){ return waterScore(x,y) > 0; }             // matches the rendered coastline -> correct shore detection
-function elevation(i,j){ return hsh(Math.floor(i/3),Math.floor(j/3),101)*0.62 + hsh(i,j,103)*0.38; }
-function isMountain(i,j){ return biomeOf(i,j)!=="sea" && elevation(i,j)>0.82; }
+
+// ---- terrain elevation (multi-scale hills; render == physics via terrainScore) ----
+function terrainBaseNoise(i,j){
+  return hsh(Math.floor(i/6),Math.floor(j/6),101)*0.46 + hsh(Math.floor(i/2),Math.floor(j/2),103)*0.30
+    + hsh(i,j,107)*0.16 + hsh(i*3+7,j*3+13,109)*0.08;
+}
+function terrainLevel(i,j){
+  const b=biomeOf(i,j), n=terrainBaseNoise(i,j);
+  if(b==="sea") return 0.10 + n*0.11;
+  if(b==="city") return 0.40 + n*0.10;                          // nearly flat downtown pads
+  if(b==="desert") return 0.24 + n*0.54;                          // rolling dunes
+  const ridge=hsh(Math.floor(i/7),Math.floor(j/7),115);
+  const valley=Math.max(0, 1-Math.abs(ridge-0.5)*1.75);         // ridges + hollows in forest
+  return 0.18 + n*0.54 + valley*0.24;
+}
+const _elCache=new Map();
+function cellElev(i,j){ const k=i+","+j; let v=_elCache.get(k); if(v!==undefined) return v;
+  v=terrainLevel(i,j); if(_elCache.size>9000) _elCache.clear(); _elCache.set(k,v); return v; }
+function terrainScore(x,y){                                      // bilinear height field (world coords)
+  const fx=x/GAP-0.5, fy=y/GAP-0.5, xi=Math.floor(fx), yi=Math.floor(fy), xf=fx-xi, yf=fy-yi;
+  const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+  const a=cellElev(xi,yi), b=cellElev(xi+1,yi), cc=cellElev(xi,yi+1), d=cellElev(xi+1,yi+1);
+  return a+(b-a)*u+(cc-a)*v+(a-b-cc+d)*u*v;
+}
+function terrainGrad(x,y){ const e=6, ex=(terrainScore(x+e,y)-terrainScore(x-e,y))/(2*e), ey=(terrainScore(x,y+e)-terrainScore(x,y-e))/(2*e); return [ex,ey]; }
+function terrainSlope(x,y){ const g=terrainGrad(x,y); return Math.hypot(g[0],g[1]); }
+function terrainBand(i,j){
+  if(isMountain(i,j)) return "peak";
+  const e=cellElev(i,j);
+  if(e>0.62) return "hill";
+  if(e>0.48) return "rise";
+  return "flat";
+}
+function isMountain(i,j){
+  const b=biomeOf(i,j);
+  if(b==="sea"||b==="city") return false;
+  return cellElev(i,j)>(b==="desert"?0.84:0.80);
+}
+function elevation(i,j){ return cellElev(i,j); }                   // legacy alias
 const ROADCLR={ hwy:"#3a3d44", art:"#34373d", st:"#33363c", rural:"#4a4438", dirt:"#5a4f3c" };
 const edgeCache=new Map();
 function getEdge(i,j,di,dj){
@@ -145,6 +182,8 @@ function getEdge(i,j,di,dj){
   if(overWater) exists=false;   // roads route around water (lakes are impassable to cars)
   if(overMega) exists=false;    // mega-structures occupy whole chunks: no roads through footprint
   if(mtn && !isHwy && h1<0.78) exists=false;                                  // sparse in mountains
+  const x1=nX(i,j),y1=nY(i,j),x2=nX(ii,jj),y2=nY(ii,jj);
+  if(!isHwy && terrainSlope((x1+x2)/2,(y1+y2)/2)>0.0036 && h1<0.74) exists=false;   // steep grades -> detour
   let klass;
   if(isHwy) klass="hwy";
   else if(city){ const cc=nearestCity(i,j); klass = cc.dist < cc.R*0.3 ? "art" : (h2<0.3?"art":"st"); }   // grand avenues downtown
@@ -152,7 +191,6 @@ function getEdge(i,j,di,dj){
   const WR={hwy:[230,290], art:[160,210], st:[120,156], rural:[70,104], dirt:[52,80]}[klass];
   const width=Math.round(WR[0]+h3*(WR[1]-WR[0]));
   const offFrac={hwy:0.015, art:0.022, st:0.04, rural:0.13, dirt:0.19}[klass];   // city near-straight; design-speed radius
-  const x1=nX(i,j),y1=nY(i,j),x2=nX(ii,jj),y2=nY(ii,jj);
   const dx=x2-x1,dy=y2-y1, len=Math.hypot(dx,dy)||1;
   let off=(h2*2-1)*len*offFrac; const CAP=60; off=Math.max(-CAP,Math.min(CAP,off));   // cap bulge -> roads stay in corridor
   const cp=[(x1+x2)/2+(-dy/len)*off, (y1+y2)/2+(dx/len)*off];
@@ -450,6 +488,7 @@ function findBiomeSpawn(biome, variant=0){
       if(isMountain(i,j)) continue;
       const pt=roadJunctionAtCell(i,j);
       if(inWater(pt.x, pt.y)) continue;
+      if(terrainSlope(pt.x, pt.y)>0.0034) continue;
       let score=0;
       if(biome==="sea"){
         for(const d of [[90,0],[-90,0],[0,90],[0,-90]]) if(inWater(pt.x+d[0], pt.y+d[1])) score+=1;
@@ -1262,7 +1301,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=21;
+const LOT_CACHE_VER=22;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 function getLot(i,j){
   const key=i+","+j+","+LOT_CACHE_VER; let lot=lotCache.get(key); if(lot) return lot;
@@ -1279,7 +1318,10 @@ function getLot(i,j){
   if(cA||cB) top  =Math.max(top,   A[1]+cA, Bn[1]+cB);
   if(cD||cC) bot  =Math.min(bot,   D[1]-cD, C[1]-cC);
   const lw=right-left, lh=bot-top;
-  lot={i,j,x:left,y:top,w:lw,h:lh,poly:[A,Bn,C,D],biome,B,buildings:[],props:[],puddles:[],parked:[],stalls:null,water:false,empty:false,fences:[]}; lot._r=r;
+  const e00=cellElev(i,j), e10=cellElev(i+1,j), e01=cellElev(i,j+1), e11=cellElev(i+1,j+1);
+  const elevMean=(e00+e10+e01+e11)/4;
+  lot={i,j,x:left,y:top,w:lw,h:lh,poly:[A,Bn,C,D],biome,B,buildings:[],props:[],puddles:[],parked:[],stalls:null,water:false,empty:false,fences:[],elevMean, hill:false}; lot._r=r;
+  lot.hill=elevMean>0.50 && (Math.max(e00,e10,e01,e11)-Math.min(e00,e10,e01,e11))>0.06;
   const tiny = lw<100||lh<100;
   const mega=megaAtCell(i,j);
   if(mega){ lot.mega=true; lot.empty=true; lot.zone="mega"; }
@@ -1287,7 +1329,7 @@ function getLot(i,j){
   else if(i===2 && j===1){ lot.gunshop=true; lot.empty=true; if(!tiny) buildGunShop(lot); }
   else if(i===2 && j===2){ lot.motodealer=true; lot.empty=true; if(!tiny) buildMotoDealer(lot); }
   else if(tiny){ lot.empty=true; }
-  else if(isMountain(i,j)){ lot.mountain=true; lot.empty=true; const n=3+(r()*4|0); for(let k=0;k<n;k++) lot.props.push({x:left+18+r()*(lw-36), y:top+18+r()*(lh-36), s:14+r()*22, t:"rock"}); }
+  else if(isMountain(i,j)){ lot.mountain=true; lot.empty=true; const n=4+(r()*5|0); for(let k=0;k<n;k++) lot.props.push({x:left+18+r()*(lw-36), y:top+18+r()*(lh-36), s:16+r()*28, t:"rock"}); }
   else if(isWaterCell(i,j)){ lot.water=true;
     if(hsh(i,j,141)<0.20){ const nb=[[0,-1],[0,1],[-1,0],[1,0]].find(d=>!isWaterCell(i+d[0],j+d[1]));
       if(nb){ let bx,by;
@@ -1332,7 +1374,8 @@ function getLot(i,j){
       const builtChance = biome==="city" ? (zone==="suburb"?0.92:0.96) : B.density;
       if(r() < builtChance) placeBuildings(lot, zone, r, biome);
       if(!lot.buildings.length){ lot.empty=true; const n=2+(r()*4|0); for(let k=0;k<n;k++){ const px=left+20+r()*(lw-40), py=top+20+r()*(lh-40), s=B.prop==="tree"?(88+r()*62):(16+r()*12);
-        lot.props.push(B.prop==="tree"?makeTree(px,py,s,r,null,{city:biome==="city"}):{x:px,y:py,s,t:B.prop}); } }
+        lot.props.push(B.prop==="tree"?makeTree(px,py,s,r,null,{city:biome==="city"}):{x:px,y:py,s,t:B.prop}); }
+        if(lot.hill && biome==="desert" && r()<0.55){ for(let k=0;k<1+(r()*2|0);k++) lot.props.push({x:left+20+r()*(lw-40), y:top+20+r()*(lh-40), s:12+r()*20, t:"rock"}); } }
     }
   }
   const pn=(r()*2.2)|0; for(let k=0;k<pn;k++) lot.puddles.push({x:left+r()*lw, y:top+r()*lh, rx:8+r()*22, ry:5+r()*12});
@@ -1341,6 +1384,10 @@ function getLot(i,j){
   if(!lot.mega && !lot.water && !lot.mountain) addLamps(lot,i,j,r);
   if(!lot.mega) addSignals(lot,i,j);
   if(lot.buildings.length) lot.buildings=lot.buildings.filter(b=>!inPlaza(b.x+b.w/2,b.y+b.h/2));
+  if(lot.hill && !lot.mountain && !lot.water && biome==="forest" && r()<0.58){
+    for(let k=0;k<1+(r()*3|0);k++) lot.props.push({x:left+22+r()*(lw-44), y:top+22+r()*(lh-44), s:10+r()*18, t:"rock"});
+    lot.props.sort((u,v)=>u.y-v.y);
+  }
   // ---- surface detail (visual only; stable per lot) ----
   lot.tufts=[]; lot.flowers=[]; lot.ripples=[]; lot.pebbles=[];
   if(lot.water){

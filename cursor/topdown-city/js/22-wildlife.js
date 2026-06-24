@@ -81,7 +81,7 @@ function wildWanderTarget(m,hx,hy,hr){
   for(let t=0;t<16;t++){
     const ang=rng()*6.283, d=rand(80,hr);
     const tx=hx+Math.cos(ang)*d, ty=hy+Math.sin(ang)*d;
-    if(inForestAt(tx,ty) && !inWater(tx,ty) && !inBuilding(tx,ty,18)){ m.tx=tx; m.ty=ty; return; }
+    if(inForestAt(tx,ty) && !inWater(tx,ty) && !terrainSteepAt(tx,ty, TERRAIN_SLOPE_WALK) && !inBuilding(tx,ty,18)){ m.tx=tx; m.ty=ty; return; }
   }
   m.tx=m.x+rand(-120,120); m.ty=m.y+rand(-120,120);
 }
@@ -90,11 +90,13 @@ function wildMove(m,dt,destX,destY,spd){
   if(d>8){
     m.a=Math.atan2(dy,dx);
     const mv=Math.min(1,d/90);
-    m.x+=dx/d*spd*mv*dt;
-    m.y+=dy/d*spd*mv*dt;
+    const wtf=terrainSpeedFactor(m.x,m.y, dx, dy);
+    m.x+=dx/d*spd*mv*dt*wtf;
+    m.y+=dy/d*spd*mv*dt*wtf;
     m.moving=true;
     m.walkT=(m.walkT||0)+dt*(0.55+spd/180);
   } else m.moving=false;
+  if(terrainSteepAt(m.x,m.y, TERRAIN_SLOPE_HARD)) wildWanderTarget(m,m.homeX,m.homeY);
   pushWildFromBuildings(m);
   collideTrees(m);
   if(inWater(m.x,m.y)){

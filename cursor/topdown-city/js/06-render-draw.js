@@ -29,6 +29,8 @@ function draw(){
     else if(L.zone==="suburb"){ fillCell(L, L.B.ground); texFill(L,"grass"); drawGrassDetail(L); drawProps(L); drawFences(L); }
     else { fillCell(L, L.B.walk); texFill(L,"concrete"); pavingLines(L); }
   }
+  drawTerrainRelief(ox,oy);   // elevation shading over ground (before water)
+  drawMountainRelief(ox,oy);
   drawWaterGlobal(ox,oy);   // one seamless water layer over all ground
   // organic bezier roads drawn on top of ground
   drawRoads(ox,oy);
