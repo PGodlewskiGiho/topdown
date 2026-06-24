@@ -62,8 +62,9 @@ function copInteractions(dt){
 }
 function busted(){ heat=0; stars=0; cops.length=0; footcops.length=0; bustTimer=0; showBigMsg("ZWINIĘTY"); }
 const footcops=[];
-function spawnFootCop(x,y){ footcops.push({x,y,a:rng()*6.283,r:8,speed:rand(82,112),hp:22,fireCd:rand(0.4,1.1),
-  skin:pick(SKIN),shirt:"#26324c",hair:pick(HAIR),hat:"cap",hatColor:"#1a2236"}); }
+function spawnFootCop(x,y){ footcops.push({x,y,a:rng()*6.283,r:8.5,speed:rand(82,112),hp:22,fireCd:rand(0.4,1.1),
+  skin:pick(SKIN),shirt:"#26324c",pants:"#1a2430",shirtStyle:"jacket",hair:pick(HAIR),hairStyle:"short",
+  hat:"cap",hatColor:"#1a2236"}); }
 function killFootCop(fc){ const i=footcops.indexOf(fc); if(i>=0) footcops.splice(i,1); spawnBlood(fc.x,fc.y,0,0,1); addHeat(0.4); }
 function updateFootCops(dt){
   if(stars===0){ footcops.length=0; return; }
@@ -72,6 +73,7 @@ function updateFootCops(dt){
     if(stars>=2 && footcops.length<Math.min(4,stars) && Math.hypot(ax-c.x,ay-c.y)<240){
       spawnFootCop(c.x-Math.sin(c.a)*18, c.y+Math.cos(c.a)*18); c.deployed=true; } }
   for(let i=footcops.length-1;i>=0;i--){ const fc=footcops[i];
+    const ox=fc.x, oy=fc.y;
     const dx=ax-fc.x, dy=ay-fc.y, d=Math.hypot(dx,dy)||1; fc.a=Math.atan2(dy,dx);
     const mv=d>150?1:(d<95?-0.6:0), nx=fc.x+dx/d*fc.speed*mv*dt, ny=fc.y+dy/d*fc.speed*mv*dt;
     if(!inWater(nx,ny)){ fc.x=nx; fc.y=ny; }

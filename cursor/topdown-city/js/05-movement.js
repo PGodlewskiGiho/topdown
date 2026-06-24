@@ -5,7 +5,9 @@ function recoverCarToLand(){
   else { const ci=Math.round(car.x/GAP), cj=Math.round(car.y/GAP); outer:
     for(let rad=1;rad<9;rad++) for(let di=-rad;di<=rad;di++) for(let dj=-rad;dj<=rad;dj++){
       if(Math.max(Math.abs(di),Math.abs(dj))!==rad||isWaterCell(ci+di,cj+dj)) continue;
-      car.x=(ci+di+0.5)*GAP; car.y=(cj+dj+0.5)*GAP; break outer; } }
+      const sx=(ci+di+0.5)*GAP, sy=(cj+dj+0.5)*GAP;
+      if(terrainSteepAt(sx,sy, TERRAIN_SLOPE_CAR)) continue;
+      car.x=sx; car.y=sy; break outer; } }
   car.vx=0; car.vy=0; car.sinking=undefined;
 }
 function updateCar(dt){
@@ -58,7 +60,10 @@ function updateCar(dt){
   if(sp2 > 0){ const rr = Math.min(sp2, ROLL*dt); car.vx -= car.vx/sp2*rr; car.vy -= car.vy/sp2*rr; }
 
   // integrate
-  car.x += car.vx*dt; car.y += car.vy*dt;
+  const px=car.x, py=car.y;
+  const tf=terrainSpeedFactor(car.x,car.y, car.vx, car.vy);
+  car.x += car.vx*dt*tf; car.y += car.vy*dt*tf;
+  if(resolveTerrainBlock(car, px, py, TERRAIN_SLOPE_CAR)){}
   if(vk.cap){ const sc=Math.hypot(car.vx,car.vy); if(sc>vk.cap){ car.vx*=vk.cap/sc; car.vy*=vk.cap/sc; } }
 
   // skid marks when sliding
@@ -71,6 +76,7 @@ function updateCar(dt){
   }
 
   collide();
+  collideTerrain(car, TERRAIN_SLOPE_CAR, 0.35);
   collideParked(car); collideLamps(car); collideSignals(car); collideTrees(car); collideRoundabouts(car); collideFences(car); collideGraves(car);
   carVsTraffic();
   carVsPeds();
@@ -81,6 +87,7 @@ function collide(){ collideCircleBuildings(car, 0.25); collideMega(car,0.35); }
 
 /* ---------- update: on foot ---------- */
 function updatePed(dt){
+  if(typeof invOpen!=="undefined"&&invOpen) return;
   const ix=(keys["d"]||keys["arrowright"]?1:0)-(keys["a"]||keys["arrowleft"]?1:0);
   const iy=(keys["s"]||keys["arrowdown"]?1:0)-(keys["w"]||keys["arrowup"]?1:0);
   const len=Math.hypot(ix,iy);
@@ -88,7 +95,10 @@ function updatePed(dt){
   const spd= swim ? ped.walk*0.55 : (keys["shift"]?ped.run:ped.walk);
   if(len>0){ ped.vx=ix/len*spd; ped.vy=iy/len*spd; ped.a=Math.atan2(iy,ix); }
   else { ped.vx=0; ped.vy=0; }
-  ped.x+=ped.vx*dt; ped.y+=ped.vy*dt;
+  const ppx=ped.x, ppy=ped.y;
+  const ptf=terrainSpeedFactor(ped.x,ped.y, ped.vx, ped.vy);
+  ped.x+=ped.vx*dt*ptf; ped.y+=ped.vy*dt*ptf;
+  resolveTerrainBlock(ped, ppx, ppy, TERRAIN_SLOPE_WALK);
   { const ci=Math.floor((ped.x-ROAD)/GAP), cj=Math.floor((ped.y-ROAD)/GAP);
     for(let ii=ci-1;ii<=ci+1;ii++) for(let jj=cj-1;jj<=cj+1;jj++){ const L=getLot(ii,jj); for(const b of L.buildings){
       const cx=Math.max(b.x,Math.min(ped.x,b.x+b.w)), cy=Math.max(b.y,Math.min(ped.y,b.y+b.h));
@@ -102,6 +112,7 @@ function updatePed(dt){
   pedVsTraffic();
   pedVsNpcs();
   collideParked(ped); collideTrees(ped); collideRoundabouts(ped); collideFences(ped); collideGraves(ped);
+  collideTerrain(ped, TERRAIN_SLOPE_WALK, 0.22);
 }
 
 /* ---------- camera ---------- */

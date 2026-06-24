@@ -1,0 +1,70 @@
+{
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "directionCount": 8,
+  "framesPerDirection": 5,
+  "walkFrames": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "attackFrame": 4,
+  "directions": [
+    "east",
+    "se",
+    "south",
+    "sw",
+    "west",
+    "nw",
+    "north",
+    "ne"
+  ],
+  "anchorX": 64,
+  "anchorY": 120,
+  "walkStep": 0.11,
+  "species": {
+    "deer": {
+      "variants": {
+        "buck_light": {
+          "file": "deer-buck_light.png"
+        },
+        "doe_light": {
+          "file": "deer-doe_light.png"
+        },
+        "buck_dark": {
+          "file": "deer-buck_dark.png"
+        },
+        "doe_dark": {
+          "file": "deer-doe_dark.png"
+        }
+      }
+    },
+    "wolf": {
+      "variants": {
+        "gray": {
+          "file": "wolf-gray.png"
+        },
+        "dark": {
+          "file": "wolf-dark.png"
+        },
+        "timber": {
+          "file": "wolf-timber.png"
+        }
+      }
+    },
+    "boar": {
+      "variants": {
+        "brown": {
+          "file": "boar-brown.png"
+        },
+        "dark": {
+          "file": "boar-dark.png"
+        },
+        "spotted": {
+          "file": "boar-spotted.png"
+        }
+      }
+    }
+  }
+}

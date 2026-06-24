@@ -24,12 +24,15 @@ function draw(){
     else if(L.mega){ fillCell(L, "#6f7076"); texFill(L,"concrete"); }
     else if(L.empty){
       if(L.salon||L.gunshop||L.motodealer){ fillCell(L, L.B.walk); texFill(L,"concrete"); if(L.motodealer) drawMotoDealerLot(L); }
-      else { fillCell(L, L.B.ground); const sandy=(L.biome==="desert"||L.biome==="sea"); texFill(L, sandy?"sand":"grass"); if(sandy) drawSandDetail(L); else { if(L.biome==="forest") drawForestFloor(L); drawGrassDetail(L); } drawProps(L); }
+      else { fillCell(L, L.B.ground); const sandy=(L.biome==="desert"||L.biome==="sea"); texFill(L, groundTexKey(L,sandy)); if(sandy) drawSandDetail(L); else { if(L.biome==="forest") drawForestFloor(L); drawGrassDetail(L); } drawProps(L); }
     }
     else if(L.zone==="suburb"){ fillCell(L, L.B.ground); texFill(L,"grass"); drawGrassDetail(L); drawProps(L); drawFences(L); }
     else { fillCell(L, L.B.walk); texFill(L,"concrete"); pavingLines(L); }
   }
-  drawWaterGlobal(ox,oy);   // one seamless water layer over all ground
+  drawTerrainRelief(ox,oy);   // elevation shading over ground (before water)
+  drawMountainRelief(ox,oy);
+  drawWaterGlobal(ox,oy);   // lakes / sea (forest rivers drawn separately)
+  drawForestRivers(ox,oy);
   // organic bezier roads drawn on top of ground
   drawRoads(ox,oy);
   drawPlazas(ox,oy);
@@ -89,6 +92,7 @@ function draw(){
 
   // NPC pedestrians (culled) — drawn under vehicles so run-overs read correctly
   for(const p of peds){ if(p.x<ox-30||p.x>ox+VW+30||p.y<oy-30||p.y>oy+VH+30) continue; drawPerson(p,p.color,p.state==="down"); if(p.act==="chat"&&p.talking&&p.state!=="down") drawSpeech(p); }
+  drawWildlife(ox,oy);
   // traffic (culled)
   for(const c of traffic){ if(c.x<ox-50||c.x>ox+VW+50||c.y<oy-50||c.y>oy+VH+50) continue; drawVehicle(c,c.color); }
   // police (culled)
@@ -96,11 +100,13 @@ function draw(){
   drawFootCops(ox,oy);
   // player on top
   if(!car.dead) drawVehicle(car, car.color);
-  if(mode==="foot") drawPerson(ped, "#2f5fa0", false);
+  if(mode==="foot") drawPerson(ped, ped.shirt||"#2f5fa0", false);
   drawLamps(ox,oy);                                     // 3D lamp posts over vehicles
   drawSignals(ox,oy);                                   // 3D traffic-light posts over vehicles
   drawCanopies(ox,oy);                                  // tree crowns over everything -> drive/walk under them
+  drawTreeWildlife(ox,oy);                              // squirrels on branches (above canopy layer)
   drawBirds(ox,oy);                                     // gulls over water + city pigeons
+  drawWindLeaves(ox,oy);                                // forest leaves on the wind (scales with gusts)
   drawMissionWorld();
   drawBullets();
   drawSlashes();

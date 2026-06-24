@@ -1,0 +1,95 @@
+{
+  "variants": {
+    "clump_small": {
+      "file": "clump_small.png",
+      "width": 40,
+      "height": 44,
+      "anchorX": 20,
+      "anchorY": 43
+    },
+    "clump_med": {
+      "file": "clump_med.png",
+      "width": 52,
+      "height": 56,
+      "anchorX": 26,
+      "anchorY": 55
+    },
+    "clump_large": {
+      "file": "clump_large.png",
+      "width": 64,
+      "height": 72,
+      "anchorX": 32,
+      "anchorY": 71
+    },
+    "clump_dense": {
+      "file": "clump_dense.png",
+      "width": 56,
+      "height": 52,
+      "anchorX": 28,
+      "anchorY": 51
+    },
+    "clump_tall": {
+      "file": "clump_tall.png",
+      "width": 48,
+      "height": 68,
+      "anchorX": 24,
+      "anchorY": 67
+    },
+    "clump_wispy": {
+      "file": "clump_wispy.png",
+      "width": 60,
+      "height": 58,
+      "anchorX": 30,
+      "anchorY": 57
+    },
+    "clump_pine": {
+      "file": "clump_pine.png",
+      "width": 54,
+      "height": 58,
+      "anchorX": 27,
+      "anchorY": 57
+    },
+    "clump_shade": {
+      "file": "clump_shade.png",
+      "width": 50,
+      "height": 54,
+      "anchorX": 25,
+      "anchorY": 53
+    },
+    "clump_mossy": {
+      "file": "clump_mossy.png",
+      "width": 58,
+      "height": 50,
+      "anchorX": 29,
+      "anchorY": 49
+    },
+    "clump_dry": {
+      "file": "clump_dry.png",
+      "width": 52,
+      "height": 56,
+      "anchorX": 26,
+      "anchorY": 55
+    },
+    "patch_moss": {
+      "file": "patch_moss.png",
+      "width": 48,
+      "height": 36,
+      "anchorX": 24,
+      "anchorY": 35
+    },
+    "clump_fern": {
+      "file": "clump_fern.png",
+      "width": 44,
+      "height": 52,
+      "anchorX": 22,
+      "anchorY": 51
+    },
+    "clump_needle": {
+      "file": "clump_needle.png",
+      "width": 50,
+      "height": 46,
+      "anchorX": 25,
+      "anchorY": 45
+    }
+  }
+}

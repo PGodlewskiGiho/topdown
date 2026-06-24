@@ -30,7 +30,27 @@
     <b>F</b> wsiądź / wejdź / wysiądź (auto, łódź lub budynek) &nbsp; <b>SHIFT</b> bieg (pieszo)<br>
     <b>T</b> przewiń czas (dzień/noc) &nbsp; <b>R</b> zmień pogodę<br>
     <b>MYSZ / SPACJA</b> strzał (pieszo) &nbsp; <b>B</b> kup auto (w salonie) &nbsp; <b>M</b> dźwięk<br>
-    <b>1–0 / Q E / kółko</b> wybór broni &nbsp; <b>sklep z bronią:</b> wejdź i kup klawiszami 2–0
+    <b>Tab / I</b> ekwipunek &nbsp; <b>G</b> przeładuj &nbsp; <b>1–0 / Q E</b> szybki wybór broni<br>
+    <b>sklep z bronią:</b> wejdź i kup klawiszami 2–0
+  </div>
+</div>
+<div id="inventory" class="hidden">
+  <div class="inv-panel">
+    <header class="inv-header">
+      <h2>EKWIPUNEK</h2>
+      <span class="inv-hint">Tab / I · zamknij · PPM obrót · dwuklik użyj · G przeładuj</span>
+    </header>
+    <div class="inv-body">
+      <div class="inv-left">
+        <canvas id="inv-char-preview" width="120" height="150"></canvas>
+        <div class="inv-equip-label">Wyposażona broń</div>
+        <div id="inv-equip-weapon">Pięści</div>
+      </div>
+      <div class="inv-grid-wrap">
+        <div id="inv-grid"></div>
+      </div>
+      <aside id="inv-detail"><em>Wybierz przedmiot</em></aside>
+    </div>
   </div>
 </div>
 <div id="menu">
@@ -42,6 +62,65 @@
       <button type="button" class="menu-secondary" id="btn-load">Wczytaj grę</button>
     </div>
     <p class="menu-hint" id="menu-save-hint"></p>
+  </div>
+  <div class="menu-panel menu-panel-wide hidden" id="menu-char">
+    <button type="button" class="menu-back" id="btn-char-back">← Wróć</button>
+    <h2>Stwórz postać</h2>
+    <p class="menu-sub">Generator bohatera · podgląd na żywo</p>
+    <div class="char-layout">
+      <div class="char-preview-col">
+        <canvas id="char-preview" width="196" height="240"></canvas>
+        <p class="char-preview-name" id="char-preview-name">Wędrowiec</p>
+        <button type="button" class="menu-secondary char-random-btn" id="btn-char-random">🎲 Losuj wygląd</button>
+      </div>
+      <div class="char-scroll">
+        <div class="menu-field">
+          <label class="menu-label" for="char-name">Imię</label>
+          <input type="text" class="char-name-input" id="char-name" maxlength="24" autocomplete="off" spellcheck="false" />
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Sylwetka</span>
+          <div class="menu-choices" id="char-body-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Kolor skóry</span>
+          <div class="menu-choices char-palette" id="char-skin-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Fryzura</span>
+          <div class="menu-choices" id="char-hairstyle-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Kolor włosów</span>
+          <div class="menu-choices char-palette" id="char-haircol-choices"></div>
+        </div>
+        <div class="menu-field" id="char-beard-field">
+          <span class="menu-label">Broda</span>
+          <div class="menu-choices" id="char-beard-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Ubranie</span>
+          <div class="menu-choices char-palette" id="char-shirt-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Styl góry</span>
+          <div class="menu-choices" id="char-shirtstyle-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Spodnie</span>
+          <div class="menu-choices char-palette" id="char-pants-choices"></div>
+        </div>
+        <div class="menu-field">
+          <span class="menu-label">Nakrycie głowy</span>
+          <div class="menu-choices" id="char-hat-choices"></div>
+        </div>
+        <div class="menu-field" id="char-hatcol-field">
+          <span class="menu-label">Kolor nakrycia</span>
+          <div class="menu-choices char-palette" id="char-hatcol-choices"></div>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="menu-primary char-next-btn" id="btn-char-next">Dalej — wybór świata →</button>
   </div>
   <div class="menu-panel hidden" id="menu-new">
     <button type="button" class="menu-back" id="btn-back">← Wróć</button>
@@ -60,26 +139,34 @@
   </div>
 </div>
   <script src="js/00-core.js"></script>
-  <script src="js/01-world.js"></script>
+  <script src="js/01-world.js?v=29"></script>
+  <script src="js/24-terrain.js?v=1"></script>
+  <script src="js/25-rivers.js?v=2"></script>
+  <script src="js/26-trails.js?v=1"></script>
+  <script src="js/27-forest-bridges.js?v=1"></script>
   <script src="js/02-player.js"></script>
-  <script src="js/03-traffic.js"></script>
+  <script src="js/03-traffic.js?v=3"></script>
+  <script src="js/30-npc-look.js?v=1"></script>
   <script src="js/04-collisions.js"></script>
   <script src="js/05-movement.js"></script>
   <script src="js/06-render-draw.js"></script>
   <script src="js/07-boats.js"></script>
-  <script src="js/08-render-assets.js"></script>
+  <script src="js/08-render-assets.js?v=25"></script>
   <script src="js/09-gauge.js"></script>
   <script src="js/10-time.js"></script>
   <script src="js/11-minimap.js"></script>
-  <script src="js/12-weather.js"></script>
+  <script src="js/12-weather.js?v=2"></script>
   <script src="js/13-police.js"></script>
   <script src="js/14-missions.js"></script>
-  <script src="js/15-combat.js"></script>
+  <script src="js/15-combat.js?v=3"></script>
+  <script src="js/28-character.js?v=2"></script>
+  <script src="js/29-inventory.js?v=2"></script>
   <script src="js/16-shop.js"></script>
   <script src="js/17-effects.js"></script>
-  <script src="js/18-audio.js"></script>
+  <script src="js/18-audio.js?v=4"></script>
   <script src="js/19-save.js"></script>
-  <script src="js/21-menu.js?v=2"></script>
-  <script src="js/20-main.js?v=2"></script>
+  <script src="js/21-menu.js?v=3"></script>
+  <script src="js/22-wildlife.js?v=18"></script>
+  <script src="js/20-main.js?v=3"></script>
 </body>
 </html>

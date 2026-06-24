@@ -1,25 +1,82 @@
 {
-  "width": 96,
-  "height": 128,
-  "splitY": 86,
-  "anchorX": 48,
-  "anchorY": 127,
-  "crownR": 36,
+  "width": 384,
+  "height": 512,
+  "splitY": 344,
+  "anchorX": 192,
+  "anchorY": 511,
+  "crownR": 144,
   "kinds": {
     "deciduous": {
-      "file": "deciduous.png"
+      "file": "deciduous.png",
+      "width": 384,
+      "height": 512,
+      "splitY": 344,
+      "anchorX": 192,
+      "anchorY": 511,
+      "hd": true
     },
     "oak": {
-      "file": "oak.png"
+      "file": "oak.png",
+      "width": 384,
+      "height": 512,
+      "splitY": 344,
+      "anchorX": 192,
+      "anchorY": 511,
+      "hd": true
     },
     "birch": {
-      "file": "birch.png"
+      "file": "birch.png",
+      "width": 384,
+      "height": 512,
+      "splitY": 344,
+      "anchorX": 192,
+      "anchorY": 511,
+      "hd": true
     },
     "pine": {
-      "file": "pine.png"
+      "file": "pine.png",
+      "width": 384,
+      "height": 512,
+      "splitY": 344,
+      "anchorX": 192,
+      "anchorY": 511,
+      "hd": true
+    },
+    "spruce": {
+      "file": "spruce.png",
+      "width": 384,
+      "height": 512,
+      "splitY": 344,
+      "anchorX": 192,
+      "anchorY": 511,
+      "hd": true
+    },
+    "maple": {
+      "file": "maple.png",
+      "width": 384,
+      "height": 512,
+      "splitY": 344,
+      "anchorX": 192,
+      "anchorY": 511,
+      "hd": true
+    },
+    "willow": {
+      "file": "willow.png",
+      "width": 384,
+      "height": 512,
+      "splitY": 344,
+      "anchorX": 192,
+      "anchorY": 511,
+      "hd": true
     },
     "bush": {
-      "file": "bush.png"
+      "file": "bush.png",
+      "width": 384,
+      "height": 512,
+      "splitY": 344,
+      "anchorX": 192,
+      "anchorY": 511,
+      "hd": true
     }
   }
 }

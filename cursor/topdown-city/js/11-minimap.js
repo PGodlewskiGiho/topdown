@@ -26,7 +26,9 @@ function drawMini(){
     for(const b of L.buildings){ mctx.fillStyle=b.color; mctx.fillRect(tx(b.x),ty(b.y),Math.max(1,b.w*MS),Math.max(1,b.h*MS)); }
   }
   // precise sub-cell coastline overlay (matches the main map's smooth water field)
-  if(hasW){ mctx.fillStyle="#2c6c97"; for(let py=0;py<MINI;py+=2) for(let px=0;px<MINI;px+=2){ const wx=cxw+(px-w2)/MS, wy=cyw+(py-w2)/MS; if(inWater(wx,wy)) mctx.fillRect(px,py,2,2); } }
+  if(hasW){ for(let py=0;py<MINI;py+=2) for(let px=0;px<MINI;px+=2){ const wx=cxw+(px-w2)/MS, wy=cyw+(py-w2)/MS;
+    if(!inWater(wx,wy)) continue;
+    mctx.fillStyle=isRiverAt(wx,wy)?"#3a8a72":"#2c6c97"; mctx.fillRect(px,py,2,2); } }
   mctx.lineCap="round";
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ const A=node(i,j);
     for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists) continue; const B=node(i+di,j+dj);

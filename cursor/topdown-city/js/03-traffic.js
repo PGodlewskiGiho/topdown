@@ -32,28 +32,34 @@ function spawnTrafficCar(){
   placeTrafficOnEdge(c); return c;
 }
 function spawnPed(){
-  const armed=rng()<0.13, wi=armed?pick([2,3,4]):null;          // ~13% carry pistol/uzi/shotgun
-  const skin=pick(SKIN), shirt=armed?pick(SHIRT_DARK):pick(SHIRT);
-  const hair=rng()<0.12?null:pick(HAIR), hr=rng(), hat=hr<0.18?"cap":(hr<0.30?"beanie":null);
-  const p={state:"walk", x:focusX,y:focusY, a:rng()*6.283, tx:focusX,ty:focusY, speed:rand(30,46), r:8,
-          color:shirt, skin, shirt, hair, hat, hatColor:pick(HATCOL),
+  const armed=rng()<0.13, wi=armed?pick([2,3,4]):null;
+  let fx=focusX+rand(-1100,1100), fy=focusY+rand(-1100,1100);
+  const look=rollNpcAppearance(fx,fy,{armed});
+  const p={state:"walk", x:fx,y:fy, a:rng()*6.283, tx:fx,ty:fy, speed:look.speed, r:look.r,
           vx:0,vy:0, downT:0, repick:0, _hp: armed?42:12, armed, weapon:wi, hostile:false, fireCd:rand(0.6,1.6),
           onGraph:false, pside: rng()<0.5?1:-1, pt:0, cross:0, crossProg:0, _wait:false, waitT:0, waitAxis:0,
           act:null, actCd:rand(4,12), chatT:0, bubT:0, partner:null, tcar:null, tlot:null, panic:0, threatX:0, threatY:0};
-  const fx=focusX+rand(-1100,1100), fy=focusY+rand(-1100,1100), nd=nearestCityNode(fx,fy);
+  applyNpcLook(p, look);
+  const nd=nearestCityNode(fx,fy);
   if(nd){ const nb=neighbors(nd[0],nd[1]); if(nb.length){
       p.pa=nd; p.pb=nb[(rng()*nb.length)|0]; p.pt=rng()*0.85+0.07; p.onGraph=true;
-      const pos=pedPos(p); p.x=pos[0]; p.y=pos[1]; return p; } }
-  let x,y,t=0;                                                   // fallback: wander (countryside / no graph)
+      const pos=pedPos(p); p.x=pos[0]; p.y=pos[1];
+      Object.assign(look, rollNpcAppearance(p.x,p.y,{armed}));
+      applyNpcLook(p, look);
+      return p; } }
+  let x,y,t=0;
   do{ x=fx+rand(-200,200); y=fy+rand(-200,200); t++; }while((inBuilding(x,y,11)||inWater(x,y))&&t<24);
-  p.x=x; p.y=y; p.tx=x; p.ty=y; return p;
+  p.x=x; p.y=y; p.tx=x; p.ty=y;
+  Object.assign(look, rollNpcAppearance(x,y,{armed}));
+  applyNpcLook(p, look);
+  return p;
 }
 const awayFromCam=(x,y)=>Math.hypot(x-cam.x,y-cam.y) > 720;
 function respawnTraffic(c){ let n; for(let k=0;k<24;k++){ n=spawnTrafficCar(); if(awayFromCam(n.x,n.y)) break; } Object.assign(c,n); }
 function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); }
 
 for(let i=0;i<24;i++) traffic.push(spawnTrafficCar());
-for(let i=0;i<34;i++) peds.push(spawnPed());
+for(let i=0;i<40;i++) peds.push(spawnPed());
 
 function isAhead(c,dx,dy,ox,oy,dist,lat){
   const rx=ox-c.x, ry=oy-c.y, fwd=rx*dx+ry*dy, side=Math.abs(rx*(-dy)+ry*dx);
@@ -333,6 +339,7 @@ function updateNpcPed(p,dt){
       if(dd<p.r){ if(dd>0.001){p.x+=ex/dd*(p.r-dd); p.y+=ey/dd*(p.r-dd);} if(!p.onGraph)p.repick=0; }
     } } }
   if(!p.onGraph) collideFences(p);
-  } finally { if(inWater(p.x,p.y)){ p.x=_wx; p.y=_wy; } }
+  p.vx=(p.x-_wx)/Math.max(dt,0.001); p.vy=(p.y-_wy)/Math.max(dt,0.001);
+  } finally { if(inWater(p.x,p.y)){ p.x=_wx; p.y=_wy; p.vx=0; p.vy=0; } }
 }
 

@@ -1,0 +1,10 @@
+Forest wildlife sprites — mixed sources (CC-BY-SA 3.0 / GPL 3.0 where noted).
+
+Deer + wolf (fox recolor): Liberated Pixel Cup animal pack
+  https://opengameart.org/content/lpc-bears-deer-lions-and-more
+  lpc_animals_2022_v1.1.zip — deer *.png, fox *.png
+  Authors: Sevarihk and LPC contributors.
+
+Boar: procedural top-down art generated for this game (same license as game assets).
+
+Bear sprites remain in assets/bears/ (separate attribution).

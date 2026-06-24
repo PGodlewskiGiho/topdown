@@ -20,6 +20,8 @@ let pboat = null;            // the boat the player is piloting
 let fHeld = false;           // one-shot guard for enter/exit key
 let hHeld = false;           // one-shot guard for horn key
 let rHeld = false;           // one-shot guard for weather key
+let gHeld = false;           // one-shot guard for reload key
+let iHeld = false;           // one-shot guard for inventory key
 let bHeld = false;           // one-shot guard for buy key
 let cHeld = false;           // one-shot guard for colour-cycle key
 const ped = { x:car.x, y:car.y, a:0, vx:0, vy:0, r:9, walk:96, run:178 };
@@ -46,6 +48,10 @@ function setKey(e,down){
   if(!down && (k==="f"||k==="enter")) fHeld=false;
   if(down && k==="r"){ if(!rHeld){ rHeld=true; cycleWeather(); } }
   if(!down && k==="r") rHeld=false;
+  if(down && k==="g"){ if(!gHeld){ gHeld=true; if(typeof reloadEquippedWeapon==="function") reloadEquippedWeapon(); } }
+  if(!down && k==="g") gHeld=false;
+  if(down && (k==="i"||k==="tab")){ if(!iHeld){ iHeld=true; if(typeof toggleInventory==="function") toggleInventory(); } e.preventDefault(); }
+  if(!down && (k==="i"||k==="tab")) iHeld=false;
   if(down && k==="b"){ if(!bHeld){ bHeld=true; tryBuy(); } }
   if(!down && k==="b") bHeld=false;
   if(down && k==="c"){ if(!cHeld){ cHeld=true; cyclePadColor(); } }
@@ -55,9 +61,15 @@ function setKey(e,down){
   if(down && k==="h"){ if(!hHeld){ hHeld=true; honk(); } }
   if(!down && k==="h") hHeld=false;
   if(typeof gamePhase!=="undefined" && gamePhase!=="playing") return;
+  if(typeof invOpen!=="undefined"&&invOpen){
+    if(down && k==="escape") toggleInventory();
+    return;
+  }
   if(down && ((k>="1"&&k<="9")||k==="0")){
     const idx = k==="0" ? 9 : (+k)-1;
-    if(inGunShop) buyWeapon(idx); else if(owned[idx]) curWeapon=idx;
+    if(inGunShop) buyWeapon(idx);
+    else if(typeof equipWeaponByIdx==="function") equipWeaponByIdx(idx);
+    else if(owned[idx]) curWeapon=idx;
   }
   if(down && k==="q"){ if(!qHeld){ qHeld=true; cycleWeapon(-1); } }  if(!down && k==="q") qHeld=false;
   if(down && k==="e"){ if(!eHeld){ eHeld=true; cycleWeapon(1); } }   if(!down && k==="e") eHeld=false;
@@ -266,7 +278,7 @@ function drawInterior(){
       ctx.fillRect(1.2, yy, wt-2, it.h*0.09); ctx.fillRect(it.w-wt+0.8, yy, wt-2, it.h*0.09); }
     ctx.fillStyle="#f1c40f"; ctx.fillRect(it.w*0.4, 1.2, it.w*0.2, wt-2); }                    // altar window
   ctx.fillStyle="rgba(255,255,255,.55)"; ctx.font="bold 11px monospace"; ctx.textAlign="center"; ctx.textBaseline="alphabetic"; ctx.fillText("WYJŚCIE", it.w/2, it.h-wt-9);
-  drawPerson(p,"#2f5fa0",false);
+  drawPerson(p, ped.shirt||"#2f5fa0", false);
   ctx.restore();
   ctx.setTransform(1/PX,0,0,1/PX,0,0);
   const names={house:"MIESZKANIE",blok:"BLOK",tower:"WIEŻOWIEC",shop:"SKLEP",super:"SUPERMARKET",church:"KOŚCIÓŁ"};
@@ -340,8 +352,10 @@ function jackCar(c){
     car.brand=c.brand||""; car.carName=c.carName||"Auto"; car.type=c.type||"sedan"; car.era=c.era||"modern";
     car.accent=c.accent||"#ff5b46"; car.power=1.2; car.topSpeed=200;
   }
+  const driverLook=rollNpcAppearance(c.x,c.y,{});
   const driver={state:"walk", x:c.x-Math.sin(c.a)*22, y:c.y+Math.cos(c.a)*22, a:c.a+Math.PI/2,
-                tx:0,ty:0, speed:rand(70,95), r:8, color:pick(PEDCOL), vx:0,vy:0, downT:0, repick:0};
+                tx:0,ty:0, speed:rand(70,95), vx:0,vy:0, downT:0, repick:0, act:null, panic:0};
+  applyNpcLook(driver, driverLook);
   if(peds.length<40) peds.push(driver); else Object.assign(peds[(Math.random()*peds.length)|0], driver);
   const i=traffic.indexOf(c); if(i>=0) traffic.splice(i,1);
   traffic.push(spawnTrafficCar());

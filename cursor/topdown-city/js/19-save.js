@@ -1,6 +1,7 @@
 /* TOPDOWN CITY — 19-save.js */
 /* ---------- save / load (graceful: no-ops if storage blocked) ---------- */
-const SAVE_KEY="topdown_city_save_v2";
+const SAVE_KEY="topdown_city_save_v4";
+const SAVE_KEY_LEGACY="topdown_city_save_v3";
 let stats={missionsDone:0};
 let saveTimer=4, saveFlash=0;
 const statsEl=document.getElementById("stats");
@@ -11,13 +12,14 @@ function saveGame(){
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       money, missionsDone:stats.missionsDone,
       car:carSave,
-      owned, ammo: ammo.map(a=>a===Infinity?-1:a), curWeapon
+      player: typeof characterFromPed==="function"?characterFromPed():null,
+      inventory: typeof serializeInventory==="function"?serializeInventory():null
     }));
     saveFlash=1.3;
   }catch(e){ /* storage unavailable (e.g. preview iframe) — ignore */ }
 }
 function hasSaveGame(){
-  try{ return !!localStorage.getItem(SAVE_KEY); }catch(e){ return false; }
+  try{ return !!(localStorage.getItem(SAVE_KEY)||localStorage.getItem(SAVE_KEY_LEGACY)); }catch(e){ return false; }
 }
 function resetNewGameState(){
   try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
@@ -29,7 +31,9 @@ function resetNewGameState(){
   car.W=m.W; car.L=m.L; car.hp=car.maxHp=280; car.dead=false; car.vx=car.vy=0; car.a=0; car.parts=null;
   car.R=vehicleHitRadius(car.W, car.L, "car");
   for(let i=0;i<owned.length;i++){ owned[i]=i===0; ammo[i]=WEAPONS[i].kind==="melee"?Infinity:0; }
-  curWeapon=0; rebuildGauge();
+  curWeapon=0;
+  if(typeof initInventory==="function") initInventory();
+  rebuildGauge();
 }
 function teleportPlayer(x,y){
   car.x=x; car.y=y; car.vx=car.vy=0; car.a=0;
@@ -38,7 +42,9 @@ function teleportPlayer(x,y){
 }
 function loadGame(){
   try{
-    const raw=localStorage.getItem(SAVE_KEY); if(!raw) return;
+    let raw=localStorage.getItem(SAVE_KEY);
+    if(!raw) raw=localStorage.getItem(SAVE_KEY_LEGACY);
+    if(!raw) return;
     const d=JSON.parse(raw);
     if(typeof d.money==="number") money=d.money;
     if(typeof d.missionsDone==="number") stats.missionsDone=d.missionsDone;
@@ -51,9 +57,13 @@ function loadGame(){
       car.R=vehicleHitRadius(car.W||36,car.L||80,car.kind||"car");
       rebuildGauge();
     }
-    if(Array.isArray(d.owned)) for(let i=0;i<owned.length&&i<d.owned.length;i++) owned[i]=!!d.owned[i];
-    if(Array.isArray(d.ammo)) for(let i=0;i<ammo.length&&i<d.ammo.length;i++) ammo[i]=d.ammo[i]<0?Infinity:d.ammo[i];
-    owned[0]=true; if(typeof d.curWeapon==="number"&&owned[d.curWeapon]) curWeapon=d.curWeapon;
+    if(d.inventory && typeof deserializeInventory==="function") deserializeInventory(d.inventory);
+    else if(typeof migrateLegacyWeaponsToInventory==="function") migrateLegacyWeaponsToInventory(d);
+    else if(typeof initInventory==="function") initInventory();
+    if(d.player && typeof applyCharacterToPed==="function"){
+      Object.assign(playerCharacter, defaultCharacter(), d.player);
+      applyCharacterToPed(playerCharacter);
+    }
   }catch(e){ /* ignore corrupt/blocked */ }
 }
 function tickSave(dt){
