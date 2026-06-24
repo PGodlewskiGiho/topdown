@@ -279,6 +279,30 @@ function drawPerson(p,color,down,targetCtx){
   const br=body==="hardy"?1.14:body==="female"?0.9:1;
   const r=(p.r||9)*br;
   const roundRect=(x,y,w,h,rad)=>{ c.beginPath(); c.roundRect(x,y,w,h,rad); };
+  const paintBlood=(tw,th)=>{
+    const stain=clamp(p.bloodStain||0,0,1), pulse=clamp(p.bloodPulse||0,0,1);
+    if(stain<0.02&&pulse<0.02) return;
+    c.save();
+    c.globalCompositeOperation="multiply";
+    c.globalAlpha=0.16+stain*0.4+pulse*0.2;
+    c.fillStyle="#8a1018";
+    if(down){
+      c.beginPath(); c.ellipse(r*0.5,0,r*0.5,r*0.36,0.08,0,7); c.fill();
+      c.beginPath(); c.ellipse(-r*0.15,r*0.06,r*0.58,r*0.4,0,0,7); c.fill();
+      c.beginPath(); c.ellipse(r*1.1,0,r*0.38,r*0.32,0,0,7); c.fill();
+    } else {
+      c.beginPath(); c.ellipse(r*0.06,r*0.1,(tw||r*0.9)*0.44,(th||r)*0.36,0.15,0,7); c.fill();
+      c.beginPath(); c.ellipse(-r*0.18,-r*0.04,r*0.2,r*0.26,0.2,0,7); c.fill();
+      c.beginPath(); c.ellipse(r*0.22,-r*0.16,r*0.14,r*0.2,-0.3,0,7); c.fill();
+    }
+    if(pulse>0.04){
+      c.globalCompositeOperation="source-over";
+      c.globalAlpha=pulse*0.38;
+      c.fillStyle="#c01820";
+      c.beginPath(); c.ellipse(down?r*0.35:0,down?0:r*0.04,(tw||r*0.5)*0.24,(th||r*0.8)*0.18,0,0,7); c.fill();
+    }
+    c.restore();
+  };
   c.save(); c.translate(p.x, p.y); c.rotate(p.a);
   if(down){
     c.fillStyle="rgba(0,0,0,.28)"; c.beginPath(); c.ellipse(0,1,r*1.75,r*0.78,0,0,7); c.fill();
@@ -287,6 +311,7 @@ function drawPerson(p,color,down,targetCtx){
     c.fillStyle=pants; c.beginPath(); c.ellipse(-r*0.15,r*0.38,r*0.55,r*0.38,0,0,7); c.fill();
     c.fillStyle=skin; c.beginPath(); c.arc(r*1.22,0,r*0.48,0,7); c.fill();
     if(hair&&hairStyle!=="bald"){ c.fillStyle=hair; c.beginPath(); c.arc(r*1.18,-r*0.08,r*0.38,0,7); c.fill(); }
+    paintBlood();
     c.restore(); return;
   }
   if(p.swimming){
@@ -430,6 +455,7 @@ function drawPerson(p,color,down,targetCtx){
     c.fillStyle="#1a1c22"; roundRect(tw*0.12,r*0.34,r*0.18,r*0.08,1); c.fill();
   }
   if(p.hostile){ c.strokeStyle="rgba(255,70,46,.9)"; c.lineWidth=1.6; c.beginPath(); c.arc(0,0,r*1.65,0,7); c.stroke(); }
+  paintBlood(tw,th);
   c.restore();
 }
 

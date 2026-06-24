@@ -36,10 +36,13 @@ function pedHit(p,dmg,kx,ky,bloodAmt,noHeat){
   if(p.state==="down") return;
   if(p.armed) p.hostile=true;
   p._hp-=dmg;
-  if(p._hp>0){ spawnBlood(p.x,p.y,kx,ky,0.25); return; }
+  const ang=Math.atan2(ky,kx);
+  stainCharacter(p,bloodAmt);
+  if(p._hp>0){ spawnBlood(p.x,p.y,kx,ky,0.35,ang); return; }
   p.state="down"; p.vx=kx*0.5; p.vy=ky*0.5; p.downT=0;
   if(!noHeat) addHeat(p.armed?0.5:0.8);
-  spawnBlood(p.x,p.y,kx,ky,bloodAmt);
+  spawnBlood(p.x,p.y,kx,ky,bloodAmt,ang);
+  spawnBlood(p.x,p.y,kx*0.15,ky*0.15,bloodAmt*0.85,ang);
   if(p.armed && p.weapon!=null) dropWeapon(p.x,p.y,p.weapon);
 }
 const drops=[];                                            // weapons dropped on the ground
@@ -243,7 +246,9 @@ function playerAim(){
   if(pointerActive){ const wx=mx+(cam.x-VW/2), wy=my+(cam.y-VH/2); return Math.atan2(wy-ped.y, wx-ped.x); }
   return ped.a;
 }
-function damage(x){ health=Math.max(0,health-x); const px=mode==="car"?car.x:ped.x, py=mode==="car"?car.y:ped.y; spawnBlood(px,py,0,0,0.3); if(health<=0) wasted(); }
+function damage(x){ health=Math.max(0,health-x); const px=mode==="car"?car.x:ped.x, py=mode==="car"?car.y:ped.y;
+  if(mode==="foot") stainCharacter(ped,0.4);
+  spawnBlood(px,py,0,0,0.38,rng()*6.283); if(health<=0) wasted(); }
 function killCop(c){ const i=cops.indexOf(c); if(i>=0) cops.splice(i,1); addHeat(0.6); }
 function wasted(){
   showBigMsg("WYELIMINOWANY");

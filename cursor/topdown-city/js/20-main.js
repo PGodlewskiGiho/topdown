@@ -28,6 +28,8 @@ function frame(now){
   updateShop();
   updateGunShop();
   updateDrops(dt);
+  updateBlood(dt);
+  if(mode==="foot"&&ped.bloodPulse>0) ped.bloodPulse=Math.max(0,ped.bloodPulse-dt*2.2);
   updateParkedFx(dt);
   updateWreckFires(dt);
   drainBlasts();

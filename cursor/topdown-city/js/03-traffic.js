@@ -308,6 +308,7 @@ function updateNpcPed(p,dt){
     p.downT+=dt; if(p.downT>3) respawnPed(p); return;
   }
   if(Math.hypot(p.x-focusX,p.y-focusY)>1900){ respawnPed(p); return; }   // recycle distant peds
+  if(p.bloodPulse>0) p.bloodPulse=Math.max(0,p.bloodPulse-dt*2.2);
   if(p.hostile){                                                          // armed & provoked -> shoots back
     const tgx=mode==="car"?car.x:ped.x, tgy=mode==="car"?car.y:ped.y;
     const dxp=tgx-p.x, dyp=tgy-p.y, dd=Math.hypot(dxp,dyp)||1;
