@@ -700,18 +700,19 @@ const BIOMES={
   sea:    {name:"WYBRZEŻE", ground:"#caa86a", walk:"#c8b88a", build:["#7a8a96","#6a7a86","#8a9aa6"],                             density:0.34, prop:"palm"},
 };
 const FOREST_NAMES={pine:"BÓR SOSNOWY",spruce:"BÓR ŚWIERKOWY",deciduous:"LAS LIŚCIASTY",maple:"Klonowy gaj",birch:"GĄSZCZ BRZOZOWY",willow:"Wierzbowy brzeg",oak:"DĄBROWA"};
+const WOODLAND_NAMES={pine:"Pogranicze · sosny",spruce:"Pogranicze · świerki",deciduous:"Zalesione przedmieścia",maple:"Zalesione przedmieścia",birch:"Brzozowe pogranicze",willow:"Wierzbowy brzeg",oak:"Dąbrowa · skraj lasu"};
 const FOREST_GROUND={pine:"#284a2a",spruce:"#243e28",deciduous:"#2f5a32",maple:"#325630",birch:"#345a30",willow:"#2e5230",oak:"#2a4e28"};
 const DESERT_NAMES={dune:"Wydmy",salt:"Solniska",rock:"Skaliste pustkowie",scrub:"Krzewiasta step"};
 const DESERT_GROUND={dune:"#caa86a",salt:"#d8ccb0",rock:"#b89868",scrub:"#bea070"};
 function desertType(i,j){
-  const t=hsh(Math.floor(i/5),Math.floor(j/5),441);
+  const t=smoothNoise(i*0.22+40,j*0.22+40)*0.55+hsh(Math.floor(i/4),Math.floor(j/4),441)*0.45;
   if(t<0.28) return "dune";
   if(t<0.48) return "scrub";
   if(t<0.68) return "rock";
   return "salt";
 }
 function forestType(i,j){
-  const t=hsh(Math.floor(i/4),Math.floor(j/4),331);
+  const t=smoothNoise(i*0.28,j*0.28)*0.55+hsh(Math.floor(i/3),Math.floor(j/3),331)*0.45;
   if(t<0.18) return "pine";
   if(t<0.32) return "spruce";
   if(t<0.46) return "deciduous";
@@ -743,11 +744,70 @@ function nearestCity(i,j){
   r={cx:best.cx, cy:best.cy, R:best.R, id:best.id, name:best.name, dist:bd};
   ncCache.set(key,r); return r;
 }
-function biomeOf(i,j){
+// --- wild world layout: climate fields + distance rings from cities ---
+function climateMoisture(i,j){
+  return smoothNoise(i*0.07+20,j*0.07+20)*0.45+smoothNoise(i*0.024,j*0.024)*0.35+hsh(i,j,577)*0.20;
+}
+function climateWarmth(i,j){
+  return smoothNoise(i*0.05+100,j*0.05+100)*0.52+hsh(Math.floor(i/6),Math.floor(j/6),581)*0.48;
+}
+function coastField(i,j){ return smoothNoise(i*0.034+200,j*0.034+200); }
+function cityEdgeDist(i,j){
   const c=nearestCity(i,j), n=hsh(i,j,77);
-  if(c.dist + (n-0.5)*2.2 < c.R) return "city";        // inside the nearest city's disk
-  const B=5, ci=Math.floor(i/B), cj=Math.floor(j/B), r=hsh(ci,cj,177);   // countryside between cities
-  return r<0.5?"forest": r<0.8?"desert":"sea";
+  return c.dist+(n-0.5)*2.2-c.R;                                   // <0 inside city disk
+}
+function isInCity(i,j){ return cityEdgeDist(i,j)<0; }
+function wildBiomeScores(i,j){
+  const edge=cityEdgeDist(i,j), moisture=climateMoisture(i,j), warmth=climateWarmth(i,j);
+  const coast=coastField(i,j), n=hsh(i,j,591);
+  let sea=0, desert=0, forest=0;
+  if(edge>2){
+    const coastal=coast>0.58||coast<0.22;
+    sea=(coastal?0.52:0.12)+moisture*0.42;
+    if(coastal) sea+=0.22;
+    sea*=Math.min(1,(edge-1)/10);
+  }
+  if(edge>5){
+    desert=(1-moisture)*0.52+warmth*0.34;
+    desert*=Math.min(1,(edge-3)/18);
+    desert+=(hsh(Math.floor(i/7),Math.floor(j/7),595)-0.32)*0.22;
+  }
+  if(edge>=0){
+    const ring=edge<4?0.38+edge/4*0.22:edge<22?0.52+Math.min(0.34,(edge-4)/24):0.72-Math.min(0.28,(edge-22)/55);
+    forest=ring+moisture*0.34;
+    forest*=0.58+moisture*0.52;
+    if(edge<8) forest+=0.18;                                       // green belt right past suburbs
+  }
+  const fuzz=(n-0.5)*0.11;
+  return {sea, desert, forest, fuzz, edge, moisture};
+}
+function biomeOf(i,j){
+  if(isInCity(i,j)) return "city";
+  const s=wildBiomeScores(i,j);
+  if(s.sea>s.desert+s.fuzz&&s.sea>s.forest+s.fuzz&&s.sea>0.36) return "sea";
+  if(s.desert>s.forest+s.fuzz&&s.desert>s.sea+s.fuzz&&s.desert>0.30) return "desert";
+  return "forest";
+}
+function forestDensityAt(i,j){
+  if(isInCity(i,j)) return 0;
+  const s=wildBiomeScores(i,j), biome=biomeOf(i,j);
+  if(biome!=="forest"){
+    if(biome==="desert") return Math.max(0,(0.22-s.edge/45)*s.moisture*0.28);
+    if(biome==="sea") return Math.max(0,0.06-s.edge/90);
+    return 0;
+  }
+  let d=0.14+Math.min(0.86,s.edge/20);
+  d*=0.68+s.moisture*0.42;
+  d+=(hsh(i,j,601)-0.5)*0.07;
+  return Math.max(0.06,Math.min(1,d));
+}
+function forestGroundFor(i,j,density){
+  const base=FOREST_GROUND[forestType(i,j)]||"#2f5a32";
+  if(density>=0.55) return base;
+  const edge="#426a3c", mid="#355f36";
+  if(density<0.28) return edge;
+  if(density<0.42) return mid;
+  return base;
 }
 // Road junction at grid cell (i,j) — used by start menu / spawn picker.
 function roadJunctionAtCell(i,j){
@@ -771,6 +831,7 @@ function findBiomeSpawn(biome, variant=0){
     for(let i=-ring;i<=ring;i++) for(let j=-ring;j<=ring;j++){
       if(Math.max(Math.abs(i),Math.abs(j))!==ring) continue;
       if(biomeOf(i,j)!==biome) continue;
+      if(biome==="forest"&&forestDensityAt(i,j)<0.52) continue;
       if(isMountain(i,j)) continue;
       const pt=roadJunctionAtCell(i,j);
       if(inWater(pt.x, pt.y)) continue;
@@ -1563,10 +1624,12 @@ function pickForestTreeMetres(r){
   if(roll<0.96) return 30+r()*10;        // 30–40 m large
   return 40+r()*10;                      // 40–50 m rare giants
 }
-function genForestTrees(lot,r,ci,cj){
+function genForestTrees(lot,r,ci,cj,density=1){
+  if(density<0.03) return;
   const left=lot.x, top=lot.y, lw=lot.w, lh=lot.h, placed=[];
   const pad=14;
   const spacing=(s)=>Math.max(30, s*0.17);
+  const sizeMul=0.52+density*0.55;
   const fits=(x,y,s)=>{
     if(x<left+pad||x>left+lw-pad||y<top+pad||y>top+lh-pad) return false;
     if(isRiverAt(x,y)) return false;
@@ -1580,32 +1643,35 @@ function genForestTrees(lot,r,ci,cj){
     lot.props.push(makeTree(x,y,s,r,kind,{fi:ci,fj:cj}));
     placed.push({x,y,s});
   };
-  const target=Math.min(64, Math.max(22, Math.floor(lw*lh/22000)));
+  const baseTarget=Math.floor(lw*lh/22000);
+  const target=Math.min(64, Math.max(density<0.18?1:6, Math.floor(baseTarget*density*(0.8+density*0.45))));
   let tries=0, maxTries=target*18;
   while(placed.length<target && tries++<maxTries){
     const x=left+pad+r()*(lw-pad*2), y=top+pad+r()*(lh-pad*2);
     const roll=r();
-    if(roll<0.16){
-      const s=forestTreeS(5+r()*3);
+    if(roll<0.16+(1-density)*0.12){
+      const s=forestTreeS((5+r()*3)*sizeMul);
       if(!fits(x,y,s)) continue;
       pushTree(x,y,s,r()<0.45?"bush":"birch");
       continue;
     }
-    const s=forestTreeS(pickForestTreeMetres(r));
+    const s=forestTreeS(pickForestTreeMetres(r)*sizeMul);
     if(!fits(x,y,s)) continue;
     pushTree(x,y,s,null);
-    if(r()<0.48){
+    if(r()<0.28+density*0.28){
       const ux=x+(r()-0.5)*spacing(s)*1.5, uy=y+(r()-0.5)*spacing(s)*1.2;
-      const us=forestTreeS(5+r()*5);
+      const us=forestTreeS((5+r()*5)*sizeMul);
       if(fits(ux,uy,us)) pushTree(ux,uy,us,r()<0.35?"bush":(r()<0.5?"birch":"willow"));
     }
   }
-  for(let k=0;k<1+(r()*2|0);k++){
-    const s=forestTreeS(38+r()*12);
-    const edge=r()<0.55;
-    const x=edge?(left+(r()<0.5?pad:lw-pad)):(left+pad+r()*(lw-pad*2));
-    const y=edge?(top+pad+r()*(lh-pad*2)):(top+(r()<0.5?pad:lh-pad));
-    if(fits(x,y,s)) pushTree(x,y,s,null);
+  if(density>0.55){
+    for(let k=0;k<1+(r()*2|0);k++){
+      const s=forestTreeS((38+r()*12)*sizeMul);
+      const edge=r()<0.55;
+      const x=edge?(left+(r()<0.5?pad:lw-pad)):(left+pad+r()*(lw-pad*2));
+      const y=edge?(top+pad+r()*(lh-pad*2)):(top+(r()<0.5?pad:lh-pad));
+      if(fits(x,y,s)) pushTree(x,y,s,null);
+    }
   }
 }
 /* ===== plazas (open pedestrian squares) ===== */
@@ -1656,7 +1722,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=34;
+const LOT_CACHE_VER=35;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 const DESERT_FLOOR_VARIANTS=["ripple_light","ripple_dark","dune_crest","cracked_earth","salt_patch","pebble_cluster","sage_bush","dry_grass"];
 const DESERT_FLORA=["sage","tumbleweed","driftwood","bone","pebble","crack","salt_crust"];
@@ -1886,10 +1952,11 @@ function getLot(i,j){
           lot.dock={x:baseX, y:baseY, ang:Math.atan2(into[1],into[0]), len, w: marina?26:15, kind: marina?"marina":"wood"}; } } }
   }
   else if(biome==="forest"){
-    lot.empty=true; lot.zone="forest"; lot.forestType=forestType(i,j);
+    lot.forestDensity=forestDensityAt(i,j);
+    lot.empty=true; lot.zone=lot.forestDensity<0.38?"transition":"forest"; lot.forestType=forestType(i,j);
     lot.river=isRiverCell(i,j)||[[1,0],[-1,0],[0,1],[0,-1]].some(d=>isRiverCell(i+d[0],j+d[1]));
-    lot.B.ground=FOREST_GROUND[lot.forestType]||lot.B.ground;
-    genForestTrees(lot,r,i,j);
+    lot.B.ground=forestGroundFor(i,j,lot.forestDensity);
+    genForestTrees(lot,r,i,j,lot.forestDensity);
     if(lot.river){
       for(let k=0;k<8+(r()*10|0);k++){
         const rx=left+16+r()*(lw-32), ry=top+16+r()*(lh-32);
@@ -1903,6 +1970,8 @@ function getLot(i,j){
   else if(biome==="desert"){
     lot.empty=true; lot.zone="outer"; lot.desertType=desertType(i,j);
     lot.B.ground=DESERT_GROUND[lot.desertType]||lot.B.ground;
+    const fEdge=forestDensityAt(i,j);
+    if(fEdge>0.04) genForestTrees(lot,r,i,j,fEdge);
     const nc=5+(r()*9|0);
     for(let k=0;k<nc;k++){
       const px=left+16+r()*(lw-32), py=top+16+r()*(lh-32);
@@ -1954,14 +2023,16 @@ function getLot(i,j){
       for(let k=0;k<9;k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1+r()*2.4});
       for(let k=0;k<5;k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:34+r()*64, a:(r()-0.5)*1.2});
     } else {
-      const dense=biome==="forest"; const nt=dense?(72+(r()*48|0)):(5+(r()*5|0));
+      const fd=lot.forestDensity||forestDensityAt(i,j);
+      const dense=biome==="forest"&&fd>0.42;
+      const nt=dense?(Math.floor((72+(r()*48|0))*Math.max(0.35,fd))):(5+(r()*5|0));
       for(let k=0;k<nt;k++){
         const x=left+r()*lw, y=top+r()*lh, s=dense?(5+r()*9):(5+r()*4);
         lot.tufts.push(dense?{x,y,s,v:FOREST_GRASS_VARIANTS[(r()*FOREST_GRASS_VARIANTS.length)|0]}:{x,y,s});
       }
-      if(dense||lot.zone==="forest"){
-        genForestFloor(lot,r,left,top,lw,lh,i,j);
-        if(biome==="forest") genForestRocks(lot,r,left,top,lw,lh,i,j);
+      if(dense||lot.zone==="forest"||lot.zone==="transition"||fd>0.12){
+        if(fd>0.12) genForestFloor(lot,r,left,top,lw,lh,i,j);
+        if(biome==="forest"&&fd>0.35) genForestRocks(lot,r,left,top,lw,lh,i,j);
         lot.props.sort((u,v)=>u.y-v.y);
       }
       const nf=(r()*6|0); for(let k=0;k<nf;k++) lot.flowers.push({x:left+r()*lw, y:top+r()*lh, c:["#e8d24a","#e07a9a","#c95ad8","#f0f0f0","#e88a3a"][(r()*5)|0]});
