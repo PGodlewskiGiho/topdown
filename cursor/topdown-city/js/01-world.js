@@ -1689,7 +1689,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=37;
+const LOT_CACHE_VER=38;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 const DESERT_FLOOR_VARIANTS=["ripple_light","ripple_dark","dune_crest","cracked_earth","salt_patch","pebble_cluster","sage_bush","dry_grass"];
 const DESERT_FLORA=["sage","tumbleweed","driftwood","bone","pebble","crack","salt_crust"];
@@ -1977,11 +1977,10 @@ function getLot(i,j){
     }
   }
   const pn=(r()*2.2)|0; for(let k=0;k<pn;k++) lot.puddles.push({x:left+r()*lw, y:top+r()*lh, rx:8+r()*22, ry:5+r()*12});
-  if(!lot.mega && !lot.water && !lot.mountain && !lot.parking && !lot.salon && !lot.gunshop) addCurbside(lot,i,j,r);
-  if(biome==="city" && !lot.mega && !lot.water && !lot.mountain && !lot.parking && !lot.salon && !lot.gunshop && !lot.motodealer && !lot.cemetery) addStreetTrees(lot,i,j,r);
+  if(!lot.mega && !lot.water && !lot.mountain && !lot.parking && !lot.salon && !lot.gunshop && !lot.farm) addCurbside(lot,i,j,r);
+  if(biome==="city" && !lot.mega && !lot.water && !lot.mountain && !lot.parking && !lot.salon && !lot.gunshop && !lot.motodealer && !lot.cemetery && !lot.farm) addStreetTrees(lot,i,j,r);
   if(!lot.mega && !lot.water && !lot.mountain) addLamps(lot,i,j,r);
   if(!lot.mega) addSignals(lot,i,j);
-  Game.onLot(lot,i,j);
   if(lot.buildings.length) lot.buildings=lot.buildings.filter(b=>{
     const mx=b.x+b.w/2, my=b.y+b.h/2;
     return !inPlaza(mx,my) && !(typeof inRynek==="function"&&inRynek(mx,my));
@@ -1992,7 +1991,7 @@ function getLot(i,j){
     for(let k=0;k<6;k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:18+r()*42, ph:r()*6.28});
   } else if(lot.mountain){
     for(let k=0;k<10;k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1.4+r()*3});
-  } else if((lot.empty||lot.zone==="suburb") && !lot.salon && !lot.gunshop && !lot.water){
+  } else if((lot.empty||lot.zone==="suburb") && !lot.salon && !lot.gunshop && !lot.water && !lot.farm){
     if(biome==="desert"){
       for(let k=0;k<14+(r()*10|0);k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1+r()*2.8});
       for(let k=0;k<8+(r()*7|0);k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:38+r()*72, a:(r()-0.5)*1.2});
@@ -2015,6 +2014,7 @@ function getLot(i,j){
     }
   }
   if(lot.zone==="suburb" && lot.buildings.length) addGardens(lot, r);
+  Game.onLot(lot,i,j);
   lotCache.set(key,lot); return lot;
 }
 
