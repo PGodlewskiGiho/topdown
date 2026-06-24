@@ -1,9 +1,25 @@
 /* TOPDOWN CITY — 04-collisions.js */
 /* ---- shared collisions ---- */
+function isPlayerVehicle(e){
+  return typeof car!=="undefined" && e===car && (typeof mode==="undefined" || mode==="car");
+}
+function collideDampenNormal(e, nx, ny, restitution){
+  if(e.vx===undefined) return 0;
+  const into=e.vx*nx+e.vy*ny;
+  if(into>=0) return into;
+  let rest=restitution;
+  if(isPlayerVehicle(e)) rest=Math.min(rest, 0.03);
+  const mul=1+rest;
+  e.vx-=into*nx*mul;
+  e.vy-=into*ny*mul;
+  return into;
+}
 // OBB vs immobile vehicle: separation + impulse with restitution and slide friction.
 function resolveVehicleStaticCollision(mover, stat, cfg){
   cfg=cfg||{};
-  const skin=cfg.skin||1, rest=cfg.restitution??0.2, friction=cfg.friction??0.65;
+  const skin=cfg.skin||1;
+  let rest=cfg.restitution??0.2, friction=cfg.friction??0.65;
+  if(isPlayerVehicle(mover)){ rest=0; friction=0.84; }
   const ov=vehicleOverlap(mover,stat,cfg.padM||0,cfg.padS||0);
   if(!ov) return null;
   const push=ov.pen+skin;
@@ -15,14 +31,17 @@ function resolveVehicleStaticCollision(mover, stat, cfg){
     const vn2=-vn*rest;
     mover.vx=tvx*(1-friction)+ov.nx*vn2;
     mover.vy=tvy*(1-friction)+ov.ny*vn2;
-  }else if(ov.pen>0.25){
-    mover.vx=tvx*(1-friction*0.5)+ov.nx*vn;
-    mover.vy=tvy*(1-friction*0.5)+ov.ny*vn;
+  }else if(ov.pen>0.25 && !isPlayerVehicle(mover)){
+    mover.vx=tvx*(1-friction*0.5)+ov.nx*vn*0.35;
+    mover.vy=tvy*(1-friction*0.5)+ov.ny*vn*0.35;
+  }else if(isPlayerVehicle(mover) && ov.pen>0.08){
+    mover.vx=tvx*0.94;
+    mover.vy=tvy*0.94;
   }
   return {nx:ov.nx,ny:ov.ny,pen:ov.pen,push,relInto:vn};
 }
 function parkedCollisionCfg(e){
-  if(typeof car!=="undefined" && e===car) return {skin:1.2,restitution:0.08,friction:0.72,padS:-2};
+  if(typeof car!=="undefined" && e===car) return {skin:1.0,restitution:0,friction:0.84,padS:-2};
   if(e.vx!==undefined && e.W) return {skin:1.0,restitution:0.12,friction:0.62,padS:-2};
   return {skin:0.5,restitution:0,friction:0.88,padS:-3};
 }
@@ -37,7 +56,8 @@ function collideCircleBuildings(e,bounce){
     else{ const l=e.x-b.x,r=b.x+b.w-e.x,t=e.y-b.y,bo=b.y+b.h-e.y,mn=Math.min(l,r,t,bo);
       if(mn===l){nx=-1;ny=0;}else if(mn===r){nx=1;ny=0;}else if(mn===t){nx=0;ny=-1;}else{nx=0;ny=1;} d=0; }
     e.x+=nx*(e.R-d); e.y+=ny*(e.R-d);
-    const into=e.vx*nx+e.vy*ny; if(into<0){ e.vx-=into*nx*(1+bounce); e.vy-=into*ny*(1+bounce);
+    const into=collideDampenNormal(e, nx, ny, bounce);
+    if(into<0){
       if(e.hp!==undefined && into<-95){
         const sev=impactSeverity(Math.hypot(e.vx,e.vy), into);
         if(sev>0.22 && (e._impactCd||0)<=0){
@@ -55,8 +75,11 @@ function carVsTraffic(){
     if(!ov) continue;
     const nx=ov.nx, ny=ov.ny;
     car.x+=nx*ov.pen; car.y+=ny*ov.pen;
-    const into=car.vx*nx+car.vy*ny;
-    if(into<0){ car.vx-=into*nx*1.2; car.vy-=into*ny*1.2; }
+    const into=collideDampenNormal(car, nx, ny, 0.02);
+    if(c.vx!==undefined){
+      const tInto=c.vx*nx+c.vy*ny;
+      if(tInto<0){ c.vx-=tInto*nx*0.9; c.vy-=tInto*ny*0.9; }
+    }
     const sev=impactSeverity(psp, into);
     if(c.state==="drive" && psp>120 && sev>0.35){
       c.state="loose"; c.vx=-nx*(psp*0.6)+car.vx*0.3; c.vy=-ny*(psp*0.6)+car.vy*0.3; c.spin=(rng()-0.5)*6; c.downT=0; addHeat(0.2);

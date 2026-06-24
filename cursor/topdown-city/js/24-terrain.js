@@ -45,8 +45,9 @@ function collideTerrain(e, maxSlope, bounce){
   if(into<=0) return;
   const pen=Math.min(14, (sp-maxSlope)*2800);
   e.x-=ux*pen; e.y-=uy*pen;
-  e.vx-=ux*into*(1+bounce);
-  e.vy-=uy*into*(1+bounce);
+  let b=bounce;
+  if(typeof car!=="undefined" && e===car) b=Math.min(b, 0.04);
+  collideDampenNormal(e, -ux, -uy, b);
 }
 
 function resolveTerrainBlock(e, px, py, maxSlope){

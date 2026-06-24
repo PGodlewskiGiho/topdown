@@ -1125,8 +1125,10 @@ function collideMega(e,bounce){
     else{ const l=e.x-b.x,r=b.x+b.w-e.x,t=e.y-b.y,bo=b.y+b.h-e.y,mn=Math.min(l,r,t,bo);
       if(mn===l){nx=-1;ny=0;} else if(mn===r){nx=1;ny=0;} else if(mn===t){nx=0;ny=-1;} else {nx=0;ny=1;} d=0; }
     e.x+=nx*(eR-d); e.y+=ny*(eR-d);
-    if(e.vx!==undefined){ const into=e.vx*nx+e.vy*ny; if(into<0){ e.vx-=into*nx*(1+bounce); e.vy-=into*ny*(1+bounce);
-      if(e.hp!==undefined && into<-110) damageCar(e,(-into-110)*0.14,cx,cy,"impact"); } }
+    if(e.vx!==undefined){
+      const into=collideDampenNormal(e, nx, ny, bounce);
+      if(into<0 && e.hp!==undefined && into<-110) damageCar(e,(-into-110)*0.14,cx,cy,"impact");
+    }
   });
 }
 function addBuilding(lot,bx,by,bw,bh,r,type){
@@ -1430,8 +1432,10 @@ function collideRoundabouts(e){
     if(colR<=0) continue;                                              // grass / meadow / flower / cobble — drive through
     const dx=e.x-A[0], dy=e.y-A[1], rr=colR+eR, d=Math.hypot(dx,dy)||0.001;
     if(d<rr){ const nx=dx/d, ny=dy/d, push=rr-d; e.x+=nx*push; e.y+=ny*push;
-      if(e.vx!==undefined){ const into=e.vx*nx+e.vy*ny; if(into<0){ e.vx-=into*nx*1.1; e.vy-=into*ny*1.1;
-        if(e.hp!==undefined && into<-90) damageCar(e,(-into-90)*0.10,A[0],A[1],"impact"); } } }
+      if(e.vx!==undefined){
+        const into=collideDampenNormal(e, nx, ny, 0.08);
+        if(into<0 && e.hp!==undefined && into<-90) damageCar(e,(-into-90)*0.10,A[0],A[1],"impact");
+      } }
   }
 }
 function collideTrees(e){
@@ -1441,7 +1445,10 @@ function collideTrees(e){
       const hitR=p.hitR||(p.s*0.22);
       const rr=eR+hitR, dx=e.x-p.x, dy=e.y-p.y, d=Math.hypot(dx,dy)||0.001;
       if(d<rr){ const nx=dx/d, ny=dy/d, push=rr-d; e.x+=nx*push; e.y+=ny*push;
-        if(e.vx!==undefined){ const into=e.vx*nx+e.vy*ny; if(into<0){ e.vx-=into*nx*1.1; e.vy-=into*ny*1.1; if(e.hp!==undefined && into<-130) damageCar(e,(-into-130)*0.12,p.x,p.y,"impact"); } } }
+        if(e.vx!==undefined){
+          const into=collideDampenNormal(e, nx, ny, 0.08);
+          if(into<0 && e.hp!==undefined && into<-130) damageCar(e,(-into-130)*0.12,p.x,p.y,"impact");
+        } }
     }
   }
 }
@@ -1659,7 +1666,7 @@ function segPush(e,eR,x1,y1,x2,y2){
   let t=((e.x-x1)*dx+(e.y-y1)*dy)/L2; t=t<0?0:t>1?1:t;
   const px=x1+dx*t, py=y1+dy*t, ox=e.x-px, oy=e.y-py, d=Math.hypot(ox,oy)||0.001;
   if(d<eR){ const nx=ox/d, ny=oy/d, push=eR-d; e.x+=nx*push; e.y+=ny*push;
-    if(e.vx!==undefined){ const into=e.vx*nx+e.vy*ny; if(into<0){ e.vx-=into*nx*1.1; e.vy-=into*ny*1.1; } } }
+    if(e.vx!==undefined) collideDampenNormal(e, nx, ny, 0.08); }
 }
 function collideFences(e){
   const eR=(e.R!==undefined?e.R:e.r)+1, ci=Math.floor((e.x-ROAD)/GAP), cj=Math.floor((e.y-ROAD)/GAP);
@@ -1677,7 +1684,10 @@ function collideGraves(e){
         const nx=dx/d, ny=dy/d, push=rr-d; e.x+=nx*push; e.y+=ny*push;
         if(e.vx!==undefined){
           const into=e.vx*nx+e.vy*ny;
-          if(into<0){ e.vx-=into*nx*1.15; e.vy-=into*ny*1.15; if(e.hp!==undefined && into<-95) damageCar(e,(-into-95)*0.08,g.x,g.y,"impact"); }
+          if(into<0){
+            collideDampenNormal(e, nx, ny, 0.08);
+            if(e.hp!==undefined && into<-95) damageCar(e,(-into-95)*0.08,g.x,g.y,"impact");
+          }
         }
       }
     }

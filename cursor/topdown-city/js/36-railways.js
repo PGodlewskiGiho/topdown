@@ -169,7 +169,10 @@ function collideCrossingGates(e){
       if(Math.hypot(e.x-bx,e.y-by)<14+(e.R||e.r||12)){
         const nx=(e.x-bx)||0.01, ny=(e.y-by)||0.01, d=Math.hypot(nx,ny)||1;
         e.x+=nx/d*3; e.y+=ny/d*3;
-        if(typeof e.vx==="number"){ e.vx*=-0.25; e.vy*=-0.25; }
+        if(typeof e.vx==="number"){
+          if(typeof car!=="undefined" && e===car) collideDampenNormal(e, nx/d, ny/d, 0);
+          else { e.vx*=-0.25; e.vy*=-0.25; }
+        }
       }
     }
   }

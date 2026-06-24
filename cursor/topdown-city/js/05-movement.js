@@ -147,17 +147,16 @@ function updateCar(dt){
   }
 
   collide();
-  collideTerrain(car,TERRAIN_SLOPE_CAR,0.35);
+  if(surf<0.92) collideTerrain(car,TERRAIN_SLOPE_CAR,0.05);
   collideParked(car); collideLamps(car); collideSignals(car);
   if(typeof collideCrossingGates==="function") collideCrossingGates(car);
   collideTrees(car); collideRoundabouts(car); collideFences(car); collideGraves(car);
   carVsTraffic();
-  collideParked(car);
   carVsPeds();
   if(!car.dead&&car.maxHp&&car.hp>0&&car.hp<car.maxHp*0.08) damageCar(car,1.4*dt,car.x,car.y,"burn");
 }
 
-function collide(){ collideCircleBuildings(car, 0.25); collideMega(car,0.35); }
+function collide(){ collideCircleBuildings(car, 0); collideMega(car,0); }
 
 /* ---------- update: on foot ---------- */
 function updatePed(dt){
