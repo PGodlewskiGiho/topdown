@@ -2,7 +2,7 @@
 /* ---------- audio (synthesized, no files) ---------- */
 let actx=null, master=null, audioOn=true, mHeld=false;
 let engOsc, engOsc2, engGain, engFilt, sirenOsc, sirenGain, rainGain;
-let forestAmbGain, forestWindGain, forestWindFilt, forestWindFilt2, forestRustleGain;
+let forestAmbGain, forestWindGain, forestWindFilt, forestWindFilt2, forestRustleGain, forestStreamGain;
 let forestBirdTimer=0, forestAnimalTimer=0, forestWindSmooth=0, forestAudioLast=0;
 function playerInForest(){
   if(typeof focusX==="undefined"||typeof cellAt!=="function") return false;
@@ -28,6 +28,20 @@ function initForestAudio(){
   forestRustleGain=actx.createGain(); forestRustleGain.gain.value=0;
   rsrc.connect(rh); rh.connect(rf); rf.connect(forestRustleGain); forestRustleGain.connect(forestAmbGain);
   rsrc.start();
+  const slen=actx.sampleRate*4, sbuf=actx.createBuffer(1,slen,actx.sampleRate), sd=sbuf.getChannelData(0);
+  let sb=0; for(let i=0;i<slen;i++){ const w=Math.random()*2-1; sb=(sb+w*0.04)*0.985; sd[i]=sb*2.2+w*0.22; }
+  const ssrc=actx.createBufferSource(); ssrc.buffer=sbuf; ssrc.loop=true;
+  const sf1=actx.createBiquadFilter(); sf1.type="bandpass"; sf1.frequency.value=680; sf1.Q.value=0.42;
+  const sf2=actx.createBiquadFilter(); sf2.type="bandpass"; sf2.frequency.value=2100; sf2.Q.value=0.28;
+  forestStreamGain=actx.createGain(); forestStreamGain.gain.value=0;
+  ssrc.connect(sf1); sf1.connect(sf2); sf2.connect(forestStreamGain); forestStreamGain.connect(forestAmbGain);
+  ssrc.start();
+}
+function nearForestRiver(x,y){
+  if(typeof isRiverAt!=="function") return false;
+  if(isRiverAt(x,y)) return true;
+  for(let a=0;a<8;a++){ const d=62, ang=a/8*6.283; if(isRiverAt(x+Math.cos(ang)*d,y+Math.sin(ang)*d)) return true; }
+  return false;
 }
 function forestSfx(vol){ if(!actx||!audioOn||!forestAmbGain) return null; const g=actx.createGain(); g.gain.value=vol; g.connect(forestAmbGain); return g; }
 function playBirdChirp(pitch,vol,dur){
@@ -186,6 +200,12 @@ function updateForestAudio(){
   forestWindFilt.frequency.value=260+wPow*520+gust*180+Math.sin(wt*0.65)*90;
   forestWindFilt.Q.value=0.45+wPow*0.35;
   forestRustleGain.gain.value=(0.012+wPow*0.028+gust*0.012)*rainDuck*(0.7+0.3*Math.sin(wt*1.4+1.2));
+  if(forestStreamGain){
+    const px=typeof focusX!=="undefined"?focusX:(mode==="car"?car.x:ped.x);
+    const py=typeof focusY!=="undefined"?focusY:(mode==="car"?car.y:ped.y);
+    const stream=nearForestRiver(px,py)?0.11:0;
+    forestStreamGain.gain.value+=(stream-forestStreamGain.gain.value)*Math.min(1,2.2*dt);
+  }
   forestBirdTimer-=dt;
   if(forestBirdTimer<=0){
     forestBirdTimer=rand(1.4,5.2)/(0.55+wPow*0.35);

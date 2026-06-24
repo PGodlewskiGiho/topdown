@@ -864,6 +864,12 @@ function getTex(key){
     else if(key==="asphalt"){ grain(1400,"0,0,0","205,210,215",1.4); crack(2,0.10); }
     else if(key==="sand"){ grain(1300,"120,95,55","255,240,200",1.2);
       t.strokeStyle="rgba(150,120,75,0.07)"; t.lineWidth=2; for(let i=0;i<7;i++){ t.beginPath(); const y=rr()*S; t.moveTo(0,y); for(let x=0;x<=S;x+=12) t.lineTo(x, y+Math.sin(x*0.09+i*1.7)*3); t.stroke(); } }
+    else if(key==="riverbed"){ t.fillStyle="#3a4a38"; t.fillRect(0,0,S,S);
+      grain(900,"20,28,18","90,110,78",1.1);
+      for(let i=0;i<48;i++){ const x=rr()*S,y=rr()*S,r=1.2+rr()*3.5;
+        t.fillStyle=rr()<0.55?"rgba(52,48,40,0.35)":"rgba(78,88,62,0.28)"; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); }
+      for(let i=0;i<24;i++){ t.strokeStyle="rgba(30,38,26,0.18)"; t.lineWidth=0.8+rr()*1.2; t.lineCap="round";
+        const x=rr()*S,y=rr()*S; t.beginPath(); t.moveTo(x,y); t.lineTo(x+(rr()-0.5)*12,y+(rr()-0.5)*8); t.stroke(); } t.lineCap="butt"; }
     else if(key==="dirt"){ grain(1000,"0,0,0","150,120,80",1.7);
       for(let i=0;i<16;i++){ const x=rr()*S,y=rr()*S,r=2+rr()*4; t.fillStyle="rgba(90,82,70,0.18)"; t.beginPath(); t.arc(x,y,r,0,7); t.fill(); } }
     else if(key==="roof"){ for(let y=0;y<S;y+=7){ t.strokeStyle="rgba(0,0,0,0.07)"; t.lineWidth=1; t.beginPath(); t.moveTo(0,y); t.lineTo(S,y); t.stroke(); }
@@ -981,7 +987,7 @@ function drawWaterGlobal(ox,oy){
   const step=26, x0=ox-step, y0=oy-step, x1=ox+VW+step, y1=oy+VH+step, t=performance.now()/1000;
   const polys=[], bnd=[];                                                       // ONE marching-squares pass over the whole view -> seamless across lots
   for(let gy=y0; gy<y1; gy+=step) for(let gx=x0; gx<x1; gx+=step){
-    const v0=waterScore(gx,gy), v1=waterScore(gx+step,gy), v2=waterScore(gx+step,gy+step), v3=waterScore(gx,gy+step);
+    const v0=lakeScore(gx,gy), v1=lakeScore(gx+step,gy), v2=lakeScore(gx+step,gy+step), v3=lakeScore(gx,gy+step);
     if(v0<=0&&v1<=0&&v2<=0&&v3<=0) continue;
     const C=[[gx,gy],[gx+step,gy],[gx+step,gy+step],[gx,gy+step]], V=[v0,v1,v2,v3], poly=[], cr=[];
     for(let e=0;e<4;e++){ const a=C[e],va=V[e],b=C[(e+1)%4],vb=V[(e+1)%4];
@@ -1565,6 +1571,7 @@ function drawProps(L){
     } else if(p.t==="rock"){
       ctx.fillStyle="#7c766c"; ctx.beginPath(); ctx.moveTo(p.x-p.s*0.6,p.y+p.s*0.4); ctx.lineTo(p.x-p.s*0.2,p.y-p.s*0.5); ctx.lineTo(p.x+p.s*0.3,p.y-p.s*0.2); ctx.lineTo(p.x+p.s*0.6,p.y+p.s*0.4); ctx.closePath(); ctx.fill();
       ctx.fillStyle="#5e594f"; ctx.beginPath(); ctx.moveTo(p.x-p.s*0.2,p.y-p.s*0.5); ctx.lineTo(p.x+p.s*0.3,p.y-p.s*0.2); ctx.lineTo(p.x+p.s*0.05,p.y+p.s*0.4); ctx.closePath(); ctx.fill();
+    } else if(p.t==="reed"){ drawReed(p);
     } else if(p.t==="tree"){ /* trunks drawn in drawTrunks() pass, over buildings */ }
     else {
       ctx.fillStyle="#39612f"; ctx.beginPath(); ctx.arc(p.x,p.y-p.s*0.2,p.s,0,7); ctx.fill();

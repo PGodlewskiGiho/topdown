@@ -31,7 +31,8 @@ function draw(){
   }
   drawTerrainRelief(ox,oy);   // elevation shading over ground (before water)
   drawMountainRelief(ox,oy);
-  drawWaterGlobal(ox,oy);   // one seamless water layer over all ground
+  drawWaterGlobal(ox,oy);   // lakes / sea (forest rivers drawn separately)
+  drawForestRivers(ox,oy);
   // organic bezier roads drawn on top of ground
   drawRoads(ox,oy);
   drawPlazas(ox,oy);
