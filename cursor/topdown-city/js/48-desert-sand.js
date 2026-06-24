@@ -49,7 +49,7 @@ function pushSandTrack(x,y,a,w,h,kind,depth){
     w:w||5, h:h||3.2,
     kind:kind||"foot",
     depth:depth!=null?depth:0.5,
-    life:1, a0:kind==="tire"?0.42:0.48,
+    life:1, a0:kind==="tire"?0.52:0.58,
   });
   while(sandTracks.length>MAX_SAND_TRACKS) sandTracks.shift();
 }
@@ -140,10 +140,10 @@ function updateSandGrains(dt){
 }
 
 function updateSandTracks(dt){
-  const cover=0.018+sandWindPower()*0.032;
+  const cover=0.0022+sandWindPower()*0.0035;
   for(let i=sandTracks.length-1;i>=0;i--){
     const t=sandTracks[i];
-    t.life-=dt*cover*(0.65+t.depth*0.5);
+    t.life-=dt*cover*(0.35+t.depth*0.25);
     if(t.life<=0) sandTracks.splice(i,1);
   }
 }

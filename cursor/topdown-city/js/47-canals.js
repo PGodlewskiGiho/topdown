@@ -5,6 +5,8 @@ const CANAL_WALL = 10;
 const CANAL_SEGMENTS = [];
 const CANAL_ENTRIES = [];
 const CANAL_BRIDGES = [];
+const CANAL_TUNNELS = [];
+const CANAL_SHEDS = [];
 let _canalsBuilt = false;
 let _canalBuilding = false;
 
@@ -144,6 +146,125 @@ function buildCanalNetwork(){
   }
   buildCanalBridges();
   buildCanalEntries();
+  buildCanalTunnels();
+  buildCanalSheds();
+}
+
+function buildCanalTunnels(){
+  for(const b of CANAL_BRIDGES){
+    if(!b.road || b.road.width < 160) continue;
+    const ca = Math.cos(b.a), sa = Math.sin(b.a);
+    const len = Math.min(110, b.road.width * 0.42);
+    CANAL_TUNNELS.push({
+      x: b.x, y: b.y, a: b.a, w: b.w + 20, len,
+      ax: b.x - ca * len * 0.5, ay: b.y - sa * len * 0.5,
+      bx: b.x + ca * len * 0.5, by: b.y + sa * len * 0.5,
+    });
+  }
+}
+
+function buildCanalSheds(){
+  for(let k = 0; k < CANAL_ENTRIES.length; k += 3){
+    const e = CANAL_ENTRIES[k];
+    const ca = Math.cos(e.a), sa = Math.sin(e.a);
+    CANAL_SHEDS.push({
+      x: e.x - sa * 22, y: e.y + ca * 22,
+      a: e.a + Math.PI * 0.5, w: 28, h: 22,
+      label: "Szopa przy kanale",
+    });
+  }
+}
+
+function onCanalTunnelAt(x, y){
+  ensureCanals();
+  for(const t of CANAL_TUNNELS){
+    const ca = Math.cos(t.a), sa = Math.sin(t.a);
+    const lx = x - t.x, ly = y - t.y;
+    const along = lx * ca + ly * sa, across = -lx * sa + ly * ca;
+    if(Math.abs(along) < t.len * 0.5 && Math.abs(across) < 14) return t;
+  }
+  return null;
+}
+
+function nearestCanalShed(x, y, maxR){
+  ensureCanals();
+  let best = null, bd = maxR != null ? maxR : 40;
+  for(const s of CANAL_SHEDS){
+    const d = Math.hypot(x - s.x, y - s.y);
+    if(d < bd){ bd = d; best = s; }
+  }
+  return best;
+}
+
+let canalInterior = null;
+
+function enterCanalShed(s){
+  canalInterior = {
+    shed: s, w: 200, h: 140,
+    items: [
+      {x: 40, y: 90, w: 50, h: 30, col: "#6a5848", kind: "crate"},
+      {x: 110, y: 85, w: 36, h: 28, col: "#4a5a48", kind: "net"},
+      {x: 70, y: 40, w: 24, h: 50, col: "#8a6848", kind: "ladder"},
+    ],
+  };
+  mode = "inside";
+  if(typeof showBigMsg === "function") showBigMsg("SZOPA PRZY KANALE");
+}
+
+function exitCanalShed(){
+  if(!canalInterior) return;
+  const s = canalInterior.shed;
+  ped.x = s.x; ped.y = s.y + 8; ped.vx = ped.vy = 0;
+  canalInterior = null;
+  mode = "foot";
+}
+
+function drawCanalInterior(){
+  const it = canalInterior;
+  if(!it) return;
+  ctx.setTransform(ZOOM / PX, 0, 0, ZOOM / PX, 0, 0);
+  ctx.fillStyle = "#2a2824";
+  ctx.fillRect(0, 0, VW, VH);
+  ctx.fillStyle = "#4a4038";
+  ctx.fillRect(VW * 0.5 - it.w * 0.5, VH * 0.5 - it.h * 0.5, it.w, it.h);
+  ctx.fillStyle = "#6a5848";
+  for(const o of it.items){
+    ctx.fillRect(VW * 0.5 - it.w * 0.5 + o.x, VH * 0.5 - it.h * 0.5 + o.y, o.w, o.h);
+  }
+  ctx.fillStyle = "#8ab0c8";
+  ctx.fillRect(VW * 0.5 - 30, VH * 0.5 + it.h * 0.5 - 18, 60, 10);
+  ctx.fillStyle = "#ccc";
+  ctx.font = "11px monospace";
+  ctx.fillText("E/Q — wyjdź · kanał za drzwiami", 16, VH - 18);
+}
+
+function updateCanalInterior(dt){
+  if(!canalInterior) return;
+  if(keys["e"] || keys["q"] || keys["escape"]) exitCanalShed();
+}
+
+function drawCanalTunnel(t){
+  ctx.save();
+  ctx.translate(t.x, t.y);
+  ctx.rotate(t.a);
+  ctx.fillStyle = "rgba(20,18,16,.55)";
+  ctx.fillRect(-t.len * 0.5, -18, t.len, 36);
+  ctx.strokeStyle = "#5a5048";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-t.len * 0.5, -16);
+  ctx.quadraticCurveTo(0, -28, t.len * 0.5, -16);
+  ctx.stroke();
+  ctx.fillStyle = "rgba(60,80,70,.35)";
+  ctx.fillRect(-t.len * 0.42, 4, t.len * 0.84, 10);
+  ctx.restore();
+}
+
+function walkCanalTunnel(t){
+  const ca = Math.cos(t.a), sa = Math.sin(t.a);
+  const lx = (ped.x - t.x) * ca + (ped.y - t.y) * sa;
+  ped.x = t.x + ca * (lx > 0 ? -t.len * 0.48 : t.len * 0.48);
+  ped.y = t.y + sa * (lx > 0 ? -t.len * 0.48 : t.len * 0.48);
 }
 
 function ensureCanals(){
@@ -385,6 +506,26 @@ function drawCanals(ox, oy){
     if(b.x < ox - 60 || b.x > ox + VW + 60 || b.y < oy - 60 || b.y > oy + VH + 60) continue;
     drawCanalBridge(b, t);
   }
+  for(const t of CANAL_TUNNELS){
+    if(t.x < ox - 60 || t.x > ox + VW + 60 || t.y < oy - 60 || t.y > oy + VH + 60) continue;
+    drawCanalTunnel(t);
+  }
+  for(const s of CANAL_SHEDS){
+    if(s.x < ox - 40 || s.x > ox + VW + 40 || s.y < oy - 40 || s.y > oy + VH + 40) continue;
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.rotate(s.a);
+    ctx.fillStyle = "#7a6848";
+    ctx.fillRect(-s.w * 0.5, -s.h * 0.5, s.w, s.h);
+    ctx.fillStyle = "#5a4030";
+    ctx.beginPath();
+    ctx.moveTo(-s.w * 0.55, -s.h * 0.5);
+    ctx.lineTo(0, -s.h * 0.5 - 10);
+    ctx.lineTo(s.w * 0.55, -s.h * 0.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
   for(const e of CANAL_ENTRIES){
     if(e.x < ox - 40 || e.x > ox + VW + 40 || e.y < oy - 40 || e.y > oy + VH + 40) continue;
     drawCanalEntry(e, t);
@@ -432,10 +573,19 @@ Game.register({
   drawAfterRoads(ox, oy){ drawCanals(ox, oy); },
   update(dt){
     if(typeof gamePhase !== "undefined" && gamePhase !== "playing") return;
+    if(mode === "inside" && canalInterior){ updateCanalInterior(dt); return; }
     spawnCanalBoats();
+    const tun = onCanalTunnelAt(ped.x, ped.y);
+    if(tun && mode === "foot" && Math.hypot(ped.vx, ped.vy) > 40) walkCanalTunnel(tun);
     const promptEl = document.getElementById("prompt");
     if(!promptEl || mode !== "foot") return;
     if(typeof invOpen !== "undefined" && invOpen) return;
+    const shed = nearestCanalShed(ped.x, ped.y, 34);
+    if(shed){
+      promptEl.style.opacity = "1";
+      promptEl.textContent = "F — wejdź do szopy";
+      return;
+    }
     const entry = nearestCanalEntry(ped.x, ped.y, 36);
     if(entry && !inCanalWater(ped.x, ped.y) && !inWater(ped.x, ped.y)){
       promptEl.style.opacity = "1";

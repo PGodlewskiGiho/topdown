@@ -294,12 +294,15 @@ function updateWeather(dt){
 }
 function updateRain(dt){
   const n=Math.floor(weatherI*MAXRAIN);
-  const wind=120+weatherI*90+windGust*140;
-  const skew=0.22+Math.sin(windT*0.9)*0.08;
+  const wf=typeof windFieldAt==="function"?windFieldAt(typeof focusX!=="undefined"?focusX:VW*0.5, typeof focusY!=="undefined"?focusY:VH*0.5):null;
+  const wind=120+weatherI*90+windGust*140+(wf?wf.power*80:0);
+  const skew=wf?wf.fx*0.35+0.12:0.22+Math.sin(windT*0.9)*0.08;
+  const skewY=wf?wf.fy*0.18:0.04;
   for(let i=0;i<n;i++){
     const d=rain[i];
     d.y+=d.s*dt;
     d.x+=(wind+skew*80)*(0.75+d.layer*0.35)*dt;
+    d.y+=skewY*60*d.layer*dt;
     if(d.y>VH+24){ d.y=-d.l-Math.random()*50; d.x=Math.random()*(VW+120)-60; }
     else if(d.x>VW+80){ d.x=-50-Math.random()*40; }
     else if(d.x<-80){ d.x=VW+Math.random()*40; }
@@ -337,11 +340,9 @@ function drawRain(){
   ctx.lineCap="round";
   for(let i=0;i<n;i++){
     const d=rain[i], sl=2.5+d.layer*5.5;
-    const rg=ctx.createLinearGradient(d.x,d.y,d.x+sl,d.y+d.l);
-    rg.addColorStop(0,`rgba(215,228,245,${(d.a*base*0.3).toFixed(3)})`);
-    rg.addColorStop(0.4,`rgba(178,198,222,${(d.a*base).toFixed(3)})`);
-    rg.addColorStop(1,`rgba(128,148,172,${(d.a*base*0.12).toFixed(3)})`);
-    ctx.strokeStyle=rg; ctx.lineWidth=d.w;
+    const al=(d.a*base).toFixed(3);
+    ctx.strokeStyle=`rgba(178,198,222,${al})`;
+    ctx.lineWidth=d.w;
     ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x+sl,d.y+d.l); ctx.stroke();
   }
   ctx.lineCap="butt";
@@ -367,11 +368,16 @@ const LEAF_PAL=[
   {c:"#9a6838",hi:"rgba(255,255,220,.20)"},{c:"#2f5828",hi:"rgba(255,255,220,.14)"},
 ];
 let leafSpawnT=0;
-function leafWindPower(){
-  return clamp(windAmp*3.6+windGust*0.72,0,1);
-}
 function leafWindDir(){
+  if(typeof windFieldAt==="function"){
+    const w=windFieldAt(typeof focusX!=="undefined"?focusX:0, typeof focusY!=="undefined"?focusY:0);
+    return w.angle;
+  }
   return Math.PI*0.10+Math.sin(windT*0.65)*0.52+Math.sin(windT*1.25)*0.10;
+}
+function leafWindPower(){
+  if(typeof windFieldPowerAt==="function") return clamp(windFieldPowerAt(typeof focusX!=="undefined"?focusX:0, typeof focusY!=="undefined"?focusY:0)*2.2,0,1);
+  return clamp(windAmp*3.6+windGust*0.72,0,1);
 }
 function inForestAt(x,y){
   const k=cellAt(x,y);

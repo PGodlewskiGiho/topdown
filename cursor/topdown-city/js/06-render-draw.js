@@ -4,6 +4,7 @@ const css = getComputedStyle(document.documentElement);
 const COL = n => css.getPropertyValue(n).trim();
 function draw(){
   if(mode==="inside"){
+    if(typeof canalInterior!=="undefined"&&canalInterior&&typeof drawCanalInterior==="function"){ drawCanalInterior(); return; }
     if(!interior){ mode="foot"; }
     else { drawInterior(); return; }
   }
@@ -33,6 +34,10 @@ function draw(){
     else if(L.parking){ fillCell(L, "#3a3d44"); texFill(L,"asphalt"); drawParkingLot(L); }
     else if(L.cemetery){ fillCell(L, "#47603e"); texFill(L,"grass"); drawGrassDetail(L); drawProps(L); drawGraves(L); drawFences(L); }
     else if(L.mega){ fillCell(L, "#6f7076"); texFill(L,"concrete"); }
+    else if(L.farm){
+      const fg=typeof farmGroundColor==="function"?farmGroundColor(L):"#a89048";
+      fillCell(L, fg); texFill(L,"dirt");
+    }
     else if(L.empty){
       if(L.salon||L.gunshop||L.motodealer){ fillCell(L, L.B.walk); texFill(L,"concrete"); if(L.motodealer) drawMotoDealerLot(L); }
       else { fillCell(L, L.B.ground); const sandy=(L.biome==="desert"||L.biome==="sea"); texFill(L, groundTexKey(L,sandy)); if(sandy){ drawSandDetail(L); if(L.biome==="desert") drawDesertFloor(L); } else { if(L.biome==="forest") drawForestFloor(L); drawGrassDetail(L); } drawProps(L); }

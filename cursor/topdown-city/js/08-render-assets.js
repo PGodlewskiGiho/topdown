@@ -1710,10 +1710,12 @@ function treeWindAt(t,u){
   const H=t.H||t.s*0.6, ph=((t.x*0.019+t.y*0.013)%6.283), ph2=ph*1.618+t.s*0.011;
   const h=u*u, kind=t.kind||"deciduous";
   const k=kind==="pine"||kind==="spruce"?0.86:kind==="bush"?0.68:kind==="birch"?1.08:kind==="willow"?0.96:kind==="maple"?1.02:1.0;
-  const amp=H*(typeof windAmp!=="undefined"?windAmp:0.12)*h*k*0.55;
+  const local=typeof windFieldAt==="function"?windFieldAt(t.x,t.y):null;
+  const amp=H*(local?local.power*1.35:(typeof windAmp!=="undefined"?windAmp:0.12))*h*k*0.55;
   const wt=typeof windT!=="undefined"?windT:0;
-  const wx=Math.sin(wt*1.42+ph)*amp+Math.sin(wt*2.38+ph2)*amp*0.22;
-  const wy=Math.sin(wt*1.05+ph*0.65)*amp*0.06;
+  const wa=local?local.angle:wt*0.72+ph*0.1;
+  const wx=Math.cos(wa+Math.sin(wt*1.42+ph)*0.35)*amp+Math.sin(wt*2.38+ph2)*amp*0.22;
+  const wy=Math.sin(wa+Math.sin(wt*1.05+ph)*0.2)*amp*0.35+Math.sin(wt*1.05+ph*0.65)*amp*0.06;
   return [wx,wy];
 }
 function treeScreenBox(t){

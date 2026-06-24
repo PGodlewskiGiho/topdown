@@ -38,11 +38,15 @@ function drawWaterSimTiled(ox,oy,ww,hh,preset,alpha,uScale){
   ctx.restore();
 }
 
-function applyWaterSimInClip(preset,alpha,uScale){
+function applyWaterSimInClip(preset,alpha,uScale,ox,oy,ww,hh){
   const sim=getWaterSim();
   if(!sim) return;
   sim.setPreset(preset||"lake");
-  drawWaterSimTiled(-1e7,-1e7,2e7,2e7,preset,alpha!=null?alpha:0.62,uScale);
+  const vx=ox!=null?ox:(typeof cam!=="undefined"?cam.x-VW/2:0);
+  const vy=oy!=null?oy:(typeof cam!=="undefined"?cam.y-VH/2:0);
+  const vw=ww!=null?ww:(typeof VW!=="undefined"?VW:1280);
+  const vh=hh!=null?hh:(typeof VH!=="undefined"?VH:720);
+  drawWaterSimTiled(vx-128, vy-128, vw+256, vh+256, preset, alpha!=null?alpha:0.62, uScale);
 }
 
 function drawWetRoadReflections(ox,oy){

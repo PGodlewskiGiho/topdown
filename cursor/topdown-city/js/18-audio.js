@@ -370,5 +370,7 @@ function updateAudio(){
   } else sirenGain.gain.value*=0.9;
   rainGain.gain.value=weatherI*0.25;
   updateForestAudio();
+  if(typeof updateWeatherWindAudio==="function") updateWeatherWindAudio(Math.min(0.05, (performance.now()-(updateAudio._last||0))/1000||0.016));
+  updateAudio._last=performance.now();
 }
 
