@@ -22,7 +22,7 @@ LPC_URL = "https://opengameart.org/sites/default/files/lpc_animals_2022_v1.1.zip
 
 # LPC individual sheet layout (64×64 cells): rows 0–3 walk S/W/E/N, 4–7 attack, 8–11 die.
 # Row 0 = top-down (walk south). No PNG rotation — keep pure overhead view.
-# Heading fix is in 22-wildlife.js: ctx.rotate(PI/2 - b.a).
+# Heading fix in 22-wildlife.js: ctx.rotate(b.a + PI/2).
 WALK_ROW = 0
 ATK_ROW = 4
 WALK_COLS = (0, 1, 2, 3)
