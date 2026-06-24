@@ -117,8 +117,26 @@ function smoothNoise(x,y){                                       // bilinear val
 }
 const _csCache=new Map();
 const _rvCache=new Map();
-function lakeCellSigned(i,j){ const k=i+","+j; let v=_csCache.get(k); if(v!==undefined) return v;
-  v=waterLevel(i,j) - (biomeOf(i,j)==="sea" ? 0.42 : 0.86); if(_csCache.size>9000) _csCache.clear(); _csCache.set(k,v); return v; }
+function lakeAllowed(i,j){
+  const b=biomeOf(i,j);
+  if(b==="city"||b==="forest") return false;                       // miasto + lasy: tylko rzeki leśne
+  if(b==="sea") return true;
+  const c=nearestCity(i,j);
+  if(c.dist<c.R*1.06) return false;                                // bez losowych kałuż przy mieście
+  return true;
+}
+function lakeThreshold(i,j){
+  const b=biomeOf(i,j);
+  if(b==="sea") return 0.42;
+  if(b==="desert") return 0.90+hsh(i,j,219)*0.05;                   // rzadkie oazy
+  return 0.92;
+}
+function lakeCellSigned(i,j){
+  const k=i+","+j; let v=_csCache.get(k); if(v!==undefined) return v;
+  if(!lakeAllowed(i,j)){ v=-1; _csCache.set(k,v); return v; }
+  v=waterLevel(i,j)-lakeThreshold(i,j);
+  if(_csCache.size>9000) _csCache.clear(); _csCache.set(k,v); return v;
+}
 function riverCellSigned(i,j){
   if(biomeOf(i,j)!=="forest"||isMountain(i,j)) return -1;
   const k=i+","+j; let v=_rvCache.get(k); if(v!==undefined) return v;
@@ -139,9 +157,12 @@ function riverCellSigned(i,j){
 }
 function cellSigned(i,j){ return Math.max(lakeCellSigned(i,j), riverCellSigned(i,j)); }   // legacy alias (combined)
 function lakeScore(x,y){
-  const fx=x/GAP-0.5, fy=y/GAP-0.5, xi=Math.floor(fx), yi=Math.floor(fy), xf=fx-xi, yf=fy-yi, u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+  const fx=x/GAP-0.5, fy=y/GAP-0.5, xi=Math.floor(fx), yi=Math.floor(fy);
+  if(!lakeAllowed(xi,yi)) return 0;
+  const xf=fx-xi, yf=fy-yi, u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
   const a=lakeCellSigned(xi,yi), b=lakeCellSigned(xi+1,yi), cc=lakeCellSigned(xi,yi+1), d=lakeCellSigned(xi+1,yi+1);
-  return a+(b-a)*u+(cc-a)*v+(a-b-cc+d)*u*v;
+  const s=a+(b-a)*u+(cc-a)*v+(a-b-cc+d)*u*v;
+  return s>0?s:0;
 }
 function riverScore(x,y){
   const fx=x/GAP-0.5, fy=y/GAP-0.5, xi=Math.floor(fx), yi=Math.floor(fy), xf=fx-xi, yf=fy-yi, u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
@@ -149,7 +170,13 @@ function riverScore(x,y){
   return a+(b-a)*u+(cc-a)*v+(a-b-cc+d)*u*v;
 }
 function waterScore(x,y){ return Math.max(lakeScore(x,y), riverScore(x,y)); }
-function isLakeCell(i,j){ return lakeCellSigned(i,j)>0; }
+function isLakeCell(i,j){ return lakeAllowed(i,j)&&lakeCellSigned(i,j)>0; }
+function isLakeLot(i,j){
+  if(!lakeAllowed(i,j)) return false;
+  const cx=(nX(i,j)+nX(i+1,j)+nX(i+1,j+1)+nX(i,j+1))*0.25;
+  const cy=(nY(i,j)+nY(i+1,j)+nY(i+1,j+1)+nY(i,j+1))*0.25;
+  return lakeScore(cx,cy)>0.06;
+}
 function isRiverCell(i,j){ return riverCellSigned(i,j)>0; }
 function isRiverAt(x,y){ return riverScore(x,y)>0; }
 function isLakeAt(x,y){ return lakeScore(x,y)>0; }
@@ -300,7 +327,7 @@ function getEdge(i,j,di,dj){
       if(riverScore(p[0],p[1])>0) crossesRiver=true;
       if(lakeScore(p[0],p[1])>0) crossesLake=true;
     }
-    if(crossesLake) exists=false;
+    if(crossesLake){ if(isHwy) bridge=true; else exists=false; }
     else if(crossesRiver){
       const forestPair=bA==="forest"&&bB==="forest";
       const forestRural=klass==="rural"&&(bA==="forest"||bB==="forest");
@@ -1454,7 +1481,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=29;
+const LOT_CACHE_VER=30;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 
 const FOREST_MUSHROOMS=["shroom_red","shroom_brown","shroom_tan","shroom_puff","shroom_lilac","shroom_shelf"];
@@ -1595,7 +1622,7 @@ function getLot(i,j){
   else if(i===2 && j===2){ lot.motodealer=true; lot.empty=true; if(!tiny) buildMotoDealer(lot); }
   else if(tiny){ lot.empty=true; }
   else if(isMountain(i,j)){ lot.mountain=true; lot.empty=true; const n=4+(r()*5|0); for(let k=0;k<n;k++) lot.props.push({x:left+18+r()*(lw-36), y:top+18+r()*(lh-36), s:16+r()*28, t:"rock"}); }
-  else if(isLakeCell(i,j)){ lot.water=true; lot.lake=true;
+  else if(isLakeLot(i,j)){ lot.water=true; lot.lake=true;
     if(hsh(i,j,141)<0.20){ const nb=[[0,-1],[0,1],[-1,0],[1,0]].find(d=>!isWaterCell(i+d[0],j+d[1]));
       if(nb){ let bx,by;
         if(nb[0]===1){ bx=(Bn[0]+C[0])/2; by=(Bn[1]+C[1])/2; }
