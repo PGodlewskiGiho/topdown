@@ -836,6 +836,7 @@ function buildMotoDealer(lot){
 }
 const HOUSE_WALL=["#d9cdb8","#cbb89a","#c8d0d6","#d6c2b0","#bcc9b4","#e0d3c0","#c9b9c2"];
 const HOUSE_ROOF=["#9c4a3a","#7a4030","#5e6670","#8a5a3a","#4f5b66","#6a4a3a"];
+const HOUSE_KINDS=["cottage_cream","cottage_blue","suburban_red","bungalow_green","modern_white","chalet_brown","villa_tan","slate_gray"];
 const BLOK_WALL=["#b9b2a6","#ad9078","#9aa0a8","#c2b9ad","#9c8f86","#b0a690"];
 const TOWER_WALL=["#5d7e9a","#6f8ea8","#52718c","#7d96aa","#586d88","#6a8296"];
 const SHOP_WALL=["#cdbb96","#c2a87e","#b6bec4","#d0c4a8","#c8b0a0"];
@@ -1139,7 +1140,8 @@ function addBuilding(lot,bx,by,bw,bh,r,type){
   } else if(type==="chapel"||type==="church"){ b.type="house"; b.church=true; b.bigChurch=(type==="church");
     b.color=pick(["#bcb6a8","#c4bdae","#aca596"]); b.roofC=pick(["#46505a","#3f4a52","#574b42"]);
     b.floors=type==="church"?(8+(r()*13|0)):(5+(r()*8|0)); b.H=b.floors*(24+r()*6); b.chimney=null;
-  } else { b.color=pick(HOUSE_WALL); b.roofC=pick(HOUSE_ROOF); b.H=16+r()*7;
+  } else { b.houseKind=HOUSE_KINDS[hsh(bx,by,521)%HOUSE_KINDS.length];
+    b.color=pick(HOUSE_WALL); b.roofC=pick(HOUSE_ROOF); b.H=22+r()*14;
     b.chimney=[bx+(r()<0.5?bw*0.2:bw*0.68), by+bh*0.2+r()*bh*0.4];
   }
   lot.buildings.push(b);
@@ -1656,7 +1658,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=34;
+const LOT_CACHE_VER=35;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 const DESERT_FLOOR_VARIANTS=["ripple_light","ripple_dark","dune_crest","cracked_earth","salt_patch","pebble_cluster","sage_bush","dry_grass"];
 const DESERT_FLORA=["sage","tumbleweed","driftwood","bone","pebble","crack","salt_crust"];

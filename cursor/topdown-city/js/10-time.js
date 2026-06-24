@@ -196,7 +196,19 @@ function drawLights(ox,oy,N){
       const a=base[ai],cc=base[ci],ar=roof[ai]; const ux=cc[0]-a[0],uy=cc[1]-a[1],hx=ar[0]-a[0],hy=ar[1]-a[1];
       const L2=Math.hypot(ux,uy),Hh=Math.hypot(hx,hy); if(Hh<6) continue;
       const Pf=(t,u)=>[a[0]+ux*t+hx*u, a[1]+uy*t+hy*u], seed=((Math.round(a[0])*131+Math.round(a[1])*97)>>>0);
-      if(b.type==="house"){ if((seed&1)===0){const p=Pf(0.18,0.54); ctx.fillRect(p[0]-2,p[1]-2.4,4,5);} if((seed&2)===0){const p=Pf(0.78,0.54); ctx.fillRect(p[0]-2,p[1]-2.4,4,5);} continue; }
+      if(b.type==="house"){
+        const wins=(b.houseKind&&typeof houseKindMeta==="function")?(houseKindMeta(b.houseKind).windows):null;
+        if(wins&&wins.length){
+          for(let wi=0;wi<wins.length;wi++){
+            if(((seed>>(wi*2))&1)!==0) continue;
+            const p=Pf(wins[wi].u,wins[wi].v); ctx.fillRect(p[0]-2.2,p[1]-2.6,4.4,5.2);
+          }
+        } else {
+          if((seed&1)===0){const p=Pf(0.18,0.54); ctx.fillRect(p[0]-2,p[1]-2.4,4,5);}
+          if((seed&2)===0){const p=Pf(0.78,0.54); ctx.fillRect(p[0]-2,p[1]-2.4,4,5);}
+        }
+        continue;
+      }
       const glass=b.type==="tower", rows=Math.max(2,Math.round(Hh/(glass?8:10))), cols=Math.max(1,Math.round(L2/(glass?11:13)));
       for(let r=0;r<rows;r++) for(let cn=0;cn<cols;cn++){ if(((r*7+cn*11+seed)>>>0)%5!==0) continue; const p=Pf((cn+0.5)/cols,(r+0.42)/rows); ctx.fillRect(p[0]-1.7,p[1]-1.5,3.4,3); } }
   } }
