@@ -141,7 +141,7 @@ function updateCar(dt){
       pushSkidMark(car.x+rx-ox,car.y+ry-oy,car.a,skidIntensity);
     } else {
       skid.push({x:car.x+rx+ox,y:car.y+ry+oy,a:car.a,w:2.4+skidIntensity*6,a0:0.4,life:1});
-      skid.push({x:car.x+rx-ox,car.y+ry-oy,a:car.a,w:2.4+skidIntensity*6,a0:0.4,life:1});
+      skid.push({x:car.x+rx-ox,y:car.y+ry-oy,a:car.a,w:2.4+skidIntensity*6,a0:0.4,life:1});
       while(skid.length>SKID_MAX) skid.shift();
     }
   }
