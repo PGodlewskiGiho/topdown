@@ -1,0 +1,251 @@
+{
+  "width": 192,
+  "height": 256,
+  "splitY": 168,
+  "anchorX": 96,
+  "anchorY": 255,
+  "windows": [
+    {
+      "u": 0.16,
+      "v": 0.58
+    },
+    {
+      "u": 0.78,
+      "v": 0.58
+    }
+  ],
+  "kinds": {
+    "cottage_cream": {
+      "file": "cottage_cream.png",
+      "width": 192,
+      "height": 256,
+      "splitY": 168,
+      "anchorX": 96,
+      "anchorY": 255,
+      "hd": true,
+      "wall": [
+        228,
+        214,
+        188
+      ],
+      "roof": [
+        168,
+        92,
+        58
+      ],
+      "windows": [
+        {
+          "u": 0.16,
+          "v": 0.58
+        },
+        {
+          "u": 0.78,
+          "v": 0.58
+        }
+      ]
+    },
+    "cottage_blue": {
+      "file": "cottage_blue.png",
+      "width": 192,
+      "height": 256,
+      "splitY": 168,
+      "anchorX": 96,
+      "anchorY": 255,
+      "hd": true,
+      "wall": [
+        176,
+        204,
+        224
+      ],
+      "roof": [
+        72,
+        98,
+        128
+      ],
+      "windows": [
+        {
+          "u": 0.16,
+          "v": 0.58
+        },
+        {
+          "u": 0.78,
+          "v": 0.58
+        }
+      ]
+    },
+    "suburban_red": {
+      "file": "suburban_red.png",
+      "width": 192,
+      "height": 256,
+      "splitY": 168,
+      "anchorX": 96,
+      "anchorY": 255,
+      "hd": true,
+      "wall": [
+        168,
+        88,
+        72
+      ],
+      "roof": [
+        108,
+        112,
+        118
+      ],
+      "windows": [
+        {
+          "u": 0.16,
+          "v": 0.58
+        },
+        {
+          "u": 0.78,
+          "v": 0.58
+        }
+      ]
+    },
+    "bungalow_green": {
+      "file": "bungalow_green.png",
+      "width": 192,
+      "height": 256,
+      "splitY": 168,
+      "anchorX": 96,
+      "anchorY": 255,
+      "hd": true,
+      "wall": [
+        148,
+        172,
+        128
+      ],
+      "roof": [
+        108,
+        82,
+        58
+      ],
+      "windows": [
+        {
+          "u": 0.16,
+          "v": 0.58
+        },
+        {
+          "u": 0.78,
+          "v": 0.58
+        }
+      ]
+    },
+    "modern_white": {
+      "file": "modern_white.png",
+      "width": 192,
+      "height": 256,
+      "splitY": 168,
+      "anchorX": 96,
+      "anchorY": 255,
+      "hd": true,
+      "wall": [
+        240,
+        242,
+        246
+      ],
+      "roof": [
+        88,
+        92,
+        98
+      ],
+      "windows": [
+        {
+          "u": 0.16,
+          "v": 0.58
+        },
+        {
+          "u": 0.78,
+          "v": 0.58
+        }
+      ]
+    },
+    "chalet_brown": {
+      "file": "chalet_brown.png",
+      "width": 192,
+      "height": 256,
+      "splitY": 168,
+      "anchorX": 96,
+      "anchorY": 255,
+      "hd": true,
+      "wall": [
+        148,
+        118,
+        88
+      ],
+      "roof": [
+        88,
+        68,
+        52
+      ],
+      "windows": [
+        {
+          "u": 0.16,
+          "v": 0.58
+        },
+        {
+          "u": 0.78,
+          "v": 0.58
+        }
+      ]
+    },
+    "villa_tan": {
+      "file": "villa_tan.png",
+      "width": 192,
+      "height": 256,
+      "splitY": 168,
+      "anchorX": 96,
+      "anchorY": 255,
+      "hd": true,
+      "wall": [
+        210,
+        188,
+        152
+      ],
+      "roof": [
+        196,
+        128,
+        68
+      ],
+      "windows": [
+        {
+          "u": 0.16,
+          "v": 0.58
+        },
+        {
+          "u": 0.78,
+          "v": 0.58
+        }
+      ]
+    },
+    "slate_gray": {
+      "file": "slate_gray.png",
+      "width": 192,
+      "height": 256,
+      "splitY": 168,
+      "anchorX": 96,
+      "anchorY": 255,
+      "hd": true,
+      "wall": [
+        168,
+        174,
+        182
+      ],
+      "roof": [
+        98,
+        108,
+        118
+      ],
+      "windows": [
+        {
+          "u": 0.16,
+          "v": 0.58
+        },
+        {
+          "u": 0.78,
+          "v": 0.58
+        }
+      ]
+    }
+  }
+}
