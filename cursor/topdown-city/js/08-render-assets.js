@@ -1054,6 +1054,39 @@ function drawWater(L){
     drawBoat(ex+Math.cos(pp)*13, ey+Math.sin(pp)*13, d.ang, "row", "#b58a4a");
   }
 }
+// ── PNG forest grass (Pillow-generated, assets/grass-forest/*.png) ───────
+const FOREST_GRASS={ready:false,meta:null,img:{}};
+window.FOREST_GRASS=FOREST_GRASS;
+(function loadForestGrassSprites(){
+  fetch("assets/grass-forest/meta.json").then(r=>r.json()).then(meta=>{
+    FOREST_GRASS.meta=meta;
+    const keys=Object.keys(meta.variants||{}); let left=keys.length||0;
+    if(!left){ FOREST_GRASS.ready=true; return; }
+    for(const k of keys){
+      const im=new Image();
+      im.onload=im.onerror=()=>{ if(--left<=0) FOREST_GRASS.ready=true; };
+      im.src="assets/grass-forest/"+meta.variants[k].file;
+      FOREST_GRASS.img[k]=im;
+    }
+  }).catch(()=>{});
+})();
+function forestGrassMeta(key){
+  const v=FOREST_GRASS.meta?.variants?.[key];
+  if(v) return v;
+  return FOREST_GRASS.meta?.variants?.clump_med||{width:52,height:56,anchorX:26,anchorY:55};
+}
+function drawForestGrassClump(x,y,s,v){
+  const m=forestGrassMeta(v), img=FOREST_GRASS.img[v]||FOREST_GRASS.img.clump_med;
+  if(!img||!img.complete||!img.naturalWidth) return false;
+  const sc=s*1.35/(m.height||56), W=(m.width||52)*sc, H=(m.height||56)*sc;
+  const ax=(m.anchorX??((m.width||52)*0.5))*sc, ay=(m.anchorY??((m.height||56)-1))*sc;
+  const sm=ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled=true;
+  try{ ctx.imageSmoothingQuality="high"; }catch(e){}
+  ctx.drawImage(img,x-ax,y-ay,W,H);
+  ctx.imageSmoothingEnabled=sm;
+  return true;
+}
 const GRASS_TONE=["rgba(26,56,20,.96)","rgba(46,92,36,.96)","rgba(80,146,58,.95)","rgba(120,184,86,.95)"];
 function drawClump(x,y,s){
   const h=(n)=>{ const v=Math.sin(x*12.9898+y*78.233+n*37.17)*43758.5453; return v-(v|0); };
@@ -1069,7 +1102,12 @@ function drawClump(x,y,s){
 function drawGrassDetail(L){
   if(VW>1700) return;                                            // grass invisible when far out: skip entirely
   const cl=cam.x-VW/2-20, cr=cam.x+VW/2+20, ct=cam.y-VH/2-20, cb=cam.y+VH/2+20;
-  for(const t of L.tufts){ if(t.x<cl||t.x>cr||t.y<ct||t.y>cb) continue; drawClump(t.x,t.y,t.s); }
+  const useForest=L.biome==="forest"&&FOREST_GRASS.ready;
+  for(const t of L.tufts){
+    if(t.x<cl||t.x>cr||t.y<ct||t.y>cb) continue;
+    if(useForest&&t.v){ if(!drawForestGrassClump(t.x,t.y,t.s,t.v)) drawClump(t.x,t.y,t.s); }
+    else drawClump(t.x,t.y,t.s);
+  }
   for(const f of L.flowers){ ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(f.x,f.y,1.7,0,7); ctx.fill(); ctx.fillStyle="rgba(255,255,255,.5)"; ctx.fillRect(f.x-0.4,f.y-0.4,0.9,0.9); }
 }
 function drawForestFloor(L){

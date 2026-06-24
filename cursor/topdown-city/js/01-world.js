@@ -1259,7 +1259,8 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=18;
+const LOT_CACHE_VER=19;
+const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 function getLot(i,j){
   const key=i+","+j+","+LOT_CACHE_VER; let lot=lotCache.get(key); if(lot) return lot;
   const biome=biomeOf(i,j), B=BIOMES[biome], r=lotRng(i,j), m=16, SW=(biome==="city"?6:28);
@@ -1348,7 +1349,11 @@ function getLot(i,j){
       for(let k=0;k<9;k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1+r()*2.4});
       for(let k=0;k<5;k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:34+r()*64, a:(r()-0.5)*1.2});
     } else {
-      const dense=biome==="forest"; const nt=dense?(72+(r()*48|0)):(5+(r()*5|0)); for(let k=0;k<nt;k++) lot.tufts.push({x:left+r()*lw, y:top+r()*lh, s:dense?(5+r()*9):(5+r()*4)});
+      const dense=biome==="forest"; const nt=dense?(72+(r()*48|0)):(5+(r()*5|0));
+      for(let k=0;k<nt;k++){
+        const x=left+r()*lw, y=top+r()*lh, s=dense?(5+r()*9):(5+r()*4);
+        lot.tufts.push(dense?{x,y,s,v:FOREST_GRASS_VARIANTS[(r()*FOREST_GRASS_VARIANTS.length)|0]}:{x,y,s});
+      }
       if(dense||lot.zone==="forest"){
         lot.forestFloor=[];
         const nf=68+(r()*52|0);
