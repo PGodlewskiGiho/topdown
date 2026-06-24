@@ -25,6 +25,7 @@ function carDriftProfile(){
   return tm.drift!=null?tm.drift:1.0;
 }
 function updateCar(dt){
+  normalizeCarPerformance(car);
   if(car.sinking!==undefined){
     car.sinking+=dt; car.vx*=0.86; car.vy*=0.86; car.x+=car.vx*dt; car.y+=car.vy*dt;
     if(car.sinking>1.1){ mode="foot"; ped.x=car.x; ped.y=car.y; ped.vx=0; ped.vy=0; ped.a=car.a; recoverCarToLand(); showBigMsg("PŁYŃ DO BRZEGU"); }
@@ -39,86 +40,78 @@ function updateCar(dt){
   const h=carHandling();
   const cap=carSpeedCap()+kmhToPx(h.top||0);
   const surf=surfaceGripAt(car.x,car.y);
+  const onRoad=surf>=0.86;
   const driftMul=h.drift||carDriftProfile();
-  const c=Math.cos(car.a), s=Math.sin(car.a);
-  let fwd=car.vx*c+car.vy*s;
-  const speed=Math.hypot(car.vx,car.vy);
+  const ca=Math.cos(car.a), sa=Math.sin(car.a);
+  let fwd=car.vx*ca+car.vy*sa;
+  let speed=Math.hypot(car.vx,car.vy);
 
   if(throttle>0){
-    const headroom=clamp(1-Math.pow(clamp(speed/cap,0,1),1.35),0.15,1);
-    let acc=ENGINE*car.power*h.acc*(h.power||1)*throttle*headroom*surf*dt;
-    if(hb&&speed>30) acc*=1.08;
-    car.vx+=c*acc; car.vy+=s*acc;
+    const headroom=speed>=cap?0:(speed>cap*0.94?clamp((cap-speed)/(cap*0.06),0,1):1);
+    const acc=ENGINE*car.power*h.acc*(h.power||1)*throttle*headroom*surf*dt;
+    car.vx+=ca*acc; car.vy+=sa*acc;
   } else if(throttle<0){
     if(fwd>5){
-      const dec=Math.min(Math.abs(fwd),(BRAKE*(h.brake||1)+speed*0.38)*dt);
-      car.vx-=c*dec; car.vy-=s*dec;
+      const dec=Math.min(Math.abs(fwd),(BRAKE*(h.brake||1)+speed*0.35)*dt);
+      car.vx-=ca*dec; car.vy-=sa*dec;
     } else {
-      car.vx-=c*REVERSE*throttle*dt; car.vy-=s*REVERSE*throttle*dt;
+      car.vx-=ca*REVERSE*throttle*dt; car.vy-=sa*REVERSE*throttle*dt;
     }
-  } else if(Math.abs(fwd)>3){
-    const eb=driveEngineBrakeDecel(fwd, DRIVE_ENGINE_BRAKE*0.5*(h.drag||1)*surf, dt);
-    car.vx-=c*eb; car.vy-=s*eb;
+  } else if(Math.abs(fwd)>2){
+    const eb=driveEngineBrakeDecel(fwd, DRIVE_ENGINE_BRAKE*0.42*(h.drag||1)*surf, dt);
+    car.vx-=ca*eb; car.vy-=sa*eb;
   }
 
-  const steerMul=h.turn*(0.42+0.48/(1+speed/88));
-  if(speed>12||Math.abs(fwd)>8){
-    const dir=fwd<-8?-1:1;
+  speed=Math.hypot(car.vx,car.vy);
+  fwd=car.vx*ca+car.vy*sa;
+  const steerMul=h.turn*(0.45+0.50/(1+speed/95));
+  if(speed>8||Math.abs(throttle)>0){
+    const dir=fwd<-6?-1:1;
     let turnRate=steerIn*TURN*steerMul*dir;
-    if(hb&&speed>28) turnRate*=1.35+clamp(speed/260,0,0.3);
+    if(hb&&speed>24) turnRate*=1.3+clamp(speed/280,0,0.28);
     car.a+=turnRate*dt;
   }
 
   const c2=Math.cos(car.a), s2=Math.sin(car.a);
   fwd=car.vx*c2+car.vy*s2;
   let lat=-car.vx*s2+car.vy*c2;
+  speed=Math.hypot(car.vx,car.vy);
   const slipPre=speed>6?Math.abs(lat)/speed:0;
 
-  const gripSpd=clamp(0.55+speed/110,0.55,1.45);
-  let grip=(hb?GRIP_HB:GRIP*2.4)*h.grip*surf*gripSpd*driftMul;
-  if(throttle>0&&speed>40&&!hb) grip*=0.88;
-  lat*=Math.max(0, 1-Math.min(1, grip*dt));
-
-  if(hb&&throttle>0&&speed>28&&Math.abs(steerIn)>0.05){
-    const boost=ENGINE*car.power*throttle*0.12*dt*(0.55+slipPre);
-    car.vx+=c2*boost; car.vy+=s2*boost;
-    fwd+=boost;
-  }
-
   if(!hb){
-    const steerAbs=Math.abs(steerIn);
-    if(steerAbs<0.05&&speed>12){
-      const snap=1-Math.exp(-16*dt);
-      const sp=Math.hypot(car.vx,car.vy);
-      car.vx+=(c2*sp-car.vx)*snap;
-      car.vy+=(s2*sp-car.vy)*snap;
+    const grip=GRIP*3.2*h.grip*surf*driftMul;
+    lat*=Math.max(0,1-Math.min(1,grip*dt));
+    if(Math.abs(steerIn)<0.04&&speed>10){
+      const snap=1-Math.exp(-20*dt);
+      fwd+=(speed-Math.abs(fwd))*snap*Math.sign(fwd||1);
       lat*=1-snap;
-      fwd=sp;
-    } else if(throttle>0&&speed>8&&slipPre<0.4){
-      const snap=1-Math.exp(-10*dt);
-      const sp=Math.hypot(car.vx,car.vy);
-      car.vx+=(c2*sp-car.vx)*snap*0.7;
-      car.vy+=(s2*sp-car.vy)*snap*0.7;
+    } else if(throttle>0&&speed>8){
+      const snap=1-Math.exp(-12*dt);
+      fwd+=(speed-Math.abs(fwd))*snap*0.65*Math.sign(fwd||1);
+      lat*=1-snap*0.65;
     }
+  } else {
+    const grip=GRIP_HB*h.grip*surf*driftMul;
+    lat*=Math.max(0,1-Math.min(1,grip*dt));
+    if(throttle>0&&speed>24&&Math.abs(steerIn)>0.04) fwd+=ENGINE*car.power*throttle*0.10*dt;
   }
 
   car.vx=c2*fwd-s2*lat;
   car.vy=s2*fwd+c2*lat;
+  speed=Math.hypot(car.vx,car.vy);
 
-  const sp2=Math.hypot(car.vx,car.vy);
-  if(sp2>0){
-    let drag=(AIR*h.drag+sp2*AIR2)*dt;
-    if(hb&&slipPre>0.25) drag*=0.72;
-    const rr=Math.min(sp2,ROLL*dt);
-    const loss=Math.min(sp2,drag+rr);
-    car.vx-=car.vx/sp2*loss;
-    car.vy-=car.vy/sp2*loss;
+  if(speed>0){
+    let loss=(AIR*h.drag+speed*AIR2)*speed*dt+ROLL*dt;
+    if(hb&&slipPre>0.2) loss*=0.75;
+    loss=Math.min(speed,loss);
+    car.vx-=car.vx/speed*loss;
+    car.vy-=car.vy/speed*loss;
   }
 
   const px=car.x, py=car.y;
-  const tf=terrainSpeedFactor(car.x,car.y,car.vx,car.vy);
+  const tf=onRoad?1:terrainSpeedFactor(car.x,car.y,car.vx,car.vy);
   car.x+=car.vx*dt*tf; car.y+=car.vy*dt*tf;
-  if(resolveTerrainBlock(car,px,py,TERRAIN_SLOPE_CAR)){}
+  if(!onRoad&&resolveTerrainBlock(car,px,py,TERRAIN_SLOPE_CAR)){}
 
   const sc=Math.hypot(car.vx,car.vy);
   if(sc>cap){ car.vx*=cap/sc; car.vy*=cap/sc; }
@@ -129,7 +122,7 @@ function updateCar(dt){
   car._driftAngle=Math.atan2(Math.abs(car._lat),Math.max(Math.abs(car._fwd),6))*180/Math.PI;
 
   const slipPost=car._slip;
-  const skidIntensity=Math.max(slipPost, hb&&sp2>28?0.35:0);
+  const skidIntensity=Math.max(slipPost, hb&&speed>28?0.35:0);
   if(Math.abs(car._lat)>28||skidIntensity>0.32){
     const rx=-Math.cos(car.a)*car.L*0.32, ry=-Math.sin(car.a)*car.L*0.32;
     const ox=-Math.sin(car.a)*car.W*0.34, oy=Math.cos(car.a)*car.W*0.34;
@@ -144,7 +137,7 @@ function updateCar(dt){
   }
 
   collide();
-  collideTerrain(car,TERRAIN_SLOPE_CAR,0.35);
+  if(!onRoad) collideTerrain(car,TERRAIN_SLOPE_CAR,0.35);
   collideParked(car); collideLamps(car); collideSignals(car);
   if(typeof collideCrossingGates==="function") collideCrossingGates(car);
   collideTrees(car); collideRoundabouts(car); collideFences(car); collideGraves(car);

@@ -28,9 +28,9 @@ let cHeld = false;           // one-shot guard for colour-cycle key
 const ped = { x:car.x, y:car.y, a:0, vx:0, vy:0, r:9, walk:96, run:178 };
 
 /* physics constants (px, seconds) */
-const ENGINE = 420, BRAKE = 780, REVERSE = 165;
-const AIR = 0.38, AIR2 = 0.0014;   // linear + quadratic drag
-const ROLL = 38;
+const ENGINE = 580, BRAKE = 780, REVERSE = 165;
+const AIR = 0.26, AIR2 = 0.0010;
+const ROLL = 22;
 const TURN = 2.85;                 // legacy ref; steering via 52-driving-model
 const ENGINE_BRAKE = 118;          // coast decel (px/s²) — mirrored in DRIVE_ENGINE_BRAKE
 const GRIP = 11.5, GRIP_HB = 2.35;
@@ -51,11 +51,31 @@ const CAR_TYPE_HANDLING={
   supercar:{acc:1.14, turn:1.06, grip:1.14, drag:0.90, drift:0.95},
   wedge:   {acc:1.12, turn:1.08, grip:1.08, drag:0.88, drift:1.18},
 };
+function carModelRef(v){
+  if(typeof CARS==="undefined"||!CARS.length) return null;
+  const name=v&&v.carName;
+  return CARS.find(m=>m.name===name)||CARS[0];
+}
+function normalizeCarPerformance(v){
+  if(!v||v.kind!=="car") return;
+  const ref=carModelRef(v);
+  const ts=Number(v.topSpeed);
+  const pw=Number(v.power);
+  v.topSpeed=(ts>=80&&isFinite(ts))?ts:(ref?ref.topSpeed:200);
+  v.power=(pw>=0.5&&isFinite(pw))?pw:(ref?ref.power:1.1);
+  if(ref){
+    if(!v.W||v.W<20) v.W=ref.W;
+    if(!v.L||v.L<30) v.L=ref.L;
+    if(!v.type) v.type=ref.type;
+    if(!v.era) v.era=ref.era;
+  }
+  v.R=vehicleHitRadius(v.W||36,v.L||80,v.kind||"car");
+}
 function carSpeedCap(){
+  normalizeCarPerformance(car);
   const vk=VK[car.kind]||VK.car;
   if(vk.cap) return vk.cap;
-  const ts=Math.max(140, Number(car.topSpeed)||200);
-  return kmhToPx(ts);
+  return kmhToPx(car.topSpeed);
 }
 function carHandling(){
   const vk=VK[car.kind]||VK.car;
@@ -209,6 +229,7 @@ function jackCar(c){
   const i=traffic.indexOf(c); if(i>=0) traffic.splice(i,1);
   traffic.push(spawnTrafficCar());
   addHeat(0.4);
+  if(typeof normalizeCarPerformance==="function") normalizeCarPerformance(car);
   rebuildGauge();
   mode="car";
 }

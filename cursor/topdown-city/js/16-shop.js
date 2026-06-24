@@ -17,6 +17,7 @@ function buyCar(model, chosenColor){
   car.R=vehicleHitRadius(car.W,car.L,"car");
   car.color = chosenColor || model.color || (model.colors&&model.colors[0]) || "#c9c9cf";
   car.x=ped.x+34; car.y=ped.y; car.vx=0; car.vy=0; car.a=0;
+  if(typeof normalizeCarPerformance==="function") normalizeCarPerformance(car);
   rebuildGauge();
   showBigMsg("KUPIONO: "+(model.brand?model.brand+" ":"")+model.name);
   saveGame();

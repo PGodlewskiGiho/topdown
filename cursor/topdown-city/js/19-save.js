@@ -98,6 +98,7 @@ function loadGame(){
       else car.parts=null;
       if(d.car.tuning) car.tuning={...defaultCarTuning(),...d.car.tuning};
       else if(typeof defaultCarTuning==="function") car.tuning=defaultCarTuning();
+      if(typeof normalizeCarPerformance==="function") normalizeCarPerformance(car);
       car.R=vehicleHitRadius(car.W||36,car.L||80,car.kind||"car");
       rebuildGauge();
     }
