@@ -163,16 +163,19 @@ function drawCharacterStage(pc, w, h, char, opts){
   pc.strokeRect(0.5,0.5,w-1,h-1);
   const spin=opts.spin!=null?opts.spin:Math.sin(t*0.55)*0.45;
   const bob=Math.sin(t*5.5)*1.4;
+  const sc=opts.scale||2.75;
+  pc.save();
+  pc.translate(w/2, h*0.54+bob);
+  pc.scale(sc, sc);
   const preview={
-    x:w/2, y:h*0.54+bob, a:Math.PI/2+spin, r:bodyRadius(char.body),
+    x:0, y:0, a:Math.PI/2+spin, r:bodyRadius(char.body),
     skin:char.skin, shirt:char.shirt, pants:char.pants,
     hair:char.hairStyle==="bald"?null:char.hair,
     hairStyle:char.hairStyle, beard:char.beard,
     shirtStyle:char.shirtStyle, hat:char.hat, hatColor:char.hatColor,
     body:char.body, previewT:t, vx:28, vy:0,
   };
-  pc.save(); pc.scale(opts.scale||2.75,opts.scale||2.75);
-  drawPerson(preview, preview.shirt, false, pc);
+  if(typeof drawPerson==="function") drawPerson(preview, preview.shirt, false, pc);
   pc.restore();
 }
 

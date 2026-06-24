@@ -3,7 +3,10 @@
 const css = getComputedStyle(document.documentElement);
 const COL = n => css.getPropertyValue(n).trim();
 function draw(){
-  if(mode==="inside"){ drawInterior(); return; }
+  if(mode==="inside"){
+    if(!interior){ mode="foot"; }
+    else { drawInterior(); return; }
+  }
   ctx.setTransform(ZOOM/PX,0,0,ZOOM/PX,0,0);
   const ox = cam.x - VW/2, oy = cam.y - VH/2; // top-left of view in world
   ctx.save();

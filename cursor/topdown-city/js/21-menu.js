@@ -65,7 +65,10 @@ function dismissMenu(){
 function startLoadedGame(){
   loadGame();
   if(typeof applyCharacterToPed==="function") applyCharacterToPed();
-  teleportPlayer(car.x, car.y);
+  if(typeof car.x!=="number"||typeof car.y!=="number"||!isFinite(car.x)||!isFinite(car.y)){
+    const sp=getSpawnPoint("city", 0);
+    teleportPlayer(sp.x, sp.y);
+  } else teleportPlayer(car.x, car.y);
   dismissMenu();
 }
 function startNewGame(){

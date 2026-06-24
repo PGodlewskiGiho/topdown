@@ -7,7 +7,7 @@ let saveTimer=4, saveFlash=0;
 const statsEl=document.getElementById("stats");
 function saveGame(){
   try{
-    const carSave={carName:car.carName};
+    const carSave={carName:car.carName, x:car.x, y:car.y, a:car.a};
     for(const k of CAR_VIS_KEYS) carSave[k]=car[k];
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       money, missionsDone:stats.missionsDone,
@@ -25,6 +25,8 @@ function resetNewGameState(){
   try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
   money=0; stats.missionsDone=0; health=100; heat=0;stars=0; bustTimer=0; prevStars=0;
   mission=null; pickup=null; saveTimer=4;
+  mode="car"; interior=null;
+  if(typeof clearAllLaw==="function") clearAllLaw();
   const m=CARS[0];
   car.carName=m.name; car.brand=m.brand; car.model=m; car.type=m.type; car.era=m.era;
   car.accent=m.accent; car.color=m.colors?m.colors[0]:m.color; car.power=m.power; car.topSpeed=m.topSpeed;
@@ -51,6 +53,10 @@ function loadGame(){
     if(d.car){
       car.carName=d.car.carName||"E30";
       for(const k of CAR_VIS_KEYS) if(d.car[k]!==undefined) car[k]=d.car[k];
+      if(typeof d.car.x==="number"&&typeof d.car.y==="number"){
+        car.x=d.car.x; car.y=d.car.y;
+        if(typeof d.car.a==="number") car.a=d.car.a;
+      }
       if(!car.type) car.type="sedan";
       if(!car.era) car.era="classic";
       car.parts=null;
