@@ -55,14 +55,122 @@ const CARS=[
   {name:"Q8 RS",   brand:"Audi", price:58000, power:1.78, topSpeed:280, type:"suvcoupe", era:"modern",
    accent:"#cc0000", W:52, L:96,
    colors:["#1a1a1a","#cdd2d8","#2a3a5a","#5a1f1f","#3a3f48","#5a5f66"]},
+
+  // ── Volkswagen (popularne kompaktowe) ────────────────────────────────
+  {name:"Golf GTI", brand:"Volkswagen", price:18000, power:1.35, topSpeed:240, type:"sedan", era:"modern",
+   accent:"#001e50", W:38, L:82,
+   colors:["#f0f0f0","#15181c","#c43a3a","#2a4a8a","#3a3f48","#7a8a96"]},
+  {name:"Polo GTI", brand:"Volkswagen", price:14000, power:1.22, topSpeed:220, type:"sedan", era:"modern",
+   accent:"#001e50", W:36, L:78,
+   colors:["#cfd4da","#15181c","#c43a3a","#2a5a4a","#d6d6d6","#3a3f48"]},
+  {name:"Beetle",   brand:"Volkswagen", price:8000,  power:1.05, topSpeed:160, type:"coupe", era:"classic",
+   accent:"#001e50", W:32, L:72,
+   colors:["#e8d24a","#f0f0f0","#2a4a8a","#c43a3a","#1d1d1d","#3f7d5a"]},
+
+  // ── Toyota (kultowe JDM + codzienny sedan) ───────────────────────────
+  {name:"Corolla",  brand:"Toyota", price:11000, power:1.08, topSpeed:180, type:"sedan", era:"modern",
+   accent:"#c43a3a", W:38, L:84,
+   colors:["#cfd4da","#15181c","#8a9aa8","#5a1f1f","#d6d6d6","#3a3f48"]},
+  {name:"AE86",     brand:"Toyota", price:12000, power:1.18, topSpeed:195, type:"coupe", era:"classic",
+   accent:"#c43a3a", W:36, L:80,
+   colors:["#f0f0f0","#15181c","#2a4a8a","#5a1f1f","#e8d24a","#3f7d5a"]},
+  {name:"Supra A90",brand:"Toyota", price:42000, power:1.75, topSpeed:285, type:"coupe", era:"modern",
+   accent:"#c43a3a", W:42, L:90,
+   colors:["#15181c","#c43a3a","#f0f0f0","#2a4a8a","#8a9aa8","#1d6a3a"]},
+
+  // ── Honda ────────────────────────────────────────────────────────────
+  {name:"Civic Type R", brand:"Honda", price:24000, power:1.48, topSpeed:265, type:"sedan", era:"modern",
+   accent:"#cc0000", W:40, L:86,
+   colors:["#f0f0f0","#cc0000","#15181c","#2a4a8a","#3a3f48","#7a8a3a"]},
+  {name:"NSX",      brand:"Honda", price:85000, power:1.95, topSpeed:320, type:"wedge", era:"modern",
+   accent:"#cc0000", W:44, L:88,
+   colors:["#15181c","#cc0000","#f0f0f0","#2a5a7a","#8a9aa8","#d8a93f"]},
+
+  // ── Ford (muscle + pickup) ───────────────────────────────────────────
+  {name:"Mustang '67", brand:"Ford", price:35000, power:1.45, topSpeed:210, type:"coupe", era:"classic",
+   accent:"#003478", W:42, L:92,
+   colors:["#c43a3a","#15181c","#f0f0f0","#2a4a8a","#e8d24a","#3f7d5a"]},
+  {name:"Mustang GT", brand:"Ford", price:32000, power:1.52, topSpeed:260, type:"coupe", era:"modern",
+   accent:"#003478", W:44, L:94,
+   colors:["#15181c","#c43a3a","#2a4a8a","#f0f0f0","#5a1f1f","#3a3f48"]},
+  {name:"F-150 Raptor", brand:"Ford", price:48000, power:1.65, topSpeed:180, type:"suv", era:"modern",
+   accent:"#003478", W:56, L:98,
+   colors:["#2a4a8a","#15181c","#cfd4da","#5a1f1f","#3a3f48","#7a6a2a"]},
+
+  // ── Mercedes-Benz ────────────────────────────────────────────────────
+  {name:"W124",     brand:"Mercedes-Benz", price:9000,  power:1.12, topSpeed:190, type:"sedan", era:"classic",
+   accent:"#9aa6b2", W:40, L:88,
+   colors:["#cfd4da","#15181c","#2a4a8a","#5a1f1f","#3a3f48","#7a6a2a"]},
+  {name:"E 220",    brand:"Mercedes-Benz", price:26000, power:1.38, topSpeed:235, type:"sedan", era:"modern",
+   accent:"#9aa6b2", W:41, L:90,
+   colors:["#15181c","#cfd4da","#2a4a8a","#5a1f1f","#3a3f48","#8a9aa8"]},
+  {name:"G 63 AMG", brand:"Mercedes-Benz", price:95000, power:1.70, topSpeed:220, type:"suv", era:"modern",
+   accent:"#9aa6b2", W:54, L:96,
+   colors:["#15181c","#cfd4da","#5a1f1f","#3a3f48","#2a5a4a","#7a6a2a"]},
+
+  // ── Porsche ──────────────────────────────────────────────────────────
+  {name:"911 Carrera", brand:"Porsche", price:65000, power:1.68, topSpeed:295, type:"coupe", era:"modern",
+   accent:"#c43a3a", W:42, L:86,
+   colors:["#15181c","#f0f0f0","#c43a3a","#2a4a8a","#d8a93f","#3a3f48"]},
+  {name:"911 Turbo", brand:"Porsche", price:95000, power:1.92, topSpeed:320, type:"supercar", era:"modern",
+   accent:"#c43a3a", W:44, L:88,
+   colors:["#15181c","#c43a3a","#f0f0f0","#2a5a7a","#d8a93f","#3a3f48"]},
+
+  // ── Nissan (GT-R / Skyline) ──────────────────────────────────────────
+  {name:"Skyline R34", brand:"Nissan", price:55000, power:1.72, topSpeed:280, type:"coupe", era:"classic",
+   accent:"#c43a3a", W:40, L:88,
+   colors:["#15181c","#2a4a8a","#c43a3a","#f0f0f0","#5a1f1f","#3a3f48"]},
+  {name:"GT-R R35", brand:"Nissan", price:68000, power:1.82, topSpeed:315, type:"coupe", era:"modern",
+   accent:"#c43a3a", W:44, L:92,
+   colors:["#15181c","#c43a3a","#f0f0f0","#2a4a8a","#8a9aa8","#3a3f48"]},
+
+  // ── Tesla ────────────────────────────────────────────────────────────
+  {name:"Model 3",  brand:"Tesla", price:22000, power:1.42, topSpeed:225, type:"sedan", era:"modern",
+   accent:"#cc0000", W:40, L:86,
+   colors:["#f0f0f0","#15181c","#2a4a8a","#5a1f1f","#cfd4da","#3a3f48"]},
+
+  // ── Jeep ─────────────────────────────────────────────────────────────
+  {name:"Wrangler", brand:"Jeep", price:28000, power:1.25, topSpeed:165, type:"suv", era:"modern",
+   accent:"#3a5a3a", W:50, L:88,
+   colors:["#2a5a4a","#15181c","#cfd4da","#5a1f1f","#7a6a2a","#3a3f48"]},
+
+  // ── Fiat & Mini (kultowe miniatury) ──────────────────────────────────
+  {name:"500 Abarth", brand:"Fiat", price:7500, power:1.08, topSpeed:165, type:"coupe", era:"classic",
+   accent:"#c43a3a", W:30, L:68,
+   colors:["#f0f0f0","#c43a3a","#15181c","#2a4a8a","#e8d24a","#3a3f48"]},
+  {name:"Cooper S", brand:"Mini", price:11000, power:1.15, topSpeed:205, type:"coupe", era:"classic",
+   accent:"#15181c", W:32, L:74,
+   colors:["#c43a3a","#f0f0f0","#15181c","#2a4a8a","#e8d24a","#3a3f48"]},
+
+  // ── Amerykańskie muscle ──────────────────────────────────────────────
+  {name:"Camaro SS", brand:"Chevrolet", price:38000, power:1.58, topSpeed:265, type:"coupe", era:"modern",
+   accent:"#c4a000", W:44, L:94,
+   colors:["#c43a3a","#15181c","#f0f0f0","#2a4a8a","#5a1f1f","#3a3f48"]},
+  {name:"Challenger", brand:"Dodge", price:42000, power:1.55, topSpeed:270, type:"coupe", era:"classic",
+   accent:"#cc0000", W:46, L:98,
+   colors:["#15181c","#c43a3a","#f0f0f0","#2a4a8a","#7a6a2a","#3a3f48"]},
+
+  // ── Alfa Romeo ───────────────────────────────────────────────────────
+  {name:"Giulia QV", brand:"Alfa Romeo", price:36000, power:1.62, topSpeed:280, type:"sedan", era:"modern",
+   accent:"#cc0000", W:41, L:88,
+   colors:["#15181c","#c43a3a","#f0f0f0","#2a4a8a","#3a3f48","#8a9aa8"]},
 ];
 // default colour for each model = first in its palette
 for(const m of CARS){ m.color = m.colors ? m.colors[0] : (m.color||"#c9c9cf"); }
-// Traffic model pool: mix of BMW/Audi, weighted toward ordinary sedans.
-// Each entry repeated by its weight; exotics (R8, i8) appear rarely.
+// Traffic model pool: weighted toward popular daily drivers; exotics appear rarely.
 const TRAFFIC_POOL=(()=>{
-  const weight={ "E30":5,"E36":6,"E46 M3":3,"E39 M5":2,"320i":7,"M3":3,"M5":2,
-                 "X5 M":2,"i8":1,"A4":7,"S4":3,"RS6":2,"R8 V10":1,"Q8 RS":2 };
+  const weight={
+    // BMW / Audi
+    "E30":5,"E36":6,"E46 M3":3,"E39 M5":2,"320i":7,"M3":3,"M5":2,"X5 M":2,"i8":1,
+    "A4":7,"S4":3,"RS6":2,"R8 V10":1,"Q8 RS":2,
+    // mass-market favourites
+    "Golf GTI":8,"Polo GTI":6,"Beetle":4,"Corolla":9,"Model 3":8,"Civic Type R":4,
+    "W124":5,"E 220":5,"Mustang GT":3,"Mustang '67":2,"F-150 Raptor":3,"Wrangler":3,
+    "Cooper S":4,"500 Abarth":4,
+    // performance / cult — less common
+    "AE86":3,"Supra A90":2,"Skyline R34":2,"GT-R R35":2,"Camaro SS":2,"Challenger":2,
+    "Giulia QV":2,"911 Carrera":1,"911 Turbo":1,"G 63 AMG":1,"NSX":1,
+  };
   const pool=[];
   for(const m of CARS){ const w=weight[m.name]||2; for(let k=0;k<w;k++) pool.push(m); }
   return pool;
@@ -671,18 +779,18 @@ let salon=null;
 let gunshop=null;
 function buildSalonLot(lot){
   salon={x:lot.x,y:lot.y,cx:lot.x+lot.w/2,cy:lot.y+lot.h/2,pads:[]};
-  // 14 cars across 3 rows: BMW classics, BMW modern, Audi
-  const bmwC=CARS.filter(m=>m.brand==="BMW"&&m.era==="classic");
-  const bmwM=CARS.filter(m=>m.brand==="BMW"&&m.era==="modern");
-  const audi=CARS.filter(m=>m.brand==="Audi");
-  const rows=[bmwC,bmwM,audi];
-  const rowH=lot.h/rows.length;
-  for(let ri=0;ri<rows.length;ri++){
-    const row=rows[ri];
-    const yRow=lot.y+rowH*(ri+0.5);
-    for(let m=0;m<row.length;m++){
-      salon.pads.push({x:lot.x+lot.w*(m+0.5)/row.length, y:yRow, model:row[m], colorIdx:0});
-    }
+  const models=CARS.slice().sort((a,b)=>{
+    const ba=a.brand||"", bb=b.brand||"";
+    if(ba!==bb) return ba.localeCompare(bb);
+    return (a.price||0)-(b.price||0);
+  });
+  const n=models.length;
+  const cols=Math.max(6, Math.ceil(Math.sqrt(n*1.55)));
+  const rows=Math.ceil(n/cols);
+  const cellW=lot.w/cols, cellH=lot.h/rows;
+  for(let i=0;i<n;i++){
+    const col=i%cols, row=(i/cols)|0;
+    salon.pads.push({x:lot.x+cellW*(col+0.5), y:lot.y+cellH*(row+0.5), model:models[i], colorIdx:0});
   }
 }
 function buildGunShop(lot){ gunshop={x:lot.x,y:lot.y,w:lot.w,h:lot.h,cx:lot.x+lot.w/2,cy:lot.y+lot.h/2}; }
@@ -1481,7 +1589,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=30;
+const LOT_CACHE_VER=31;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 
 const FOREST_MUSHROOMS=["shroom_red","shroom_brown","shroom_tan","shroom_puff","shroom_lilac","shroom_shelf"];

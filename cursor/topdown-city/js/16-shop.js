@@ -50,12 +50,13 @@ function drawSalon(){
     const ci=p.colorIdx||0;
     const col=(m.colors&&m.colors[ci])||m.color;
     const isNear=(p===nearPad);
-    const bkey=brand+"|"+(m.era||"")+"|"+Math.round(p.y);
+    const bkey=brand+"|"+(m.era||"");
     if(brand && !drawnBrands.has(bkey)){
       drawnBrands.add(bkey);
       ctx.font="800 13px 'DM Mono', monospace";
       ctx.fillStyle=accent;
-      const label = brand==="BMW" ? (m.era==="classic"?"── BMW KLASYKI ──":"── BMW ──") : "── AUDI ──";
+      const eraTag=m.era==="classic"?" KLASYKI":"";
+      const label="── "+brand.toUpperCase()+eraTag+" ──";
       ctx.fillText(label, salon.cx, p.y-78);
     }
     // pad border (highlight if player is near)
