@@ -43,7 +43,7 @@ function frame(now){
   tickSave(dt);
   Game.update(dt, mapPause);
   if(mode!=="inside"){ updateCam(dt); focusX=cam.x; focusY=cam.y; }
-  draw(); updateHUD(); drawMini(); checkBiome(); drawClock(); drawStars(); drawMissionHUD(); drawMoney(); drawHealth(); drawShopHUD(); drawWeaponHUD(); drawGunShopHUD();
+  draw(); updateHUD(); if(typeof drawDriftHud==="function") drawDriftHud(); drawMini(); checkBiome(); drawClock(); drawStars(); drawMissionHUD(); drawMoney(); drawHealth(); drawShopHUD(); drawWeaponHUD(); drawGunShopHUD();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

@@ -63,6 +63,7 @@ frame()
 | `wildlife` | `22-wildlife.js` | update, drawActors (beforeTraffic) |
 | `map` | `35-map.js` | update (always), drawWorldOverlay, drawMap |
 | `railways` | `36-railways.js` | onLot, update, drawAfterRoads, drawActors (afterTraffic), drawMap |
+| `drift` | `37-drift.js` | update, drawAfterRoads — scoring, strefy, run (klawisz V) |
 
 ## Dodawanie nowego modułu — checklist
 

@@ -8,8 +8,16 @@ function draw(){
     else { drawInterior(); return; }
   }
   ctx.setTransform(ZOOM/PX,0,0,ZOOM/PX,0,0);
-  const ox = cam.x - VW/2, oy = cam.y - VH/2; // top-left of view in world
+  const ox = cam.x - VW/2, oy = cam.y - VH/2;
+  const roll=cam.roll||0, shake=cam.shake||0;
   ctx.save();
+  if(mode==="car"&&(roll||shake>0.001)){
+    const cx=car.x-ox, cy=car.y-oy;
+    const sx=(Math.random()-0.5)*shake*VW, sy=(Math.random()-0.5)*shake*VH;
+    ctx.translate(cx+sx, cy+sy);
+    ctx.rotate(roll);
+    ctx.translate(-cx, -cy);
+  }
   ctx.translate(-ox,-oy);
 
   // base ground fill (biome ground per lot, over which roads are layered)
@@ -43,8 +51,19 @@ function draw(){
   drawCrosswalks(ox,oy);
 
   // skid marks
-  ctx.fillStyle="rgba(20,20,24,.5)";
-  for(const m of skid){ ctx.save(); ctx.translate(m.x,m.y); ctx.rotate(m.a); ctx.fillRect(-3,-2.2,6,4.4); ctx.restore(); }
+  for(const m of skid){
+    const alpha=(m.a0!=null?m.a0:0.5)*(m.life!=null?clamp(m.life,0,1):1);
+    if(alpha<0.02) continue;
+    const w=m.w||6, h=m.h||w*0.44;
+    ctx.save(); ctx.translate(m.x,m.y); ctx.rotate(m.a);
+    ctx.fillStyle=`rgba(14,12,10,${alpha.toFixed(3)})`;
+    ctx.fillRect(-w*0.5,-h*0.5,w,h);
+    if(alpha>0.25){
+      ctx.fillStyle=`rgba(40,36,32,${(alpha*0.35).toFixed(3)})`;
+      ctx.fillRect(-w*0.35,-h*0.35,w*0.7,h*0.7);
+    }
+    ctx.restore();
+  }
 
   drawWet(ox,oy);          // wet asphalt + puddles (under traffic)
   drawShadows(ox,oy);      // directional sun shadows on the ground (day)

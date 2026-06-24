@@ -24,9 +24,21 @@
   <div id="weapon"></div>
   <div id="prompt"></div>
   <div id="gunshop"></div>
+  <div id="drift-hud" class="hidden">
+    <div class="drift-row">
+      <span class="drift-label">DRIFT</span>
+      <span class="drift-score">0</span>
+    </div>
+    <div class="drift-row drift-stats">
+      <span><b class="drift-angle">0°</b> kąt</span>
+      <span><b class="drift-slip">0%</b> poślizg</span>
+      <span><b class="drift-combo">×1.0</b> combo</span>
+    </div>
+    <div class="drift-sub">—</div>
+  </div>
   <div class="keys">
     <b>W / ↑</b> gaz &nbsp; <b>S / ↓</b> hamulec/wsteczny<br>
-    <b>A D / ← →</b> skręt &nbsp; <b>SPACJA</b> ręczny (drift)<br>
+    <b>A D / ← →</b> skręt &nbsp; <b>SPACJA</b> ręczny (drift) &nbsp; <b>V</b> run driftu (90 s)<br>
     <b>F</b> wsiądź / wejdź / wysiądź (auto, łódź lub budynek) &nbsp; <b>SHIFT</b> bieg (pieszo)<br>
     <b>T</b> przewiń czas (dzień/noc) &nbsp; <b>R</b> zmień pogodę<br>
     <b>P</b> mapa / nawigacja &nbsp; <b>klik minimapa</b> — pełna mapa<br>
@@ -164,13 +176,13 @@
   <script src="js/26-trails.js?v=1"></script>
   <script src="js/27-forest-bridges.js?v=2"></script>
   <script src="js/36-railways.js?v=3"></script>
-  <script src="js/02-player.js?v=5"></script>
+  <script src="js/02-player.js?v=6"></script>
   <script src="js/31-interior.js?v=1"></script>
   <script src="js/30-npc-look.js?v=2"></script>
   <script src="js/03-traffic.js?v=9"></script>
   <script src="js/04-collisions.js?v=2"></script>
-  <script src="js/05-movement.js?v=5"></script>
-  <script src="js/06-render-draw.js?v=4"></script>
+  <script src="js/05-movement.js?v=6"></script>
+  <script src="js/06-render-draw.js?v=5"></script>
   <script src="js/07-boats.js?v=2"></script>
   <script src="js/08-render-assets.js?v=29"></script>
   <script src="js/09-gauge.js"></script>
@@ -189,6 +201,7 @@
   <script src="js/19-save.js?v=2"></script>
   <script src="js/21-menu.js?v=4"></script>
   <script src="js/22-wildlife.js?v=19"></script>
-  <script src="js/20-main.js?v=7"></script>
+  <script src="js/37-drift.js?v=1"></script>
+  <script src="js/20-main.js?v=8"></script>
 </body>
 </html>

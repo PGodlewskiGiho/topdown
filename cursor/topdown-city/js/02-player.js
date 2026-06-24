@@ -32,7 +32,7 @@ const ENGINE = 340, BRAKE = 780, REVERSE = 165;
 const AIR = 0.48, AIR2 = 0.0016;   // linear + quadratic drag
 const ROLL = 52;
 const TURN = 2.85;
-const GRIP = 11.5, GRIP_HB = 3.2;
+const GRIP = 11.5, GRIP_HB = 2.35;
 const VK = {
   car:  {acc:1.0,  turn:1.0, grip:1.0, cap:0},
   moto: {acc:1.55, turn:1.55, grip:0.88, cap:600},
@@ -42,13 +42,13 @@ const KMH = 0.34;
 function pxToKmh(px){ return px*KMH; }
 function kmhToPx(kmh){ return kmh/KMH; }
 const CAR_TYPE_HANDLING={
-  sedan:   {acc:1.00, turn:1.00, grip:1.00, drag:1.00},
-  coupe:   {acc:1.06, turn:1.10, grip:1.05, drag:0.97},
-  estate:  {acc:0.95, turn:0.90, grip:1.03, drag:1.03},
-  suv:     {acc:0.86, turn:0.76, grip:1.10, drag:1.10},
-  suvcoupe:{acc:0.88, turn:0.80, grip:1.07, drag:1.07},
-  supercar:{acc:1.14, turn:1.06, grip:1.14, drag:0.90},
-  wedge:   {acc:1.12, turn:1.02, grip:1.12, drag:0.88},
+  sedan:   {acc:1.00, turn:1.00, grip:1.00, drag:1.00, drift:1.02},
+  coupe:   {acc:1.06, turn:1.12, grip:1.02, drag:0.96, drift:1.22},
+  estate:  {acc:0.95, turn:0.90, grip:1.03, drag:1.03, drift:0.88},
+  suv:     {acc:0.86, turn:0.76, grip:1.10, drag:1.10, drift:0.72},
+  suvcoupe:{acc:0.88, turn:0.80, grip:1.07, drag:1.07, drift:0.78},
+  supercar:{acc:1.14, turn:1.06, grip:1.14, drag:0.90, drift:0.95},
+  wedge:   {acc:1.12, turn:1.08, grip:1.08, drag:0.88, drift:1.18},
 };
 function carSpeedCap(){
   const vk=VK[car.kind]||VK.car;

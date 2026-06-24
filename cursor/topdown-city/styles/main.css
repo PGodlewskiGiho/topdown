@@ -42,6 +42,16 @@
   #health i{display:block;height:100%;width:100%;background:#49c46a;transition:width .15s,background .3s}
   #money{position:absolute;left:50%;top:54px;transform:translateX(-50%);font-family:var(--mono);
     font-size:15px;font-weight:600;letter-spacing:.08em;color:#7fe0a8;background:var(--panel);padding:6px 13px;border-radius:10px}
+  #drift-hud{position:absolute;right:22px;bottom:220px;min-width:168px;padding:12px 14px;border-radius:12px;
+    background:linear-gradient(145deg,rgba(22,16,12,.88),rgba(12,14,18,.92));border:1px solid rgba(255,140,60,.28);
+    box-shadow:0 8px 28px rgba(0,0,0,.45);font-family:var(--mono);transition:opacity .2s}
+  #drift-hud.hidden{display:none!important}
+  #drift-hud .drift-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+  #drift-hud .drift-label{font-size:11px;letter-spacing:.22em;color:#ff9a52;text-transform:uppercase}
+  #drift-hud .drift-score{font-size:22px;font-weight:700;color:#ffe8d8;letter-spacing:.04em}
+  #drift-hud .drift-stats{margin-top:8px;font-size:10px;color:#a8adb8;gap:8px;flex-wrap:wrap}
+  #drift-hud .drift-stats b{color:#ffd0a8;font-size:12px}
+  #drift-hud .drift-sub{margin-top:6px;font-size:10px;color:#7f8794;letter-spacing:.06em}
   #mission{position:absolute;left:22px;top:80px;font-family:var(--mono);background:var(--panel);
     padding:11px 14px;border-radius:12px;opacity:0;transition:opacity .3s;min-width:168px}
   #mission .mt{font-size:12px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase}

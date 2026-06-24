@@ -20,6 +20,10 @@ function recoverCarToLand(){
       car.x=sx; car.y=sy; break outer; } }
   car.vx=0; car.vy=0; car.sinking=undefined;
 }
+function carDriftProfile(){
+  const tm=CAR_TYPE_HANDLING[car.type]||CAR_TYPE_HANDLING.sedan;
+  return tm.drift!=null?tm.drift:1.0;
+}
 function updateCar(dt){
   if(car.sinking!==undefined){
     car.sinking+=dt; car.vx*=0.86; car.vy*=0.86; car.x+=car.vx*dt; car.y+=car.vy*dt;
@@ -35,13 +39,15 @@ function updateCar(dt){
   const h=carHandling();
   const cap=carSpeedCap();
   const surf=surfaceGripAt(car.x,car.y);
+  const driftMul=carDriftProfile();
   const c=Math.cos(car.a), s=Math.sin(car.a);
   let fwd=car.vx*c+car.vy*s;
   const speed=Math.hypot(car.vx,car.vy);
 
   if(throttle>0){
-    const headroom=clamp(1-Math.pow(clamp(speed/cap,0,1),1.55),0.06,1);
-    const acc=ENGINE*car.power*h.acc*throttle*headroom*surf*dt;
+    const headroom=clamp(1-Math.pow(clamp(speed/cap,0,1),1.45),0.08,1);
+    let acc=ENGINE*car.power*h.acc*throttle*headroom*surf*dt;
+    if(hb&&speed>30) acc*=1.08;
     car.vx+=c*acc; car.vy+=s*acc;
   } else if(throttle<0){
     if(fwd>5){
@@ -52,10 +58,12 @@ function updateCar(dt){
     }
   }
 
-  const steerMul=h.turn*(0.38+0.62/(1+speed/130));
+  const steerMul=h.turn*(0.42+0.58/(1+speed/118));
   if(speed>2){
     const dir=fwd<-3?-1:1;
-    car.a+=steerIn*TURN*steerMul*dir*dt;
+    let turnRate=steerIn*TURN*steerMul*dir;
+    if(hb&&speed>28) turnRate*=1.55+clamp(speed/220,0,0.45);
+    car.a+=turnRate*dt;
   } else if(Math.abs(steerIn)>0.01&&(throttle||hb)){
     car.a+=steerIn*TURN*h.turn*1.25*dt;
   }
@@ -63,15 +71,32 @@ function updateCar(dt){
   const c2=Math.cos(car.a), s2=Math.sin(car.a);
   let f=car.vx*c2+car.vy*s2;
   let lat=-car.vx*s2+car.vy*c2;
-  const gripBase=hb?GRIP_HB:GRIP;
-  const gripSpd=clamp(0.55+speed/105,0.55,1.4);
-  const g=gripBase*h.grip*gripSpd*surf;
-  lat*=Math.max(0,1-Math.min(1,g*dt));
+  const slipPre=speed>6?Math.abs(lat)/speed:0;
 
-  if(!hb&&speed>18){
-    const align=clamp(1.1*dt*(1-speed/(cap*1.15)),0,0.045);
+  const gripSpd=clamp(0.48+speed/95,0.48,1.55);
+  let rearGrip=(hb?GRIP_HB:GRIP)*h.grip*surf*gripSpd*driftMul;
+  let frontGrip=GRIP*h.grip*surf*gripSpd*1.04*driftMul;
+  if(hb){
+    rearGrip*=0.42;
+    frontGrip*=0.88;
+  }
+  if(throttle>0&&speed>40) rearGrip*=0.82;
+  if(throttle<0&&fwd>12) frontGrip*=1.12;
+
+  const rearShare=0.74, frontShare=0.26;
+  const rearLat=lat*rearShare, frontLat=lat*frontShare;
+  const newRear=rearLat*Math.max(0,1-Math.min(1,rearGrip*dt));
+  const newFront=frontLat*Math.max(0,1-Math.min(1,frontGrip*dt*1.15));
+  lat=newRear+newFront;
+
+  if(hb&&throttle>0&&speed>32&&Math.abs(steerIn)>0.05){
+    f+=ENGINE*car.power*throttle*0.14*dt*(0.6+slipPre);
+  }
+
+  if(!hb&&speed>18&&slipPre<0.22){
+    const align=clamp(1.15*dt*(1-speed/(cap*1.12)),0,0.048);
     const spd=Math.abs(f);
-    if(spd>0.1) f+= (speed-spd)*align*Math.sign(f);
+    if(spd>0.1) f+=(speed-spd)*align*Math.sign(f);
   }
 
   car.vx=c2*f-s2*lat;
@@ -79,7 +104,8 @@ function updateCar(dt){
 
   const sp2=Math.hypot(car.vx,car.vy);
   if(sp2>0){
-    const drag=(AIR*h.drag+sp2*AIR2)*dt;
+    let drag=(AIR*h.drag+sp2*AIR2)*dt;
+    if(hb&&slipPre>0.25) drag*=0.72;
     const rr=Math.min(sp2,ROLL*dt);
     const loss=Math.min(sp2,drag+rr);
     car.vx-=car.vx/sp2*loss;
@@ -95,12 +121,21 @@ function updateCar(dt){
   const capEff=cap*(0.82+0.18*surf);
   if(sc>capEff){ car.vx*=capEff/sc; car.vy*=capEff/sc; }
 
-  if(Math.abs(lat)>38||(hb&&sp2>28)){
+  car._fwd=f; car._lat=lat; car._slip=sc>8?Math.abs(lat)/sc:0;
+  car._driftAngle=Math.atan2(Math.abs(lat),Math.max(Math.abs(f),6))*180/Math.PI;
+
+  const skidIntensity=Math.max(slipPre, hb&&sp2>28?0.35:0);
+  if(Math.abs(lat)>28||skidIntensity>0.32){
     const rx=-Math.cos(car.a)*car.L*0.32, ry=-Math.sin(car.a)*car.L*0.32;
     const ox=-Math.sin(car.a)*car.W*0.34, oy=Math.cos(car.a)*car.W*0.34;
-    skid.push({x:car.x+rx+ox,y:car.y+ry+oy,a:car.a});
-    skid.push({x:car.x+rx-ox,y:car.y+ry-oy,a:car.a});
-    while(skid.length>SKID_MAX) skid.shift();
+    if(typeof pushSkidMark==="function"){
+      pushSkidMark(car.x+rx+ox,car.y+ry+oy,car.a,skidIntensity);
+      pushSkidMark(car.x+rx-ox,car.y+ry-oy,car.a,skidIntensity);
+    } else {
+      skid.push({x:car.x+rx+ox,y:car.y+ry+oy,a:car.a,w:2.4+skidIntensity*6,a0:0.4,life:1});
+      skid.push({x:car.x+rx-ox,y:car.y+ry-oy,a:car.a,w:2.4+skidIntensity*6,a0:0.4,life:1});
+      while(skid.length>SKID_MAX) skid.shift();
+    }
   }
 
   collide();
@@ -109,7 +144,7 @@ function updateCar(dt){
   if(typeof collideCrossingGates==="function") collideCrossingGates(car);
   collideTrees(car); collideRoundabouts(car); collideFences(car); collideGraves(car);
   carVsTraffic();
-  collideParked(car);   // traffic impact can push the player into parked rows
+  collideParked(car);
   carVsPeds();
   if(!car.dead&&car.maxHp&&car.hp>0&&car.hp<car.maxHp*0.08) damageCar(car,1.4*dt,car.x,car.y,"burn");
 }
@@ -147,35 +182,52 @@ function updatePed(dt){
   collideTerrain(ped, TERRAIN_SLOPE_WALK, 0.22);
 }
 
-/* ---------- camera ---------- */
-const cam = {x:car.x, y:car.y};
+/* ---------- camera (drift-aware) ---------- */
+const cam = {x:car.x, y:car.y, roll:0, shake:0, latOff:0};
 function updateCam(dt){
   const a=mode==="car"?car:ped;
   const spd=mode==="car"?Math.hypot(car.vx,car.vy):Math.hypot(ped.vx,ped.vy);
   const driving=mode==="car";
+  const slip=driving?(car._slip||0):0;
+  const velA=driving&&spd>8?Math.atan2(car.vy,car.vx):a.a;
 
-  // Look-ahead grows with speed; cap scales with viewport so fast cars stay framed.
-  const leadMax=driving?Math.min(VH*0.42, VW*0.28, 280):0;
-  const lead=clamp(spd*(driving?0.32:0), 0, leadMax);
-  let tx=a.x+Math.cos(a.a)*lead;
-  let ty=a.y+Math.sin(a.a)*lead;
-  if(driving&&spd>24){
-    tx+=car.vx*0.14;
-    ty+=car.vy*0.14;
+  const leadMax=driving?Math.min(VH*0.44, VW*0.30, 300):0;
+  let lead=clamp(spd*(driving?0.34:0), 0, leadMax);
+  if(driving&&slip>0.25) lead=clamp(spd*0.42, lead, leadMax*1.15);
+
+  let tx, ty;
+  if(driving&&slip>0.22&&spd>30){
+    tx=a.x+Math.cos(velA)*lead;
+    ty=a.y+Math.sin(velA)*lead;
+    const latSign=Math.sign(car._lat||0)||Math.sign(steerFromKeys());
+    const targetLat=latSign*clamp(spd*0.075+slip*90, 0, VW*0.14);
+    cam.latOff+=(targetLat-cam.latOff)*(1-Math.exp(-9*dt));
+    tx+=-Math.sin(velA)*cam.latOff;
+    ty+= Math.cos(velA)*cam.latOff;
+    const targetRoll=clamp(-(car._lat||0)/Math.max(spd,40), -0.14, 0.14)*slip*2.2;
+    cam.roll+=(targetRoll-cam.roll)*(1-Math.exp(-7*dt));
+    cam.shake=Math.max(cam.shake, slip*0.011);
+  } else {
+    tx=a.x+Math.cos(a.a)*lead;
+    ty=a.y+Math.sin(a.a)*lead;
+    if(driving&&spd>24){ tx+=car.vx*0.14; ty+=car.vy*0.14; }
+    cam.latOff*=1-Math.exp(-11*dt);
+    cam.roll+=(0-cam.roll)*(1-Math.exp(-9*dt));
   }
+  cam.shake*=Math.pow(0.88, dt*60);
 
-  // Exponential follow — snaps harder at high speed instead of lagging behind.
-  const rate=driving?(12+spd*0.034):14;
+  const rate=driving?(13+spd*0.038+slip*6):14;
   const k=1-Math.exp(-rate*dt);
   cam.x+=(tx-cam.x)*k;
   cam.y+=(ty-cam.y)*k;
 
-  // Hard frame: never let the player leave the view (car was driving off-screen).
-  const mx=driving?VW*0.20:VW*0.24, my=driving?VH*0.22:VH*0.26;
+  const mx=driving?VW*0.18:VW*0.24, my=driving?VH*0.20:VH*0.26;
   const ox=cam.x-VW/2, oy=cam.y-VH/2;
   if(a.x<ox+mx) cam.x=a.x+mx-VW/2;
   else if(a.x>ox+VW-mx) cam.x=a.x-mx+VW/2;
   if(a.y<oy+my) cam.y=a.y+my-VH/2;
   else if(a.y>oy+VH-my) cam.y=a.y-my+VH/2;
 }
-
+function steerFromKeys(){
+  return (keys["d"]||keys["arrowright"]?1:0)-(keys["a"]||keys["arrowleft"]?1:0);
+}
