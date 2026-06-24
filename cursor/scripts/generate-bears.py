@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-"""Build bear sprite sheets from LPC reference art (CC-BY-SA / GPL).
+"""Top-down bear sheets — 4 LPC directions baked in PNG, no runtime rotation.
 
-Extracts walk-right + attack-right frames, upscales with nearest-neighbor,
-recolors for variants. See assets/bears/ATTRIBUTION.txt.
+LPC rows: 0=south, 1=west(side), 2=east(side), 3=north — we use row 0/3 top-down
+and rotate row 0 in PNG for east/west so the bear stays overhead (not side profile).
 """
 from __future__ import annotations
 
 import json
 import shutil
 import zipfile
-from io import BytesIO
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -20,27 +19,27 @@ OUT = ROOT / "assets" / "bears"
 REF_CACHE = Path("/tmp/bear-refs/lpc_animals.zip")
 LPC_URL = "https://opengameart.org/sites/default/files/lpc_animals_2022_v1.1.zip"
 
-# LPC individual sheet layout (64×64 cells): rows 0–3 walk S/W/E/N, 4–7 attack, 8–11 die.
-# Row 0 = top-down (walk south). No PNG rotation — keep pure overhead view.
-# Heading fix in 22-wildlife.js: ctx.rotate(b.a + PI/2).
-WALK_ROW = 0
-ATK_ROW = 4
-WALK_COLS = (0, 1, 2, 3)
-ATK_COL = 1
-FACE_ROT = 0
 SRC = 64
-SCALE = 2  # 64 → 128 px frames
+SCALE = 2
 FW = FH = SRC * SCALE
 N_WALK = 4
+N_DIR = 4  # south, north, east, west
 N_FRAMES = N_WALK + 1
+FRAMES_PER_DIR = N_FRAMES
+TOTAL_FRAMES = FRAMES_PER_DIR * N_DIR
 ANCHOR_X = FW // 2
 ANCHOR_Y = FH - SCALE * 4
+
+# LPC source rows (walk / attack)
+LPC = {
+    "south": {"walk": 0, "attack": 4},
+    "north": {"walk": 3, "attack": 7},
+}
 
 
 def ensure_lpc() -> Path:
     base = REF_CACHE.parent / "lpc animals 2022 v1.1"
-    grizzly = base / "individual creature spritesheets" / "bear, grizzly.png"
-    if grizzly.is_file():
+    if (base / "individual creature spritesheets" / "bear, grizzly.png").is_file():
         return base
     REF_CACHE.parent.mkdir(parents=True, exist_ok=True)
     if not REF_CACHE.is_file():
@@ -57,14 +56,11 @@ def upscale(img: Image.Image) -> Image.Image:
     return img.resize((w * SCALE, h * SCALE), Image.Resampling.NEAREST)
 
 
-def orient_frame(img: Image.Image) -> Image.Image:
-    """Keep LPC top-down frame as-is (no rotation)."""
-    rot = img.rotate(FACE_ROT, resample=Image.Resampling.NEAREST, expand=True)
-    w, h = rot.size
+def fit_cell(img: Image.Image) -> Image.Image:
     out = Image.new("RGBA", (SRC, SRC), (0, 0, 0, 0))
-    ox = (SRC - w) // 2
-    oy = (SRC - h) // 2
-    out.paste(rot, (ox, oy), rot)
+    ox = (SRC - img.size[0]) // 2
+    oy = (SRC - img.size[1]) // 2
+    out.paste(img, (ox, oy), img)
     return out
 
 
@@ -90,7 +86,6 @@ def add_shadow(img: Image.Image) -> Image.Image:
 
 
 def recolor(img: Image.Image, hue_shift: float, sat_mul: float, val_mul: float) -> Image.Image:
-    """HSV tweak for fur variants."""
     import colorsys
 
     out = img.copy()
@@ -111,22 +106,46 @@ def recolor(img: Image.Image, hue_shift: float, sat_mul: float, val_mul: float) 
     return out
 
 
-def extract_frames(sheet: Image.Image) -> list[Image.Image]:
-    frames: list[Image.Image] = []
-    for col in WALK_COLS:
-        fr = sheet.crop((col * SRC, WALK_ROW * SRC, (col + 1) * SRC, (WALK_ROW + 1) * SRC))
-        fr = orient_frame(fr)
-        frames.append(upscale(add_shadow(shift_down(fr, SCALE))))
-    atk = sheet.crop((ATK_COL * SRC, ATK_ROW * SRC, (ATK_COL + 1) * SRC, (ATK_ROW + 1) * SRC))
-    atk = orient_frame(atk)
-    frames.append(upscale(add_shadow(shift_down(atk, SCALE))))
-    return frames
+def crop_lpc(sheet: Image.Image, row: int, col: int) -> Image.Image:
+    return sheet.crop((col * SRC, row * SRC, (col + 1) * SRC, (row + 1) * SRC))
+
+
+def process_cell(img: Image.Image) -> Image.Image:
+    return upscale(add_shadow(shift_down(fit_cell(img), SCALE)))
+
+
+def east_from_south(south: Image.Image) -> Image.Image:
+    """Top-down south frame → top-down east (rotate -90° CW in screen space)."""
+    rot = south.rotate(-90, resample=Image.Resampling.NEAREST, expand=True)
+    return fit_cell(rot)
+
+
+def west_from_south(south: Image.Image) -> Image.Image:
+    rot = south.rotate(90, resample=Image.Resampling.NEAREST, expand=True)
+    return fit_cell(rot)
+
+
+def extract_direction_set(sheet: Image.Image, walk_row: int, atk_row: int) -> list[Image.Image]:
+    south_walk = [crop_lpc(sheet, walk_row, c) for c in range(N_WALK)]
+    south_atk = crop_lpc(sheet, atk_row, 1)
+    dirs = {
+        "south": south_walk + [south_atk],
+        "north": [crop_lpc(sheet, LPC["north"]["walk"], c) for c in range(N_WALK)]
+        + [crop_lpc(sheet, LPC["north"]["attack"], 1)],
+        "east": [east_from_south(s) for s in south_walk] + [east_from_south(south_atk)],
+        "west": [west_from_south(s) for s in south_walk] + [west_from_south(south_atk)],
+    }
+    out: list[Image.Image] = []
+    for name in ("south", "north", "east", "west"):
+        out.extend(dirs[name])
+    return out
 
 
 def build_sheet(frames: list[Image.Image]) -> Image.Image:
-    sheet = Image.new("RGBA", (FW * N_FRAMES, FH), (0, 0, 0, 0))
+    sheet = Image.new("RGBA", (FW * len(frames), FH), (0, 0, 0, 0))
     for i, fr in enumerate(frames):
-        sheet.paste(fr, (i * FW, 0), fr)
+        cell = process_cell(fr)
+        sheet.paste(cell, (i * FW, 0), cell)
     return sheet
 
 
@@ -141,11 +160,15 @@ VARIANTS = {
 def make_variant(base_dir: Path, name: str, cfg: dict) -> Image.Image:
     path = base_dir / "individual creature spritesheets" / cfg["src"]
     sheet = Image.open(path).convert("RGBA")
-    frames = extract_frames(sheet)
-    if cfg["recolor"]:
-        hs, sm, vm = cfg["recolor"]
-        frames = [recolor(f, hs, sm, vm) for f in frames]
-    return build_sheet(frames)
+    raw = extract_direction_set(sheet, LPC["south"]["walk"], LPC["south"]["attack"])
+    out = Image.new("RGBA", (FW * TOTAL_FRAMES, FH), (0, 0, 0, 0))
+    for i, fr in enumerate(raw):
+        cell = process_cell(fr)
+        if cfg["recolor"]:
+            hs, sm, vm = cfg["recolor"]
+            cell = recolor(cell, hs, sm, vm)
+        out.paste(cell, (i * FW, 0), cell)
+    return out
 
 
 def write_attribution():
@@ -164,9 +187,11 @@ def main():
     meta = {
         "frameWidth": FW,
         "frameHeight": FH,
-        "frames": N_FRAMES,
+        "framesPerDirection": N_FRAMES,
         "walkFrames": list(range(N_WALK)),
         "attackFrame": N_WALK,
+        "directions": ["south", "north", "east", "west"],
+        "directionOrder": {"south": 0, "north": 1, "east": 2, "west": 3},
         "anchorX": ANCHOR_X,
         "anchorY": ANCHOR_Y,
         "walkStep": 0.11,
@@ -180,14 +205,6 @@ def main():
         print("wrote", path, img.size)
     (OUT / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     write_attribution()
-    # comparison strip for review
-    cmp_dir = ROOT.parent.parent / "artifacts" / "bear-compare"
-    cmp_dir.mkdir(parents=True, exist_ok=True)
-    shutil.copy(OUT / "bear-brown.png", cmp_dir / "new-bear-brown.png")
-    lpc = Image.open(base / "individual creature spritesheets" / "bear, grizzly.png").convert("RGBA")
-    upscale(add_shadow(upscale(lpc.crop((0, WALK_ROW * SRC, SRC, (WALK_ROW + 1) * SRC))))).save(
-        cmp_dir / "lpc-ref-walk0.png"
-    )
 
 
 if __name__ == "__main__":
