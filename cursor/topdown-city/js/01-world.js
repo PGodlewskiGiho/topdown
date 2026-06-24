@@ -837,6 +837,10 @@ function buildMotoDealer(lot){
 const HOUSE_WALL=["#d9cdb8","#cbb89a","#c8d0d6","#d6c2b0","#bcc9b4","#e0d3c0","#c9b9c2"];
 const HOUSE_ROOF=["#9c4a3a","#7a4030","#5e6670","#8a5a3a","#4f5b66","#6a4a3a"];
 const HOUSE_KINDS=["cottage_cream","cottage_blue","suburban_red","bungalow_green","modern_white","chalet_brown","villa_tan","slate_gray"];
+const TEMPLE_KINDS=["temple_sandstone","temple_obelisk"];
+const RUIN_KINDS=["ruin_cottage","ruin_farm"];
+const RUIN_WALL=["#787870","#6a7068","#807870","#707868","#8a8278"];
+const TEMPLE_WALL=["#ba9868","#b09060","#c4a878","#a88858"];
 const BLOK_WALL=["#b9b2a6","#ad9078","#9aa0a8","#c2b9ad","#9c8f86","#b0a690"];
 const TOWER_WALL=["#5d7e9a","#6f8ea8","#52718c","#7d96aa","#586d88","#6a8296"];
 const SHOP_WALL=["#cdbb96","#c2a87e","#b6bec4","#d0c4a8","#c8b0a0"];
@@ -1126,6 +1130,79 @@ function collideMega(e,bounce){
       if(e.hp!==undefined && into<-110) damageCar(e,(-into-110)*0.14,cx,cy,"impact"); } }
   });
 }
+function ruinCluster(i,j,salt){ return hsh(Math.floor(i/7),Math.floor(j/7),salt); }
+function desertTempleSite(i,j){
+  if(biomeOf(i,j)!=="desert"||isMountain(i,j)) return false;
+  if(nearestCity(i,j).dist<nearestCity(i,j).R+10) return false;
+  if(desertType(i,j)==="scrub") return false;
+  const c=ruinCluster(i,j,951);
+  return c>0.84 && c<0.945 && hsh(i,j,951)<0.035;
+}
+function forestRuinSite(i,j){
+  if(biomeOf(i,j)!=="forest"||isMountain(i,j)) return false;
+  const c=ruinCluster(i,j,953);
+  return c>0.87 && c<0.962 && hsh(i,j,953)<0.038;
+}
+function fieldMeadowSite(i,j){
+  if(biomeOf(i,j)!=="forest") return false;
+  const c=ruinCluster(i,j,954);
+  return c>0.72 && c<0.81;
+}
+function fieldRuinSite(i,j){
+  if(fieldMeadowSite(i,j) && hsh(i,j,954)<0.22) return true;
+  if(biomeOf(i,j)==="city"){
+    const z=cityZone(i,j), nc=nearestCity(i,j);
+    if((z==="suburb"||z==="transition") && nc.dist>nc.R+4)
+      return hsh(Math.floor(i/6),Math.floor(j/6),956)>0.86 && hsh(i,j,957)<0.14;
+  }
+  return false;
+}
+function clearRuinClearing(lot,cx,cy,rad){
+  lot.props=lot.props.filter(p=>{
+    if(p.t!=="tree" && p.t!=="cactus") return true;
+    return Math.hypot(p.x-cx,p.y-cy)>rad;
+  });
+}
+function thinForestMeadow(lot,r){
+  const cx=lot.x+lot.w/2, cy=lot.y+lot.h/2, rad=Math.min(lot.w,lot.h)*0.36;
+  lot.props=lot.props.filter(p=>{
+    if(p.t!=="tree") return true;
+    if(Math.hypot(p.x-cx,p.y-cy)>rad) return true;
+    return r()>0.52;
+  });
+}
+function genDesertTemple(lot,r,left,top,lw,lh,i,j){
+  if(lw<100||lh<90) return;
+  const tw=Math.min(lw*0.52,130), th=Math.min(lh*0.48,115);
+  const tx=left+lw/2-tw/2, ty=top+lh/2-th/2+8;
+  clearRuinClearing(lot, tx+tw/2, ty+th/2, Math.max(tw,th)*0.55);
+  addBuilding(lot, tx, ty, tw, th, r, "temple");
+  lot.temple=true; lot.zone="temple";
+  for(let k=0;k<2+(r()*3|0);k++){
+    const ang=r()*6.283, dist=Math.max(tw,th)*0.32+r()*Math.max(tw,th)*0.22;
+    lot.props.push({x:tx+tw/2+Math.cos(ang)*dist,y:ty+th/2+Math.sin(ang)*dist,s:10+r()*16,t:"ruin_column",a:ang});
+  }
+  if(r()<0.55) lot.props.push({x:tx+tw*0.82,y:ty+th*0.72,s:14+r()*10,t:"ruin_rubble"});
+  if(r()<0.45) lot.props.push({x:tx+tw*0.12,y:ty+th*0.78,s:12+r()*8,t:"ruin_rubble"});
+}
+function genAbandonedRuin(lot,r,left,top,lw,lh,i,j,ctx){
+  if(lw<85||lh<75) return;
+  const rw=Math.min(lw*0.44,118), rh=Math.min(lh*0.40,98);
+  const rx=left+lw/2-rw/2+(r()-0.5)*lw*0.08, ry=top+lh/2-rh/2+(r()-0.5)*lh*0.08;
+  clearRuinClearing(lot, rx+rw/2, ry+rh/2, Math.max(rw,rh)*0.48);
+  addBuilding(lot, rx, ry, rw, rh, r, "ruin");
+  lot.ruin=true; lot.zone=ctx==="field"?"meadow":"ruin";
+  const nk=ctx==="field"?4+(r()*5|0):2+(r()*4|0);
+  for(let k=0;k<nk;k++){
+    const px=rx+8+r()*(rw-16), py=ry+rh*0.55+r()*Math.max(8,rh*0.35);
+    lot.tufts.push({x:px,y:py,s:6+r()*10,v:"wild_grass"});
+  }
+  if(r()<0.7) lot.props.push({x:rx-rw*0.06,y:ry+rh*0.58,s:22+r()*18,t:"ruin_fence",a:0});
+  if(r()<0.5) lot.props.push({x:rx+rw*0.78,y:ry+rh*0.32,s:14+r()*12,t:"ruin_ivy"});
+  if(ctx==="forest" && r()<0.62){
+    lot.props.push(makeTree(rx+rw*1.02, ry+rh*0.38, 44+r()*28, r, r()<0.5?"willow":"birch",{fi:i,fj:j}));
+  }
+}
 function addBuilding(lot,bx,by,bw,bh,r,type){
   bx=Math.round(bx); by=Math.round(by); bw=Math.round(bw); bh=Math.round(bh);
   if(inWater(bx+bw/2,by+bh/2) || inWater(bx,by) || inWater(bx+bw,by+bh)) return null;   // never build on water
@@ -1140,6 +1217,14 @@ function addBuilding(lot,bx,by,bw,bh,r,type){
   } else if(type==="chapel"||type==="church"){ b.type="house"; b.church=true; b.bigChurch=(type==="church");
     b.color=pick(["#bcb6a8","#c4bdae","#aca596"]); b.roofC=pick(["#46505a","#3f4a52","#574b42"]);
     b.floors=type==="church"?(8+(r()*13|0)):(5+(r()*8|0)); b.H=b.floors*(24+r()*6); b.chimney=null;
+  } else if(type==="temple"){
+    b.templeKind=TEMPLE_KINDS[hsh(bx,by,961)%TEMPLE_KINDS.length];
+    b.color=pick(TEMPLE_WALL); b.roofC=shade(b.color,-22); b.H=42+r()*24; b.chimney=null;
+  } else if(type==="ruin"){
+    b.type="house"; b.abandoned=true;
+    b.ruinKind=RUIN_KINDS[hsh(bx,by,962)%RUIN_KINDS.length];
+    b.color=pick(RUIN_WALL); b.roofC=pick(["#5a5048","#4a4840","#585048","#4a4438"]);
+    b.H=18+r()*12; b.chimney=r()<0.32?[bx+bw*0.68,by+bh*0.22]:null;
   } else { b.houseKind=HOUSE_KINDS[hsh(bx,by,521)%HOUSE_KINDS.length];
     b.color=pick(HOUSE_WALL); b.roofC=pick(HOUSE_ROOF); b.H=22+r()*14;
     b.chimney=[bx+(r()<0.5?bw*0.2:bw*0.68), by+bh*0.2+r()*bh*0.4];
@@ -1658,7 +1743,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=35;
+const LOT_CACHE_VER=36;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 const DESERT_FLOOR_VARIANTS=["ripple_light","ripple_dark","dune_crest","cracked_earth","salt_patch","pebble_cluster","sage_bush","dry_grass"];
 const DESERT_FLORA=["sage","tumbleweed","driftwood","bone","pebble","crack","salt_crust"];
@@ -1889,9 +1974,11 @@ function getLot(i,j){
   }
   else if(biome==="forest"){
     lot.empty=true; lot.zone="forest"; lot.forestType=forestType(i,j);
+    lot.forestMeadow=fieldMeadowSite(i,j);
     lot.river=isRiverCell(i,j)||[[1,0],[-1,0],[0,1],[0,-1]].some(d=>isRiverCell(i+d[0],j+d[1]));
     lot.B.ground=FOREST_GROUND[lot.forestType]||lot.B.ground;
     genForestTrees(lot,r,i,j);
+    if(lot.forestMeadow) thinForestMeadow(lot,r);
     if(lot.river){
       for(let k=0;k<8+(r()*10|0);k++){
         const rx=left+16+r()*(lw-32), ry=top+16+r()*(lh-32);
@@ -1900,7 +1987,8 @@ function getLot(i,j){
       }
     }
     lot.props.sort((u,v)=>u.y-v.y);
-    if(r()<0.04) placeBuildings(lot,"outer",r,biome);
+    if(forestRuinSite(i,j)) genAbandonedRuin(lot,r,left,top,lw,lh,i,j,"forest");
+    else if(lot.forestMeadow && fieldRuinSite(i,j)) genAbandonedRuin(lot,r,left,top,lw,lh,i,j,"field");
   }
   else if(biome==="desert"){
     lot.empty=true; lot.zone="outer"; lot.desertType=desertType(i,j);
@@ -1913,7 +2001,7 @@ function getLot(i,j){
     }
     genDesertRocks(lot,r,left,top,lw,lh);
     lot.props.sort((u,v)=>u.y-v.y);
-    if(r()<0.05) placeBuildings(lot,"outer",r,biome);
+    if(desertTempleSite(i,j)) genDesertTemple(lot,r,left,top,lw,lh,i,j);
   }
   else {
     lot.zone=zone;
@@ -1932,7 +2020,8 @@ function getLot(i,j){
       if(r() < builtChance) placeBuildings(lot, zone, r, biome);
       if(!lot.buildings.length){ lot.empty=true; const n=2+(r()*4|0); for(let k=0;k<n;k++){ const px=left+20+r()*(lw-40), py=top+20+r()*(lh-40), s=B.prop==="tree"?(88+r()*62):(16+r()*12);
         lot.props.push(B.prop==="tree"?makeTree(px,py,s,r,null,{city:biome==="city"}):{x:px,y:py,s,t:B.prop}); }
-        if(lot.hill && biome==="desert" && r()<0.55){ for(let k=0;k<1+(r()*2|0);k++) lot.props.push({x:left+20+r()*(lw-40), y:top+20+r()*(lh-40), s:12+r()*20, t:"rock"}); } }
+        if(lot.hill && biome==="desert" && r()<0.55){ for(let k=0;k<1+(r()*2|0);k++) lot.props.push({x:left+20+r()*(lw-40), y:top+20+r()*(lh-40), s:12+r()*20, t:"rock"}); }
+        if(fieldRuinSite(i,j) && lw>120 && lh>100) genAbandonedRuin(lot,r,left,top,lw,lh,i,j,"field"); }
     }
   }
   const pn=(r()*2.2)|0; for(let k=0;k<pn;k++) lot.puddles.push({x:left+r()*lw, y:top+r()*lh, rx:8+r()*22, ry:5+r()*12});

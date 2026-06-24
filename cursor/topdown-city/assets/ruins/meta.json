@@ -1,0 +1,45 @@
+{
+  "width": 208,
+  "height": 300,
+  "splitY": 198,
+  "anchorX": 104,
+  "anchorY": 298,
+  "kinds": {
+    "temple_sandstone": {
+      "file": "temple_sandstone.png",
+      "width": 208,
+      "height": 300,
+      "splitY": 198,
+      "anchorX": 104,
+      "anchorY": 298,
+      "hd": true
+    },
+    "temple_obelisk": {
+      "file": "temple_obelisk.png",
+      "width": 160,
+      "height": 280,
+      "splitY": 180,
+      "anchorX": 80,
+      "anchorY": 278,
+      "hd": true
+    },
+    "ruin_cottage": {
+      "file": "ruin_cottage.png",
+      "width": 192,
+      "height": 248,
+      "splitY": 158,
+      "anchorX": 96,
+      "anchorY": 246,
+      "hd": true
+    },
+    "ruin_farm": {
+      "file": "ruin_farm.png",
+      "width": 220,
+      "height": 260,
+      "splitY": 168,
+      "anchorX": 110,
+      "anchorY": 258,
+      "hd": true
+    }
+  }
+}

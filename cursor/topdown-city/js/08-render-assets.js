@@ -609,14 +609,62 @@ function drawHouseSpriteFront(b){
   return true;
 }
 function houseSpriteReady(b){
-  if(b.type!=="house"||b.church||!HOUSE_SPRITE.ready) return false;
+  if(b.type!=="house"||b.church||b.abandoned||!HOUSE_SPRITE.ready) return false;
   const kind=b.houseKind||"cottage_cream";
   const img=HOUSE_SPRITE.img[kind]||HOUSE_SPRITE.img.cottage_cream;
   return !!(img&&img.complete&&img.naturalWidth);
 }
 function useHouseSprite(b){ return houseSpriteReady(b); }
+// ── PNG ruin / temple sprites (assets/ruins/*.png) ───────────────────────
+const RUIN_ASSET_V=1;
+const RUIN_SPRITE={ready:false,meta:null,img:{}};
+(function loadRuinSprites(){
+  fetch("assets/ruins/meta.json?v="+RUIN_ASSET_V).then(r=>r.json()).then(meta=>{
+    RUIN_SPRITE.meta=meta;
+    const kinds=Object.keys(meta.kinds||{}); let left=kinds.length||0;
+    if(!left){ RUIN_SPRITE.ready=true; return; }
+    for(const k of kinds){
+      const im=new Image();
+      im.onload=im.onerror=()=>{ if(--left<=0) RUIN_SPRITE.ready=true; };
+      im.src="assets/ruins/"+meta.kinds[k].file+"?v="+RUIN_ASSET_V;
+      RUIN_SPRITE.img[k]=im;
+    }
+  }).catch(()=>{ RUIN_SPRITE.ready=true; });
+})();
+function ruinKindMeta(kind){
+  const g=RUIN_SPRITE.meta||{}, k=g.kinds&&g.kinds[kind];
+  const bw=g.width||208, bh=g.height||300, bs=g.splitY??198;
+  if(k&&k.width&&k.height) return {width:k.width,height:k.height,splitY:k.splitY??bs,anchorX:k.anchorX??104,anchorY:k.anchorY??298,hd:!!k.hd};
+  return {width:bw,height:bh,splitY:bs,anchorX:104,anchorY:298,hd:false};
+}
+function ruinSpriteScale(b,m){
+  const scW=(b.w*1.08)/(m.width||208);
+  const scH=((b.H||28)*1.15)/(m.height||300);
+  return Math.max(0.45, Math.min(2.6, Math.max(scW, scH)));
+}
+function ruinSpriteReady(b,kindKey){
+  if(!RUIN_SPRITE.ready) return false;
+  const kind=b[kindKey]||Object.keys(RUIN_SPRITE.meta?.kinds||{})[0];
+  const img=RUIN_SPRITE.img[kind];
+  return !!(img&&img.complete&&img.naturalWidth);
+}
+function drawRuinKindSprite(b, kindKey, fallbackKind){
+  if(!RUIN_SPRITE.ready) return false;
+  const kind=b[kindKey]||fallbackKind;
+  const m=ruinKindMeta(kind), img=RUIN_SPRITE.img[kind]||RUIN_SPRITE.img[fallbackKind];
+  if(!img||!img.complete||!img.naturalWidth) return false;
+  const [vx,vy]=leanVec(b), sc=ruinSpriteScale(b,m);
+  const cx=b.x+b.w/2, groundY=b.y+b.h;
+  const hw=m.width*sc*0.5, imgH=m.height*sc;
+  const blx=cx-hw, bly=groundY, brx=cx+hw;
+  const tlx=cx-hw+vx, tly=groundY+vy-imgH, trx=cx+hw+vx;
+  drawImageQuad(img,m.width,m.height,blx,bly,brx,bly,tlx,tly,trx,tly);
+  return true;
+}
+function useTempleSprite(b){ return b.type==="temple" && ruinSpriteReady(b,"templeKind"); }
+function useRuinSprite(b){ return b.abandoned && ruinSpriteReady(b,"ruinKind"); }
 function drawBuildingWalls(b){
-  if(useHouseSprite(b)){ drawHouseSideFaces(b); return; }
+  if(useTempleSprite(b)||useRuinSprite(b)){ drawHouseSideFaces(b); return; }
   const x=b.x,y=b.y,w=b.w,h=b.h, [vx,vy]=leanVec(b);                  // roof leans away from screen centre = perceived height
   const base=[[x,y],[x+w,y],[x+w,y+h],[x,y+h]];
   const roof=[[x+vx,y+vy],[x+w+vx,y+vy],[x+w+vx,y+h+vy],[x+vx,y+h+vy]];
@@ -631,6 +679,8 @@ function drawBuildingWalls(b){
   }
 }
 function drawBuildingRoof(b){
+  if(useTempleSprite(b)){ drawRuinKindSprite(b,"templeKind","temple_sandstone"); return; }
+  if(useRuinSprite(b)){ drawRuinKindSprite(b,"ruinKind","ruin_cottage"); return; }
   if(useHouseSprite(b)){ drawHouseSpriteFront(b); return; }
   const x=b.x,y=b.y,w=b.w,h=b.h, [vx,vy]=leanVec(b);
   const roof=[[x+vx,y+vy],[x+w+vx,y+vy],[x+w+vx,y+h+vy],[x+vx,y+h+vy]];
@@ -705,7 +755,33 @@ function drawWallWindows(b,a,cc,ar,face){
   const L=Math.hypot(ux,uy), Hh=Math.hypot(hx,hy); if(Hh<6||L<6) return;
   const P=(t,u)=>[a[0]+ux*t+hx*u, a[1]+uy*t+hy*u];                    // wall-space (along t, up u) -> world
   const t=b.type;
+  if(t==="temple"){
+    { const cr=[cc[0]+hx, cc[1]+hy]; const wp=getTex("stonetex");
+      if(wp){ ctx.save(); ctx.fillStyle=wp; fillPoly([a,cc,cr,ar]); ctx.restore(); }
+      drawWallTexture(P, fillPoly, ((Math.round(a[0])*131+Math.round(a[1])*97)>>>0), 5, 4); }
+    const cols=b.templeKind==="temple_obelisk"?1:3;
+    for(let k=0;k<cols;k++){ const c0=(k+0.5)/Math.max(cols,1);
+      ctx.fillStyle=shade(b.color,-12); fillPoly([P(c0-0.055,0.08),P(c0+0.055,0.08),P(c0+0.048,0.88),P(c0-0.048,0.88)]);
+      ctx.fillStyle=shade(b.color,10); fillPoly([P(c0-0.048,0.08),P(c0+0.048,0.08),P(c0+0.042,0.14),P(c0-0.042,0.14)]);
+    }
+    ctx.fillStyle="rgba(38,30,22,.92)"; fillPoly([P(0.42,0.12),P(0.58,0.12),P(0.58,0.72),P(0.50,0.82),P(0.42,0.72)]);
+    ctx.fillStyle="rgba(198,168,108,.35)"; fillPoly([P(0,0.92),P(1,0.92),P(1,1),P(0,1)]);
+    return;
+  }
   if(t==="house"){
+    if(b.abandoned){
+      { const cr=[cc[0]+hx, cc[1]+hy]; const wp=getTex("plaster");
+        if(wp){ ctx.save(); ctx.globalAlpha=0.88; ctx.fillStyle=wp; fillPoly([a,cc,cr,ar]); ctx.restore(); }
+        drawWallTexture(P, fillPoly, ((Math.round(a[0])*131+Math.round(a[1])*97)>>>0), 4, 3); }
+      ctx.fillStyle="rgba(48,68,38,.55)"; fillPoly([P(0.04,0.22),P(0.22,0.18),P(0.20,0.78),P(0.02,0.82)]);
+      ctx.fillStyle="rgba(48,68,38,.45)"; fillPoly([P(0.78,0.20),P(0.94,0.24),P(0.96,0.80),P(0.80,0.76)]);
+      ctx.fillStyle="rgba(52,42,34,.88)"; fillPoly([P(0.40,0.04),P(0.60,0.04),P(0.60,0.74),P(0.40,0.74)]);
+      for(const wx of [0.16,0.78]){ ctx.fillStyle="rgba(28,32,24,.85)"; fillPoly([P(wx-0.08,0.30),P(wx+0.08,0.30),P(wx+0.08,0.72),P(wx-0.08,0.72)]);
+        ctx.strokeStyle="rgba(18,22,16,.7)"; ctx.lineWidth=0.9; const p0=P(wx-0.06,0.34),p1=P(wx+0.06,0.68); ctx.beginPath(); ctx.moveTo(p0[0],p0[1]); ctx.lineTo(p1[0],p1[1]); ctx.stroke(); }
+      for(let k=0;k<3;k++){ const tx=0.12+k*0.28+((Math.round(a[0])|0)%7)*0.01;
+        ctx.fillStyle="rgba(58,88,48,.35)"; fillPoly([P(tx,0.62),P(tx+0.06,0.58),P(tx+0.05,0.78),P(tx-0.01,0.80)]); }
+      return;
+    }
     if(b.church){
       // ashlar stone texture over the church facade
       { const cr=[cc[0]+hx, cc[1]+hy]; const wp=getTex("stonetex");
@@ -1031,6 +1107,21 @@ function drawChurchRoof(b,x,ry,w,h){
 function drawRoofTop(b,x,ry,w,h){
   const dx=x-b.x, dy=ry-b.y;
   if(b.church){ drawChurchRoof(b,x,ry,w,h); return; }
+  if(b.type==="temple"){
+    if(w>=h){ const my=ry+h/2; ctx.fillStyle=shade(b.roofC,12); ctx.fillRect(x,ry,w,h/2); ctx.fillStyle=shade(b.roofC,-16); ctx.fillRect(x,my,w,h-h/2);
+      ctx.strokeStyle="rgba(0,0,0,.28)"; ctx.lineWidth=1.2; ctx.beginPath(); ctx.moveTo(x+2,my); ctx.lineTo(x+w-2,my); ctx.stroke(); }
+    else { const mx=x+w/2; ctx.fillStyle=shade(b.roofC,12); ctx.fillRect(x,ry,w/2,h); ctx.fillStyle=shade(b.roofC,-16); ctx.fillRect(mx,ry,w-w/2,h); }
+    ctx.fillStyle="rgba(198,168,108,.28)"; ctx.fillRect(x+2,ry+h-4,w-4,3);
+    return;
+  }
+  if(b.type==="house" && b.abandoned){
+    if(w>=h){ const my=ry+h/2; ctx.fillStyle=shade(b.roofC,-8); ctx.fillRect(x,ry,w*0.58,h/2);
+      ctx.fillStyle="rgba(38,34,28,.55)"; ctx.fillRect(x+w*0.52,ry,w*0.48,h*0.55);
+      ctx.strokeStyle="rgba(0,0,0,.25)"; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(x+w*0.54,ry+2); ctx.lineTo(x+w*0.54,ry+h*0.5); ctx.stroke(); }
+    else { const mx=x+w/2; ctx.fillStyle=shade(b.roofC,-8); ctx.fillRect(x,ry,w/2,h*0.62); ctx.fillStyle="rgba(38,34,28,.5)"; ctx.fillRect(mx,ry,w-w/2,h*0.55); }
+    if(b.chimney){ ctx.fillStyle="#4a4038"; ctx.fillRect(b.chimney[0]+dx-1,b.chimney[1]+dy-3,6,8); }
+    return;
+  }
   if(b.type==="house"){
     if(w>=h){ const my=ry+h/2; ctx.fillStyle=shade(b.roofC,14); ctx.fillRect(x,ry,w,h/2); ctx.fillStyle=shade(b.roofC,-14); ctx.fillRect(x,my,w,h-h/2);
       ctx.strokeStyle="rgba(0,0,0,.3)"; ctx.lineWidth=1.4; ctx.beginPath(); ctx.moveTo(x+2,my); ctx.lineTo(x+w-2,my); ctx.stroke();
@@ -2196,6 +2287,34 @@ function drawTreeCanopy(cx,cy,t,lod){
   if(t.lobes){ const lb=t.lobes.slice().sort((a,b)=>b.oy-a.oy); const round=t.kind==="bush"; for(const L of lb) drawCTLobe(map,R,pal,L.ox,L.oy,L.lr,round); }
   if(!lod) drawFoliageStipple(map,R,pal,t);                           // dense leaf-speck thicket (no outline)
 }
+function drawRuinColumn(p){
+  const x=p.x, y=p.y, s=p.s||14, a=p.a||0;
+  ctx.save(); ctx.translate(x,y); ctx.rotate(a);
+  ctx.fillStyle="#a88860"; ctx.fillRect(-s*0.22,-s*0.9,s*0.44,s*0.92);
+  ctx.fillStyle="#988050"; for(let k=0;k<4;k++) ctx.fillRect(-s*0.2,-s*0.82+k*s*0.22,s*0.4,s*0.08);
+  ctx.fillStyle="#b89868"; ctx.fillRect(-s*0.28,-s*0.96,s*0.56,s*0.12);
+  ctx.fillStyle="rgba(198,168,108,.35)"; ctx.fillRect(-s*0.32,s*0.02,s*0.64,s*0.08);
+  ctx.restore();
+}
+function drawRuinRubble(p){
+  const s=p.s||12;
+  ctx.fillStyle="#8a7868";
+  ctx.beginPath(); ctx.moveTo(p.x-s*0.4,p.y); ctx.lineTo(p.x-s*0.1,p.y-s*0.35); ctx.lineTo(p.x+s*0.35,p.y-s*0.15); ctx.lineTo(p.x+s*0.45,p.y); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="#6a5848"; ctx.fillRect(p.x-s*0.55,p.y-s*0.05,s*0.28,s*0.18);
+}
+function drawRuinFence(p){
+  const x=p.x, y=p.y, s=p.s||22;
+  ctx.strokeStyle="#6a5848"; ctx.lineWidth=2;
+  for(let k=0;k<4;k++){ const fx=x+k*s*0.28; ctx.beginPath(); ctx.moveTo(fx,y); ctx.lineTo(fx,y-s*0.55); ctx.stroke(); }
+  ctx.beginPath(); ctx.moveTo(x-s*0.08,y-s*0.38); ctx.lineTo(x+s*0.9,y-s*0.32); ctx.stroke();
+}
+function drawRuinIvy(p){
+  const s=p.s||14;
+  ctx.strokeStyle="#486838"; ctx.lineWidth=2.2;
+  ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.quadraticCurveTo(p.x+s*0.2,p.y-s*0.5,p.x+s*0.35,p.y-s*0.85); ctx.stroke();
+  ctx.fillStyle="rgba(58,88,48,.75)"; ctx.beginPath(); ctx.arc(p.x+s*0.1,p.y-s*0.35,s*0.22,0,7); ctx.fill();
+  ctx.beginPath(); ctx.arc(p.x+s*0.28,p.y-s*0.62,s*0.18,0,7); ctx.fill();
+}
 function drawProps(L){
   const cl=cam.x-VW/2-34, cr=cam.x+VW/2+34, ct=cam.y-VH/2-34, cb=cam.y+VH/2+34, lod=VW>1500;
   for(const p of L.props){
@@ -2206,6 +2325,10 @@ function drawProps(L){
       ctx.fillStyle="#2f8a5a"; for(let a=0;a<6;a++){ const ang=a/6*6.283; ctx.save(); ctx.translate(p.x,p.y-p.s); ctx.rotate(ang); ctx.fillRect(0,-2,p.s*0.95,4); ctx.restore(); }
     } else if(p.t==="rock"){
       drawForestRock(p.x,p.y,p.s,p.v,p.moss);
+    } else if(p.t==="ruin_column"){ drawRuinColumn(p);
+    } else if(p.t==="ruin_rubble"){ drawRuinRubble(p);
+    } else if(p.t==="ruin_fence"){ drawRuinFence(p);
+    } else if(p.t==="ruin_ivy"){ drawRuinIvy(p);
     } else if(p.t==="reed"){ drawReed(p);
     } else if(p.t==="tree"){ /* trunks drawn in drawTrunks() pass, over buildings */ }
     else {
