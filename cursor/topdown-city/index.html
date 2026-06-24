@@ -25,6 +25,9 @@
   <div id="prompt"></div>
   <div id="gunshop"></div>
   <div id="drift-hud" class="hidden">
+    <div class="drift-hud-layout">
+      <canvas id="drift-track-preview" class="drift-track-preview hidden" width="104" height="104"></canvas>
+      <div class="drift-hud-main">
     <div class="drift-row">
       <span class="drift-label">DRIFT</span>
       <span class="drift-score">0</span>
@@ -35,13 +38,16 @@
       <span><b class="drift-combo">×1.0</b> combo</span>
     </div>
     <div class="drift-sub">—</div>
+    <div class="drift-breakdown hidden"></div>
+      </div>
+    </div>
   </div>
   <div class="keys">
     <b>W / ↑</b> gaz &nbsp; <b>S / ↓</b> hamulec/wsteczny<br>
-    <b>A D / ← →</b> skręt &nbsp; <b>SPACJA</b> ręczny (drift) &nbsp; <b>V</b> run driftu (90 s)<br>
+    <b>A D / ← →</b> skręt &nbsp; <b>SPACJA</b> ręczny (drift) &nbsp; <b>V</b> run driftu (90 s) &nbsp; <b>J</b> tsuiso (nocny wyścig)<br>
     <b>F</b> wsiądź / wejdź / wysiądź (auto, łódź lub budynek) &nbsp; <b>SHIFT</b> bieg (pieszo)<br>
     <b>T</b> przewiń czas (dzień/noc) &nbsp; <b>R</b> zmień pogodę<br>
-    <b>P</b> mapa / nawigacja &nbsp; <b>klik minimapa</b> — pełna mapa<br>
+    <b>P</b> mapa / nawigacja &nbsp; <b>klik minimapa</b> — pełna mapa · wyszukiwarka wyścigów driftu<br>
     <b>MYSZ / SPACJA</b> strzał (pieszo) &nbsp; <b>B</b> kup auto (w salonie) &nbsp; <b>M</b> dźwięk<br>
     <b>Tab / I</b> ekwipunek &nbsp; <b>G</b> przeładuj &nbsp; <b>1–0 / Q E</b> szybki wybór broni<br>
     <b>sklep z bronią:</b> wejdź i kup klawiszami 2–0
@@ -57,8 +63,19 @@
       <button type="button" id="bigmap-clear">Usuń cel</button>
     </div>
   </div>
+  <div class="bigmap-events" id="bigmap-events">
+    <div class="bigmap-events-head">WYŚCIGI DRIFTU</div>
+    <input type="text" id="bigmap-event-search" placeholder="Szukaj wyścigu…" autocomplete="off" spellcheck="false" />
+    <div class="bigmap-event-preview" id="bigmap-event-preview">
+      <canvas id="bigmap-event-preview-cv" width="248" height="132"></canvas>
+      <div class="bigmap-event-preview-label" id="bigmap-event-preview-label">Najedź lub wybierz wyścig</div>
+    </div>
+    <ul id="bigmap-event-list"></ul>
+    <p class="bigmap-events-note">Tylko w nocy · klejenie za liderem (tsuiso)</p>
+  </div>
   <div class="bigmap-legend">
     <span><i class="blip blip-nav"></i> Cel GPS</span>
+    <span><i class="blip blip-drift"></i> Wyścig driftu</span>
     <span><i class="blip blip-mission"></i> Misja</span>
     <span><i class="blip blip-you"></i> Ty</span>
   </div>
@@ -201,7 +218,8 @@
   <script src="js/19-save.js?v=2"></script>
   <script src="js/21-menu.js?v=4"></script>
   <script src="js/22-wildlife.js?v=19"></script>
-  <script src="js/37-drift.js?v=1"></script>
+  <script src="js/37-drift.js?v=2"></script>
+  <script src="js/38-drift-events.js?v=2"></script>
   <script src="js/20-main.js?v=8"></script>
 </body>
 </html>

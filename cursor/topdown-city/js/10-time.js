@@ -1,6 +1,6 @@
 /* TOPDOWN CITY — 10-time.js */
 /* ---------- day / night ---------- */
-const DAY_LENGTH = 210;                 // real seconds per in-game 24h
+const DAY_LENGTH = 3600;                // real seconds per in-game 24h (~1 h doba)
 let clockS = DAY_LENGTH*8/24;           // start at 08:00
 let gameHour = 8;
 const lerp=(a,b,t)=>a+(b-a)*t;

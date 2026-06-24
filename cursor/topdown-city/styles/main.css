@@ -45,6 +45,11 @@
   #drift-hud{position:absolute;right:22px;bottom:220px;min-width:168px;padding:12px 14px;border-radius:12px;
     background:linear-gradient(145deg,rgba(22,16,12,.88),rgba(12,14,18,.92));border:1px solid rgba(255,140,60,.28);
     box-shadow:0 8px 28px rgba(0,0,0,.45);font-family:var(--mono);transition:opacity .2s}
+  #drift-hud .drift-hud-layout{display:flex;align-items:flex-start;gap:10px}
+  #drift-hud .drift-hud-main{flex:1;min-width:0}
+  #drift-hud .drift-track-preview{display:block;border-radius:8px;background:#080a10;
+    box-shadow:0 0 0 1px rgba(255,140,60,.22);flex-shrink:0}
+  #drift-hud .drift-track-preview.hidden{display:none!important}
   #drift-hud.hidden{display:none!important}
   #drift-hud .drift-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
   #drift-hud .drift-label{font-size:11px;letter-spacing:.22em;color:#ff9a52;text-transform:uppercase}
@@ -52,6 +57,9 @@
   #drift-hud .drift-stats{margin-top:8px;font-size:10px;color:#a8adb8;gap:8px;flex-wrap:wrap}
   #drift-hud .drift-stats b{color:#ffd0a8;font-size:12px}
   #drift-hud .drift-sub{margin-top:6px;font-size:10px;color:#7f8794;letter-spacing:.06em}
+  #drift-hud .drift-breakdown{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px 10px;font-size:9px;color:#8a919e}
+  #drift-hud .drift-breakdown.hidden{display:none!important}
+  #drift-hud .drift-breakdown b{color:#ffb080;font-size:10px}
   #mission{position:absolute;left:22px;top:80px;font-family:var(--mono);background:var(--panel);
     padding:11px 14px;border-radius:12px;opacity:0;transition:opacity .3s;min-width:168px}
   #mission .mt{font-size:12px;letter-spacing:.18em;color:var(--accent);text-transform:uppercase}
@@ -83,6 +91,27 @@
   .blip-nav{background:#b48cff;border-radius:1px}
   .blip-mission{background:#ffd23b;transform:rotate(45deg);border-radius:1px}
   .blip-you{background:#f0f2f8;clip-path:polygon(50% 0,100% 100%,50% 70%,0 100%)}
+  .blip-drift{background:#ff7a38;transform:rotate(45deg);border-radius:1px}
+  .bigmap-events{position:absolute;left:18px;top:72px;bottom:72px;width:min(280px,32vw);display:flex;flex-direction:column;gap:8px;
+    padding:14px 14px 12px;border-radius:12px;background:rgba(8,10,16,.88);border:1px solid rgba(255,120,60,.22);
+    pointer-events:auto;z-index:2}
+  .bigmap-events-head{font-size:11px;font-weight:600;letter-spacing:.2em;color:#ff9a52;text-transform:uppercase}
+  #bigmap-event-search{font-family:var(--mono);font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);
+    background:rgba(0,0,0,.35);color:#e8eaef;outline:none}
+  #bigmap-event-search:focus{border-color:rgba(255,120,60,.45)}
+  .bigmap-event-preview{border-radius:10px;overflow:hidden;background:#080a10;border:1px solid rgba(255,120,60,.18)}
+  #bigmap-event-preview-cv{display:block;width:100%;height:auto}
+  .bigmap-event-preview-label{padding:6px 8px 8px;font-size:10px;color:#aeb4bf;line-height:1.35;letter-spacing:.03em}
+  #bigmap-event-list{list-style:none;margin:0;padding:0;overflow-y:auto;flex:1;min-height:0}
+  #bigmap-event-list li{padding:10px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:6px;
+    background:rgba(255,255,255,.03)}
+  #bigmap-event-list li:hover{background:rgba(255,120,60,.12);border-color:rgba(255,120,60,.25)}
+  #bigmap-event-list li.selected{background:rgba(255,120,60,.18);border-color:rgba(255,140,60,.45)}
+  #bigmap-event-list .ev-name{display:block;font-size:12px;color:#ffe8d8;font-weight:600}
+  #bigmap-event-list .ev-meta{display:block;margin-top:3px;font-size:10px;color:#8a919e}
+  #bigmap-event-list .bigmap-event-empty{font-size:11px;color:#7f8794;cursor:default;padding:12px 8px}
+  #bigmap-event-list .bigmap-event-empty:hover{background:rgba(255,255,255,.03);border-color:transparent}
+  .bigmap-events-note{margin:0;font-size:9px;color:#6a717c;line-height:1.4;letter-spacing:.04em}
   #district{position:absolute;left:50%;bottom:48px;transform:translateX(-50%);
     text-align:center;font-family:var(--mono);opacity:0;transition:opacity .5s;
     text-shadow:0 2px 12px rgba(0,0,0,.75)}
