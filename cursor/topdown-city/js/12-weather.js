@@ -204,6 +204,28 @@ function drawWet(ox,oy){
   }
   ctx.restore();
   if(typeof drawWetRoadReflections==="function") drawWetRoadReflections(ox,oy);
+  if(wetness>0.18){
+    const sheen=0.03+0.05*wetness;
+    ctx.save();
+    ctx.globalCompositeOperation="screen";
+    ctx.globalAlpha=sheen;
+    const ri0=Math.floor((ox-NODE_VAR)/GAP)-1, ri1=Math.floor((ox+VW+NODE_VAR)/GAP)+2;
+    const rj0=Math.floor((oy-NODE_VAR)/GAP)-1, rj1=Math.floor((oy+VH+NODE_VAR)/GAP)+2;
+    for(let i=ri0;i<=ri1;i++) for(let j=rj0;j<=rj1;j++){
+      for(const[di,dj]of[[1,0],[0,1]]){
+        const e=getEdge(i,j,di,dj);
+        if(!e.exists||e.bridge||e.klass==="trail") continue;
+        const g=edgeGeom(i,j,di,dj);
+        const steps=Math.max(2,Math.ceil(g.e.len/80));
+        for(let s=0;s<=steps;s++){
+          const p=bez(g.p0,g.cp,g.p1,s/steps);
+          ctx.fillStyle="rgba(200,220,240,0.35)";
+          ctx.fillRect(p[0]-1.2,p[1]-1.2,2.4,2.4);
+        }
+      }
+    }
+    ctx.restore();
+  }
 }
 function drawRain(){
   if(weatherI<0.02) return;

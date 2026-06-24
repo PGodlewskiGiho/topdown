@@ -28,9 +28,9 @@ let cHeld = false;           // one-shot guard for colour-cycle key
 const ped = { x:car.x, y:car.y, a:0, vx:0, vy:0, r:9, walk:96, run:178 };
 
 /* physics constants (px, seconds) */
-const ENGINE = 340, BRAKE = 780, REVERSE = 165;
-const AIR = 0.48, AIR2 = 0.0016;   // linear + quadratic drag
-const ROLL = 52;
+const ENGINE = 420, BRAKE = 780, REVERSE = 165;
+const AIR = 0.38, AIR2 = 0.0014;   // linear + quadratic drag
+const ROLL = 38;
 const TURN = 2.85;                 // legacy ref; steering via 52-driving-model
 const ENGINE_BRAKE = 118;          // coast decel (px/s²) — mirrored in DRIVE_ENGINE_BRAKE
 const GRIP = 11.5, GRIP_HB = 2.35;
@@ -54,7 +54,8 @@ const CAR_TYPE_HANDLING={
 function carSpeedCap(){
   const vk=VK[car.kind]||VK.car;
   if(vk.cap) return vk.cap;
-  return kmhToPx(car.topSpeed||200);
+  const ts=Math.max(140, Number(car.topSpeed)||200);
+  return kmhToPx(ts);
 }
 function carHandling(){
   const vk=VK[car.kind]||VK.car;

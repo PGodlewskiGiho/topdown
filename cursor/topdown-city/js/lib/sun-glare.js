@@ -131,25 +131,7 @@ class SunGlare{
     return clamp(nx*st.sunDx+ny*st.sunDy,0,1);
   }
 
-  drawFlare(ctx,vw,vh,st){
-    if(!st.active||st.intensity<0.08) return;
-    if((st.weatherI||0)>0.18) return;
-    const {sx,sy}=this.screenSun(vw,vh,st);
-    const flick=1+st.flicker*0.05;
-    const base=st.intensity*flick*0.32;
-
-    ctx.save();
-    ctx.globalCompositeOperation="screen";
-
-    // Small hotspot hugging the screen edge — no full-screen god-rays (they band into stripes).
-    const pad=72;
-    const hx=Math.max(-pad,Math.min(vw+pad,sx));
-    const hy=Math.max(-pad,Math.min(vh+pad,sy));
-    ctx.globalAlpha=base*0.55;
-    ctx.drawImage(this.hot,hx-40,hy-40,80,80);
-
-    ctx.restore();
-  }
+  drawFlare(ctx,vw,vh,st){}
 
   /** Bright streak on a glass facade (world coords). */
   drawFacadeGlint(ctx, pts, st, glass, nx, ny){

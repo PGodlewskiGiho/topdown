@@ -13,17 +13,7 @@ function draw(){
   }
   ctx.setTransform(ZOOM/PX,0,0,ZOOM/PX,0,0);
   const ox = cam.x - VW/2, oy = cam.y - VH/2;
-  const roll=cam.roll||0, shake=cam.shake||0;
   ctx.save();
-  if(mode==="car"&&(roll||shake>0.001)){
-    const cx=car.x-ox, cy=car.y-oy;
-    const sh=drawFrameId*0.37;
-    const sx=(Math.sin(sh*4.1)*0.55+Math.sin(sh*9.3)*0.45)*shake*VW*0.28;
-    const sy=(Math.cos(sh*5.2)*0.55+Math.cos(sh*8.7)*0.45)*shake*VH*0.28;
-    ctx.translate(cx+sx, cy+sy);
-    ctx.rotate(roll);
-    ctx.translate(-cx, -cy);
-  }
   ctx.translate(-ox,-oy);
 
   // base ground fill (biome ground per lot, over which roads are layered)
