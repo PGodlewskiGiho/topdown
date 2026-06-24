@@ -58,7 +58,13 @@ function carSpeedCap(){
 function carHandling(){
   const vk=VK[car.kind]||VK.car;
   const tm=CAR_TYPE_HANDLING[car.type]||CAR_TYPE_HANDLING.sedan;
-  return {acc:vk.acc*tm.acc, turn:vk.turn*tm.turn, grip:vk.grip*tm.grip, drag:tm.drag};
+  const base={acc:vk.acc*tm.acc, turn:vk.turn*tm.turn, grip:vk.grip*tm.grip, drag:tm.drag, drift:tm.drift||1, brake:1, power:1, top:0};
+  if(typeof getTuningHandling==="function"){
+    const t=getTuningHandling(car);
+    base.acc*=t.acc; base.turn*=t.turn; base.grip*=t.grip; base.drag*=t.drag;
+    base.drift=(tm.drift||1)*t.drift; base.brake*=t.brake; base.power*=t.power; base.top+=t.top|0;
+  }
+  return base;
 }
 
 /* ---------- input ---------- */
@@ -77,6 +83,7 @@ function setKey(e,down){
   if(down && k==="p"){ if(!pHeld){ pHeld=true; if(typeof toggleBigMap==="function") toggleBigMap(); } e.preventDefault(); }
   if(!down && k==="p") pHeld=false;
   if(down && k==="escape"){
+    if(typeof tuningOpen!=="undefined"&&tuningOpen&&typeof toggleTuningShop==="function"){ toggleTuningShop(false); e.preventDefault(); return; }
     if(typeof bigMapOpen!=="undefined"&&bigMapOpen && typeof toggleBigMap==="function"){ toggleBigMap(false); e.preventDefault(); return; }
   }
   if(down && k==="b"){ if(!bHeld){ bHeld=true; tryBuy(); } }
@@ -104,8 +111,8 @@ function setKey(e,down){
     else if(typeof equipWeaponByIdx==="function") equipWeaponByIdx(idx);
     else if(owned[idx]) curWeapon=idx;
   }
-  if(down && k==="q"){ if(!qHeld){ qHeld=true; cycleWeapon(-1); } }  if(!down && k==="q") qHeld=false;
-  if(down && k==="e"){ if(!eHeld){ eHeld=true; cycleWeapon(1); } }   if(!down && k==="e") eHeld=false;
+  if(down && k==="q"){ if(typeof tuningOpen!=="undefined"&&tuningOpen) return; if(!qHeld){ qHeld=true; cycleWeapon(-1); } }  if(!down && k==="q") qHeld=false;
+  if(down && k==="e"){ if(typeof tuningOpen!=="undefined"&&tuningOpen) return; if(!eHeld){ eHeld=true; cycleWeapon(1); } }   if(!down && k==="e") eHeld=false;
   keys[k]=down;
 }
 window.addEventListener("keydown", e=>setKey(e,true));
@@ -165,7 +172,8 @@ function jackCar(c){
   car.x=c.x; car.y=c.y; car.a=c.a; car.vx=c.vx||0; car.vy=c.vy||0;
   car.color=c.color; car.W=c.W; car.L=c.L; car.R=vehicleHitRadius(c.W,c.L,c.kind||"car"); car.kind="car";
   car.hp=c.hp||120; car.maxHp=c.maxHp||120; car.dmgSeed=c.dmgSeed||1; car.dead=false;
-  car.parts=c.parts?{...c.parts}:null;
+  car.parts=c.parts?JSON.parse(JSON.stringify(c.parts)):null;
+  car.tuning=c.tuning?{...c.tuning}:null;
   if(c.model){
     const m=c.model;
     car.brand=m.brand; car.carName=m.name; car.type=m.type; car.era=m.era;
@@ -190,7 +198,8 @@ function jackParked(pc, L){
   car.color=pc.color; car.W=pc.W; car.L=pc.L; car.R=vehicleHitRadius(pc.W,pc.L,pc.kind||"car");
   car.kind=pc.kind||"car"; car.rider=true; car.riderShirt=ped.shirt||"#3a6ea5"; car.riderSkin=ped.skin||"#e8b888"; car.riderHair=ped.hair||null; car.riderHelmet=(car.kind==="moto");
   car.hp=pc.hp; car.maxHp=pc.maxHp; car.dmgSeed=pc.dmgSeed; car.dead=false;
-  car.parts=pc.parts?{...pc.parts}:null;
+  car.parts=pc.parts?JSON.parse(JSON.stringify(pc.parts)):null;
+  car.tuning=pc.tuning?{...pc.tuning}:null;
   if(car.kind==="car"){
     if(pc.model){ const m=pc.model;
       car.brand=m.brand; car.carName=m.name; car.type=m.type; car.era=m.era; car.accent=m.accent; car.power=m.power; car.topSpeed=m.topSpeed;

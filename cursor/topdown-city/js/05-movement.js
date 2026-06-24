@@ -37,21 +37,21 @@ function updateCar(dt){
   const steerIn=(keys["d"]||keys["arrowright"]?1:0)-(keys["a"]||keys["arrowleft"]?1:0);
   const hb=!!keys[" "];
   const h=carHandling();
-  const cap=carSpeedCap();
+  const cap=carSpeedCap()+kmhToPx(h.top||0);
   const surf=surfaceGripAt(car.x,car.y);
-  const driftMul=carDriftProfile();
+  const driftMul=h.drift||carDriftProfile();
   const c=Math.cos(car.a), s=Math.sin(car.a);
   let fwd=car.vx*c+car.vy*s;
   const speed=Math.hypot(car.vx,car.vy);
 
   if(throttle>0){
     const headroom=clamp(1-Math.pow(clamp(speed/cap,0,1),1.45),0.08,1);
-    let acc=ENGINE*car.power*h.acc*throttle*headroom*surf*dt;
+    let acc=ENGINE*car.power*h.acc*(h.power||1)*throttle*headroom*surf*dt;
     if(hb&&speed>30) acc*=1.08;
     car.vx+=c*acc; car.vy+=s*acc;
   } else if(throttle<0){
     if(fwd>5){
-      const dec=Math.min(Math.abs(fwd),(BRAKE+speed*0.42)*dt);
+      const dec=Math.min(Math.abs(fwd),(BRAKE*(h.brake||1)+speed*0.42)*dt);
       car.vx-=c*dec; car.vy-=s*dec;
     } else {
       car.vx-=c*REVERSE*throttle*dt; car.vy-=s*REVERSE*throttle*dt;

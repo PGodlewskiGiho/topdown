@@ -50,6 +50,9 @@ function carBodyDesign(v, color){
   const type=v.type||"sedan", era=v.era||"modern", brand=v.brand||"";
   const accent=v.accent||"#ff5b46";
   const dark=shade(color,-60), mid=shade(color,-28), roofLight=shade(color,18);
+  const pOk=(id)=>typeof partIntact!=="function"||partIntact(v,id);
+  const pW=(id)=>typeof partWear==="function"?partWear(v,id):0;
+  if(typeof initVehicleParts==="function") initVehicleParts(v);
 
   // silhouette params
   let P;
@@ -67,10 +70,20 @@ function carBodyDesign(v, color){
 
   // ── wheels ──
   const ww=W*0.13, wl=L*0.16;
-  ctx.fillStyle="#0c0c0c";
-  for(const ay of [-hl*0.58, hl*0.52]){
-    rrect(-hw-1, ay-wl/2, ww, wl, 2.5); ctx.fill();
-    rrect(hw-ww+1, ay-wl/2, ww, wl, 2.5); ctx.fill();
+  const wheelSpots=[
+    {id:"wheelFL",x:-hw-1,y:-hl*0.58},{id:"wheelFR",x:hw-ww+1,y:-hl*0.58},
+    {id:"wheelRL",x:-hw-1,y:hl*0.52},{id:"wheelRR",x:hw-ww+1,y:hl*0.52},
+  ];
+  for(const w of wheelSpots){
+    if(!pOk(w.id)){
+      ctx.fillStyle="#2a2a2a"; rrect(w.x,w.y-wl*0.35,ww,wl*0.7,2); ctx.fill();
+      ctx.fillStyle="#444"; ctx.beginPath(); ctx.arc(w.x+ww*0.5,w.y,ww*0.35,0,7); ctx.fill();
+      continue;
+    }
+    const wear=pW(w.id);
+    ctx.fillStyle=wear>0.55?"#1a1a1a":"#0c0c0c";
+    rrect(w.x,w.y-wl/2,ww,wl,2.5); ctx.fill();
+    if(wear>0.35){ ctx.strokeStyle="rgba(80,80,80,.6)"; ctx.lineWidth=1; ctx.strokeRect(w.x,w.y-wl/2,ww,wl); }
   }
 
   // ── body shadow ──
@@ -158,7 +171,7 @@ function carBodyDesign(v, color){
   }
 
   // hood creases
-  if(type!=="supercar"){
+  if(type!=="supercar" && pOk("hood")){
     ctx.strokeStyle=dark; ctx.globalAlpha=0.45; ctx.lineWidth=0.8;
     ctx.beginPath(); ctx.moveTo(-hw*0.28,-hl*0.88); ctx.lineTo(-hw*0.18,-hl*0.42); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(hw*0.28,-hl*0.88); ctx.lineTo(hw*0.18,-hl*0.42); ctx.stroke();
@@ -168,16 +181,20 @@ function carBodyDesign(v, color){
   // mirrors
   const mY = (type==="supercar")? -hl*0.30 : (type==="wedge"? -hl*0.40 : -hl*0.27);
   ctx.fillStyle=mid;
-  ctx.beginPath(); ctx.moveTo(-hw,mY); ctx.lineTo(-hw-4,mY-1); ctx.lineTo(-hw-4,mY+5); ctx.lineTo(-hw,mY+4); ctx.closePath(); ctx.fill();
-  ctx.beginPath(); ctx.moveTo(hw,mY); ctx.lineTo(hw+4,mY-1); ctx.lineTo(hw+4,mY+5); ctx.lineTo(hw,mY+4); ctx.closePath(); ctx.fill();
+  if(pOk("mirrorL")){
+    ctx.beginPath(); ctx.moveTo(-hw,mY); ctx.lineTo(-hw-4,mY-1); ctx.lineTo(-hw-4,mY+5); ctx.lineTo(-hw,mY+4); ctx.closePath(); ctx.fill();
+  }
+  if(pOk("mirrorR")){
+    ctx.beginPath(); ctx.moveTo(hw,mY); ctx.lineTo(hw+4,mY-1); ctx.lineTo(hw+4,mY+5); ctx.lineTo(hw,mY+4); ctx.closePath(); ctx.fill();
+  }
 
   // grille
-  if(brand==="BMW"){
+  if(pOk("bumpFront") && brand==="BMW"){
     const gy=-hl*0.94, gh=L*(era==="classic"?0.035:0.045), gw=W*0.11, gap=W*0.022;
     ctx.fillStyle="#0a0a0a"; ctx.strokeStyle=accent; ctx.lineWidth=0.6;
     rrect(-gw-gap/2,gy,gw,gh,1.5); ctx.fill(); ctx.stroke();
     rrect(gap/2,gy,gw,gh,1.5); ctx.fill(); ctx.stroke();
-  } else if(brand==="Audi"){
+  } else if(pOk("bumpFront") && brand==="Audi"){
     const gy=-hl*0.95, gh=L*0.05, gw=W*0.46;
     ctx.fillStyle="#0a0a0a"; ctx.strokeStyle=accent; ctx.lineWidth=0.6;
     ctx.beginPath(); ctx.moveTo(-gw/2,gy); ctx.lineTo(gw/2,gy); ctx.lineTo(gw/2*0.82,gy+gh); ctx.lineTo(-gw/2*0.82,gy+gh); ctx.closePath();
@@ -185,33 +202,38 @@ function carBodyDesign(v, color){
   }
 
   // headlights
-  ctx.fillStyle="#eef4ff";
-  if(era==="classic"){
-    ctx.beginPath(); ctx.arc(-hw*0.5,-hl*0.87,W*0.07,0,7); ctx.fill();
-    ctx.beginPath(); ctx.arc(hw*0.5,-hl*0.87,W*0.07,0,7); ctx.fill();
-  } else {
-    ctx.beginPath(); ctx.moveTo(-hw*0.68,-hl*0.90); ctx.lineTo(-hw*0.32,-hl*0.87); ctx.lineTo(-hw*0.35,-hl*0.815); ctx.lineTo(-hw*0.65,-hl*0.84); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(hw*0.68,-hl*0.90); ctx.lineTo(hw*0.32,-hl*0.87); ctx.lineTo(hw*0.35,-hl*0.815); ctx.lineTo(hw*0.65,-hl*0.84); ctx.closePath(); ctx.fill();
+  if(pOk("headlightL")||pOk("headlightR")){
+    ctx.fillStyle="#eef4ff";
+    if(era==="classic"){
+      if(pOk("headlightL")){ ctx.beginPath(); ctx.arc(-hw*0.5,-hl*0.87,W*0.07,0,7); ctx.fill(); }
+      if(pOk("headlightR")){ ctx.beginPath(); ctx.arc(hw*0.5,-hl*0.87,W*0.07,0,7); ctx.fill(); }
+    } else {
+      if(pOk("headlightL")){ ctx.beginPath(); ctx.moveTo(-hw*0.68,-hl*0.90); ctx.lineTo(-hw*0.32,-hl*0.87); ctx.lineTo(-hw*0.35,-hl*0.815); ctx.lineTo(-hw*0.65,-hl*0.84); ctx.closePath(); ctx.fill(); }
+      if(pOk("headlightR")){ ctx.beginPath(); ctx.moveTo(hw*0.68,-hl*0.90); ctx.lineTo(hw*0.32,-hl*0.87); ctx.lineTo(hw*0.35,-hl*0.815); ctx.lineTo(hw*0.65,-hl*0.84); ctx.closePath(); ctx.fill(); }
+    }
+    if(!pOk("headlightL")||!pOk("headlightR")){ ctx.fillStyle="rgba(20,20,24,.7)"; ctx.fillRect(-hw*0.7,-hl*0.9,hw*1.4,L*0.06); }
   }
 
   // taillights
-  ctx.fillStyle="#c11";
-  if(brand==="Audi"){
-    ctx.beginPath(); ctx.moveTo(-hw*0.72,hl*0.90); ctx.lineTo(hw*0.72,hl*0.90); ctx.lineTo(hw*0.68,hl*0.95); ctx.lineTo(-hw*0.68,hl*0.95); ctx.closePath(); ctx.fill();
-  } else {
-    ctx.beginPath(); ctx.moveTo(-hw*0.68,hl*0.88); ctx.lineTo(-hw*0.34,hl*0.86); ctx.lineTo(-hw*0.36,hl*0.93); ctx.lineTo(-hw*0.66,hl*0.95); ctx.closePath(); ctx.fill();
-    ctx.beginPath(); ctx.moveTo(hw*0.68,hl*0.88); ctx.lineTo(hw*0.34,hl*0.86); ctx.lineTo(hw*0.36,hl*0.93); ctx.lineTo(hw*0.66,hl*0.95); ctx.closePath(); ctx.fill();
+  if(pOk("taillightL")||pOk("taillightR")){
+    ctx.fillStyle="#c11";
+    if(brand==="Audi" && pOk("taillightL") && pOk("taillightR")){
+      ctx.beginPath(); ctx.moveTo(-hw*0.72,hl*0.90); ctx.lineTo(hw*0.72,hl*0.90); ctx.lineTo(hw*0.68,hl*0.95); ctx.lineTo(-hw*0.68,hl*0.95); ctx.closePath(); ctx.fill();
+    } else {
+      if(pOk("taillightL")){ ctx.beginPath(); ctx.moveTo(-hw*0.68,hl*0.88); ctx.lineTo(-hw*0.34,hl*0.86); ctx.lineTo(-hw*0.36,hl*0.93); ctx.lineTo(-hw*0.66,hl*0.95); ctx.closePath(); ctx.fill(); }
+      if(pOk("taillightR")){ ctx.beginPath(); ctx.moveTo(hw*0.68,hl*0.88); ctx.lineTo(hw*0.34,hl*0.86); ctx.lineTo(hw*0.36,hl*0.93); ctx.lineTo(hw*0.66,hl*0.95); ctx.closePath(); ctx.fill(); }
+    }
   }
 
   // ── damage overlays ──
   const dg = v.maxHp ? clamp(1-v.hp/v.maxHp,0,1) : 0;
-  const p=v.parts||null;
-  const dFront=p?clamp(p.front,0,1):dg*0.55;
-  const dRear=p?clamp(p.rear,0,1):dg*0.45;
-  const dLeft=p?clamp(p.left,0,1):dg*0.45;
-  const dRight=p?clamp(p.right,0,1):dg*0.45;
-  const dHood=p?clamp(p.hood,0,1):dg*0.5;
-  const dGlass=p?clamp(p.windows,0,1):dg*0.35;
+  const pts=v.parts&&v.parts._v===2?v.parts:null;
+  const dFront=pts?Math.max(pW("hood"),pW("bumpFront"),pW("fenderFL"),pW("fenderFR")):dg*0.55;
+  const dRear=pts?Math.max(pW("trunk"),pW("bumpRear")):dg*0.45;
+  const dLeft=pts?Math.max(pW("doorFL"),pW("doorRL"),pW("mirrorL")):dg*0.45;
+  const dRight=pts?Math.max(pW("doorFR"),pW("doorRR"),pW("mirrorR")):dg*0.45;
+  const dHood=pts?pW("hood"):dg*0.5;
+  const dGlass=pts?Math.max(pW("windshield"),pW("rearGlass")):dg*0.35;
   const dZone=Math.max(dg,dFront,dRear,dLeft,dRight,dHood,dGlass);
   if(dZone>0.04){
     let sd=(v.dmgSeed||1)>>>0;
@@ -223,20 +245,20 @@ function carBodyDesign(v, color){
     if(dRear>0.08){ ctx.fillStyle="rgba(20,20,24,"+(0.30+0.35*dRear).toFixed(2)+")"; ctx.beginPath(); ctx.ellipse(0,hl*0.84,hw*(0.28+0.36*dRear),L*(0.05+0.07*dRear),0,0,7); ctx.fill(); }
     if(dLeft>0.1){ ctx.fillStyle="rgba(16,16,20,"+(0.28+0.38*dLeft).toFixed(2)+")"; ctx.beginPath(); ctx.ellipse(-hw*0.9,0,hw*(0.10+0.12*dLeft),L*(0.16+0.18*dLeft),0,0,7); ctx.fill(); }
     if(dRight>0.1){ ctx.fillStyle="rgba(16,16,20,"+(0.28+0.38*dRight).toFixed(2)+")"; ctx.beginPath(); ctx.ellipse(hw*0.9,0,hw*(0.10+0.12*dRight),L*(0.16+0.18*dRight),0,0,7); ctx.fill(); }
-    if(dHood>0.1 && !(p&&p.hoodOff)){ ctx.strokeStyle="rgba(0,0,0,"+(0.32+0.42*dHood).toFixed(2)+")"; ctx.lineWidth=1.2+dHood*1.4;
+    if(dHood>0.1 && pOk("hood")){ ctx.strokeStyle="rgba(0,0,0,"+(0.32+0.42*dHood).toFixed(2)+")"; ctx.lineWidth=1.2+dHood*1.4;
       ctx.beginPath(); ctx.moveTo(-hw*0.26,-hl*0.72); ctx.lineTo(hw*0.2,-hl*0.62); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(hw*0.22,-hl*0.78); ctx.lineTo(-hw*0.2,-hl*0.66); ctx.stroke(); }
-    if(p&&p.hoodOff){
+    if(!pOk("hood")){
       ctx.fillStyle="#1c1a18"; ctx.beginPath(); ctx.ellipse(0,-hl*0.62,hw*0.42,L*0.09,0,0,7); ctx.fill();
       ctx.fillStyle="#3a3834"; ctx.fillRect(-hw*0.14,-hl*0.66,hw*0.28,L*0.07);
       ctx.fillStyle="#555"; ctx.fillRect(-hw*0.08,-hl*0.64,hw*0.16,L*0.04);
     }
-    if(p&&p.bumpFront && dFront>0.12){ ctx.fillStyle="rgba(8,8,10,.55)"; ctx.beginPath(); ctx.ellipse(0,-hl*0.92,hw*(0.22+0.2*dFront),L*0.04,0,0,7); ctx.fill(); }
-    if(p&&p.bumpRear && dRear>0.12){ ctx.fillStyle="rgba(8,8,10,.5)"; ctx.beginPath(); ctx.ellipse(0,hl*0.92,hw*(0.2+0.18*dRear),L*0.04,0,0,7); ctx.fill(); }
+    if(!pOk("bumpFront") && dFront>0.05){ ctx.fillStyle="rgba(8,8,10,.55)"; ctx.beginPath(); ctx.ellipse(0,-hl*0.92,hw*(0.22+0.2*dFront),L*0.04,0,0,7); ctx.fill(); }
+    if(!pOk("bumpRear") && dRear>0.05){ ctx.fillStyle="rgba(8,8,10,.5)"; ctx.beginPath(); ctx.ellipse(0,hl*0.92,hw*(0.2+0.18*dRear),L*0.04,0,0,7); ctx.fill(); }
     if(dg>0.2){ const ns=1+Math.floor((dg-0.2)*5); ctx.strokeStyle="rgba(200,210,220,"+(0.5*dg).toFixed(2)+")"; ctx.lineWidth=1;
       for(let i=0;i<ns;i++){ const sx=(rr()-0.5)*W*0.7, sy=(rr()-0.5)*L*0.7, sl=4+rr()*12, sa=(rr()-0.5)*0.6;
         ctx.save(); ctx.translate(sx,sy); ctx.rotate(sa); ctx.beginPath(); ctx.moveTo(-sl/2,0); ctx.lineTo(sl/2,0); ctx.stroke(); ctx.restore(); } }
-    if(dGlass>0.18){ ctx.strokeStyle="rgba(195,220,235,"+(0.25+0.45*dGlass).toFixed(2)+")"; ctx.lineWidth=1;
+    if(dGlass>0.18 && pOk("windshield")){ ctx.strokeStyle="rgba(195,220,235,"+(0.25+0.45*dGlass).toFixed(2)+")"; ctx.lineWidth=1;
       const gy=-hl*0.08, gh=L*0.38, gw=hw*0.56;
       for(let i=0;i<3+Math.floor(dGlass*5);i++){ const sx=(rr()-0.5)*gw*1.2, sy=gy+(rr()-0.5)*gh*1.1;
         const ex=sx+(rr()-0.5)*gw*0.9, ey=sy+(rr()-0.5)*gh*0.9; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(ex,ey); ctx.stroke(); }

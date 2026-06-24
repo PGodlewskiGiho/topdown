@@ -1,14 +1,27 @@
 /* TOPDOWN CITY — 19-save.js */
 /* ---------- save / load (graceful: no-ops if storage blocked) ---------- */
-const SAVE_KEY="topdown_city_save_v5";
-const SAVE_KEY_LEGACY="topdown_city_save_v4";
+const SAVE_KEY="topdown_city_save_v6";
+const SAVE_KEY_LEGACY="topdown_city_save_v5";
 let stats={missionsDone:0};
 let saveTimer=4, saveFlash=0;
 const statsEl=document.getElementById("stats");
+function serializeCarState(){
+  const carSave={carName:car.carName, x:car.x, y:car.y, a:car.a, hp:car.hp, maxHp:car.maxHp, dmgSeed:car.dmgSeed};
+  for(const k of CAR_VIS_KEYS) carSave[k]=car[k];
+  if(car.parts&&car.parts._v===2){
+    carSave.parts={_v:2};
+    for(const id in car.parts){
+      if(id==="_v") continue;
+      const pt=car.parts[id];
+      if(pt) carSave.parts[id]={hp:pt.hp,maxHp:pt.maxHp,wear:pt.wear,off:pt.off};
+    }
+  }
+  if(car.tuning) carSave.tuning={...car.tuning};
+  return carSave;
+}
 function saveGame(){
   try{
-    const carSave={carName:car.carName, x:car.x, y:car.y, a:car.a};
-    for(const k of CAR_VIS_KEYS) carSave[k]=car[k];
+    const carSave=serializeCarState();
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       money, missionsDone:stats.missionsDone,
       car:carSave,
@@ -35,6 +48,7 @@ function resetNewGameState(){
   car.carName=m.name; car.brand=m.brand; car.model=m; car.type=m.type; car.era=m.era;
   car.accent=m.accent; car.color=m.colors?m.colors[0]:m.color; car.power=m.power; car.topSpeed=m.topSpeed;
   car.W=m.W; car.L=m.L; car.hp=car.maxHp=320; car.dead=false; car.vx=car.vy=0; car.a=0; car.parts=null;
+  car.tuning=typeof defaultCarTuning==="function"?defaultCarTuning():null;
   car.R=vehicleHitRadius(car.W, car.L, "car");
   for(let i=0;i<owned.length;i++){ owned[i]=i===0; ammo[i]=WEAPONS[i].kind==="melee"?Infinity:0; }
   curWeapon=0;
@@ -64,7 +78,13 @@ function loadGame(){
       }
       if(!car.type) car.type="sedan";
       if(!car.era) car.era="classic";
-      car.parts=null;
+      if(typeof d.car.hp==="number") car.hp=d.car.hp;
+      if(typeof d.car.maxHp==="number") car.maxHp=d.car.maxHp;
+      if(typeof d.car.dmgSeed==="number") car.dmgSeed=d.car.dmgSeed;
+      if(d.car.parts&&d.car.parts._v===2) car.parts=d.car.parts;
+      else car.parts=null;
+      if(d.car.tuning) car.tuning={...defaultCarTuning(),...d.car.tuning};
+      else if(typeof defaultCarTuning==="function") car.tuning=defaultCarTuning();
       car.R=vehicleHitRadius(car.W||36,car.L||80,car.kind||"car");
       rebuildGauge();
     }

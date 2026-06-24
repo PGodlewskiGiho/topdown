@@ -105,14 +105,21 @@ function spawnWreck(v){
 }
 function carExplode(v){
   if(v.dead) return; v.dead=true; spawnWreck(v);
-  for(let i=0;i<5;i++) spawnCrashDebris(v, pick(["front","rear","left","right"]), 1.1+rng()*0.35);
+  if(v.kind==="car" && typeof initVehicleParts==="function"){
+    initVehicleParts(v);
+    for(const id of Object.keys(CAR_PART_DEFS||{})){
+      if(v.parts[id] && !v.parts[id].off) detachVehiclePart(v,id,1.2);
+    }
+  } else {
+    for(let i=0;i<5;i++) spawnCrashDebris(v, pick(["front","rear","left","right"]), 1.1+rng()*0.35);
+  }
   if(v===car && mode==="car"){ mode="foot"; ped.x=car.x-Math.cos(car.a)*10; ped.y=car.y-Math.sin(car.a)*10; ped.a=car.a; showBigMsg("AUTO ZNISZCZONE"); }
   blastQ.push({x:v.x, y:v.y});
 }
 function drainBlasts(){ let g=0; while(blastQ.length && g++<3000){ const b=blastQ.shift(); explode(b.x,b.y); } if(blastQ.length) blastQ.length=0; }
 function initVehicleDamageState(v){
-  if(!v) return;
-  if(!v.parts) v.parts={front:0,rear:0,left:0,right:0,hood:0,windows:0,hoodOff:false,bumpFront:false,bumpRear:false,doorL:false,doorR:false};
+  if(typeof initVehicleParts==="function") initVehicleParts(v);
+  else if(v && !v.parts) v.parts={front:0,rear:0,left:0,right:0,hood:0,windows:0,hoodOff:false,bumpFront:false,bumpRear:false,doorL:false,doorR:false};
 }
 function impactSeverity(speed, relInto){
   const hard=Math.max(0, -(relInto||0));
@@ -183,9 +190,13 @@ function damageCar(v, amt, hitX, hitY, hitType, opts){
   const durability=(v.kind==="car")?0.74:(v.kind==="moto"?0.84:0.9);
   const scale=hitType==="explosion"?1.15:(hitType==="burn"?0.55:(0.18+0.82*sev*sev));
   const eff=amt*durability*scale;
-  const zone=damageZoneFromPoint(v,hitX,hitY);
-  applyPartDamage(v,zone,eff,hitType||"impact");
-  maybeBreakPart(v, zone, sev);
+  if(v.kind==="car" && typeof applyVehiclePartDamage==="function"){
+    applyVehiclePartDamage(v, eff, hitX, hitY, hitType||"impact");
+  } else {
+    const zone=damageZoneFromPoint(v,hitX,hitY);
+    applyPartDamage(v,zone,eff,hitType||"impact");
+    maybeBreakPart(v, zone, sev);
+  }
   v.hp-=eff;
   if(v.hp<=0){ v.hp=0; carExplode(v); const i=traffic.indexOf(v); if(i>=0){ traffic.splice(i,1); traffic.push(spawnTrafficCar()); } }
 }

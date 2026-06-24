@@ -165,9 +165,21 @@ function drawDebris(ox,oy){ for(const d of debris){ if(d.x<ox-30||d.x>ox+VW+30||
   const al=d.t>d.life-0.6?Math.max(0,(d.life-d.t)/0.6):1; ctx.globalAlpha=al;
   ctx.save(); ctx.translate(d.x,d.y); ctx.rotate(d.a);
   ctx.fillStyle="rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(0.5,1,5.5,4,0,0,7); ctx.fill();
-  if(d.kind==="bumper"||d.kind==="door"){
-    ctx.fillStyle=d.col||"#555"; rrFill(-(d.w||14)/2,-(d.h||6)/2,d.w||14,d.h||6,2);
-    ctx.fillStyle="rgba(0,0,0,.35)"; ctx.strokeRect(-(d.w||14)/2,-(d.h||6)/2,d.w||14,d.h||6);
+  const w=d.w||14, h=d.h||6;
+  if(d.kind==="wheel"){
+    ctx.fillStyle="#1a1a1a"; ctx.beginPath(); ctx.ellipse(0,0,w*0.55,h*0.45,0,0,7); ctx.fill();
+    ctx.strokeStyle="#444"; ctx.lineWidth=1.2; ctx.stroke();
+    ctx.fillStyle="#666"; ctx.beginPath(); ctx.arc(0,0,w*0.22,0,7); ctx.fill();
+  } else if(d.kind==="mirror"||d.kind==="light"){
+    ctx.fillStyle=d.kind==="light"?"#eef4ff":(d.col||"#888");
+    rrFill(-w/2,-h/2,w,h,1.5);
+    ctx.strokeStyle="rgba(0,0,0,.4)"; ctx.strokeRect(-w/2,-h/2,w,h);
+  } else if(d.kind==="hood"||d.kind==="fender"||d.kind==="panel"){
+    ctx.fillStyle=d.col||"#555"; rrFill(-w/2,-h/2,w,h,2);
+    ctx.strokeStyle="rgba(0,0,0,.35)"; ctx.strokeRect(-w/2,-h/2,w,h);
+  } else if(d.kind==="bumper"||d.kind==="door"){
+    ctx.fillStyle=d.col||"#555"; rrFill(-w/2,-h/2,w,h,2);
+    ctx.strokeStyle="rgba(0,0,0,.35)"; ctx.strokeRect(-w/2,-h/2,w,h);
   } else if(d.kind==="glass"){
     ctx.fillStyle="rgba(195,220,235,.75)"; rrFill(-4,-3,8,6,1.2);
     ctx.strokeStyle="rgba(255,255,255,.5)"; ctx.lineWidth=0.8; ctx.strokeRect(-4,-3,8,6);

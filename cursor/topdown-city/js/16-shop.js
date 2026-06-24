@@ -8,7 +8,8 @@ function buyCar(model, chosenColor){
   if(money<model.price){ showBigMsg("ZA MAŁO KASY"); return; }
   money-=model.price;
   car.kind="car"; car.hp=car.maxHp=320; car.dmgSeed=11; car.dead=false;
-  car.parts=null;
+  car.parts=null; car.tuning=typeof defaultCarTuning==="function"?defaultCarTuning():null;
+  car._wheelGripLoss=0; car._lightsBroken=false;
   car.brand=model.brand||""; car.carName=model.name;
   car.type=model.type||"sedan"; car.era=model.era||"modern";
   car.accent=model.accent||"#ff5b46"; car.power=model.power; car.topSpeed=model.topSpeed||200;
