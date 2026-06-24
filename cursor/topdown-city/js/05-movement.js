@@ -105,7 +105,9 @@ function updateCar(dt){
 
   collide();
   collideTerrain(car,TERRAIN_SLOPE_CAR,0.35);
-  collideParked(car); collideLamps(car); collideSignals(car); collideTrees(car); collideRoundabouts(car); collideFences(car); collideGraves(car);
+  collideParked(car); collideLamps(car); collideSignals(car);
+  if(typeof collideCrossingGates==="function") collideCrossingGates(car);
+  collideTrees(car); collideRoundabouts(car); collideFences(car); collideGraves(car);
   carVsTraffic();
   collideParked(car);   // traffic impact can push the player into parked rows
   carVsPeds();
@@ -141,6 +143,7 @@ function updatePed(dt){
   pedVsTraffic();
   pedVsNpcs();
   collideParked(ped); collideTrees(ped); collideRoundabouts(ped); collideFences(ped); collideGraves(ped);
+  if(typeof collideCrossingGates==="function") collideCrossingGates(ped);
   collideTerrain(ped, TERRAIN_SLOPE_WALK, 0.22);
 }
 

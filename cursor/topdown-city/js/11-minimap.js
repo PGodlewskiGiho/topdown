@@ -59,6 +59,7 @@ function drawMini(){
       }
     }
   }
+  if(typeof mapDrawRails==="function") mapDrawRails(mctx,tx,ty,i0,i1,j0,j1,MS);
 
   if(typeof mapDrawRoute==="function") mapDrawRoute(mctx,tx,ty,2.8);
   if(typeof mapDrawBlips==="function") mapDrawBlips(mctx,tx,ty,false);

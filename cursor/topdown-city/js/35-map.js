@@ -344,6 +344,7 @@ function drawBigMap(){
 
   mapDrawTerrain(bctx,opts);
   mapDrawRoads(bctx,opts);
+  if(typeof mapDrawRails==="function") mapDrawRails(bctx,tx,ty,i0,i1,j0,j1,MS);
   mapDrawRoute(bctx,tx,ty,4);
   mapDrawBlips(bctx,tx,ty,"fixed");
   mapDrawFogOverlay(bctx,i0,i1,j0,j1,tx,ty);

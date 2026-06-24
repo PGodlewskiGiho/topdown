@@ -258,6 +258,10 @@ function updateTrafficCar(c,dt){
     let stopT=1, redLight=false;
     if(isSignal(c.bi,c.bj)){ const axis=(c.bj===c.aj)?0:1;
       if(signalState(c.bi,c.bj,axis)!=="green"){ redLight=true; stopT=1-(g.e.width*0.5+24)/g.e.len; if(c.t>=stopT-0.05) target=0; } }
+    if(typeof crossingBlocksRoad==="function"){
+      const axis=(c.bj===c.aj)?0:1;
+      if(crossingBlocksRoad(c.bi,c.bj,axis)){ redLight=true; stopT=1-(g.e.width*0.5+24)/g.e.len; if(c.t>=stopT-0.05) target=0; }
+    }
     c.speed += (target-c.speed)*Math.min(1,3*dt);
     { let budget=c.speed*dt, pp=bez(g.p0,g.cp,g.p1,c.t);             // walk the curve by true arc length -> constant px/frame on ANY curvature (no lurch/jump)
       for(let s=0;s<48 && budget>0 && c.t<1;s++){ const nt=Math.min(1,c.t+0.025), np=bez(g.p0,g.cp,g.p1,nt), seg=Math.hypot(np[0]-pp[0],np[1]-pp[1]);
