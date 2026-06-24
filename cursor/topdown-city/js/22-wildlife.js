@@ -1,10 +1,17 @@
 /* TOPDOWN CITY — 22-wildlife.js */
-/* Forest wildlife — PNG sprite sheets (4 walk + attack), procedural fallback if assets missing. */
+/* Forest bears — family groups, shy unless hungry / provoked. Wildlife kills ≠ wanted level. */
 const bears=[];
-let bearTimer=0;
+const bearFamilies=[];
+let bearTimer=0, nextFamilyId=1;
 const BEAR_VARIANTS=["brown","dark","cinnamon","grizzly"];
 const BEAR_ASSET_V=11;
 const BEAR_SPRITE={ready:false,meta:null,img:{}};
+const MAX_FAMILIES=2;
+const FAMILY_HOME_R=380;
+const BEAR_FLEE_R=175;
+const BEAR_CURIOUS_R=95;
+const BEAR_HUNGRY_R=130;
+const BEAR_DEFEND_R=320;
 
 (function loadBearSprites(){
   fetch("assets/bears/meta.json?v="+BEAR_ASSET_V).then(r=>r.json()).then(meta=>{
@@ -24,6 +31,12 @@ function inForestAt(x,y){
   const k=cellAt(x,y);
   return biomeOf(k[0],k[1])==="forest" && !isMountain(k[0],k[1]);
 }
+function getFamily(id){ return bearFamilies.find(f=>f.id===id); }
+function playerPos(){
+  if(mode==="car" && !car.dead) return {x:car.x,y:car.y,r:car.R};
+  if(mode==="foot") return {x:ped.x,y:ped.y,r:ped.r};
+  return null;
+}
 function pushBearFromBuildings(b){
   const ci=Math.floor((b.x-ROAD)/GAP), cj=Math.floor((b.y-ROAD)/GAP);
   for(let a=ci-1;a<=ci+1;a++) for(let c=cj-1;c<=cj+1;c++){
@@ -35,50 +48,82 @@ function pushBearFromBuildings(b){
     }
   }
 }
-function bearWanderTarget(b){
-  for(let t=0;t<14;t++){
-    const ang=rng()*6.283, d=rand(140,480);
-    const tx=b.x+Math.cos(ang)*d, ty=b.y+Math.sin(ang)*d;
+function bearWanderTarget(b,fam){
+  const hx=fam?fam.hx:b.homeX, hy=fam?fam.hy:b.homeY, hr=FAMILY_HOME_R*0.85;
+  for(let t=0;t<16;t++){
+    const ang=rng()*6.283, d=rand(80,hr);
+    const tx=hx+Math.cos(ang)*d, ty=hy+Math.sin(ang)*d;
     if(inForestAt(tx,ty) && !inWater(tx,ty) && !inBuilding(tx,ty,18)){ b.tx=tx; b.ty=ty; return; }
   }
-  b.tx=b.x+rand(-220,220); b.ty=b.y+rand(-220,220);
+  b.tx=b.x+rand(-120,120); b.ty=b.y+rand(-120,120);
 }
-function spawnBear(){
-  const ang=rng()*6.283, dist=rand(180,780), x=focusX+Math.cos(ang)*dist, y=focusY+Math.sin(ang)*dist;
-  if(!inForestAt(x,y) || inWater(x,y) || inBuilding(x,y,22)) return null;
-  for(const o of bears) if((o.x-x)**2+(o.y-y)**2<130*130) return null;
-  const variant=BEAR_VARIANTS[(rng()*BEAR_VARIANTS.length)|0];
-  const scale=rand(0.92,1.18);
+function makeBear(x,y,fam,opts){
+  const isCub=opts&&opts.cub;
+  const scale=isCub?rand(0.62,0.78):rand(0.92,1.14);
   return {
-    kind:"bear", variant, scale, x, y, a:rng()*6.283, vx:0, vy:0, r:22*scale,
-    hp:110, maxHp:110, state:"wander", tx:x, ty:y,
-    repick:rand(1.2,3.5), speed:rand(64,92)*scale, run:rand(118,152)*scale,
-    attackCd:rand(0.2,0.7), attackT:0, walkT:rng()*0.5, moving:false,
+    kind:"bear", variant:BEAR_VARIANTS[(rng()*BEAR_VARIANTS.length)|0], scale,
+    x, y, a:rng()*6.283, r:22*scale*(isCub?0.82:1),
+    hp:isCub?55:110, maxHp:isCub?55:110,
+    state:"wander", tx:x, ty:y,
+    familyId:fam.id, homeX:fam.hx, homeY:fam.hy, cub:!!isCub,
+    repick:rand(1.5,4), speed:rand(52,78)*scale, run:rand(95,128)*scale,
+    attackCd:rand(0.3,0.9), attackT:0, walkT:rng()*0.5, moving:false,
     target:null, targetKind:null, roarCd:0,
+    provokedT:0, fleeT:0,
   };
+}
+function spawnBearFamily(){
+  for(let t=0;t<22;t++){
+    const ang=rng()*6.283, dist=rand(280,920);
+    const hx=focusX+Math.cos(ang)*dist, hy=focusY+Math.sin(ang)*dist;
+    if(!inForestAt(hx,hy) || inWater(hx,hy) || inBuilding(hx,hy,24)) continue;
+    let ok=true;
+    for(const f of bearFamilies) if(Math.hypot(f.hx-hx,f.hy-hy)<520) ok=false;
+    if(!ok) continue;
+    const fam={id:nextFamilyId++, hx, hy, hunger:rand(0.08,0.35), anger:0};
+    bearFamilies.push(fam);
+    const adults=rand(1,2)|0, cubs=rng()<0.55?1:0, n=adults+cubs;
+    const spawned=[];
+    for(let i=0;i<n;i++){
+      const a=ang+i*0.7, d=rand(18,55);
+      const x=hx+Math.cos(a)*d, y=hy+Math.sin(a)*d;
+      if(!inForestAt(x,y)){ continue; }
+      spawned.push(makeBear(x,y,fam,{cub:i>=adults}));
+    }
+    if(spawned.length>=2) return spawned;
+    const i=bearFamilies.indexOf(fam);
+    if(i>=0) bearFamilies.splice(i,1);
+  }
+  return null;
+}
+function rallyFamily(b,reason){
+  const fam=getFamily(b.familyId);
+  if(!fam) return;
+  fam.anger=Math.min(1,fam.anger+0.35);
+  if(reason==="hurt") b.provokedT=Math.max(b.provokedT,18);
+  for(const o of bears){
+    if(o.familyId!==b.familyId) continue;
+    if(Math.hypot(o.x-b.x,o.y-b.y)>BEAR_DEFEND_R) continue;
+    o.provokedT=Math.max(o.provokedT,reason==="hurt"?16:10);
+    if(o.state==="flee") o.state="wander";
+  }
+}
+function bearShouldAggro(b,fam,pp,d){
+  if(b.provokedT>0 || fam.anger>0.55) return true;
+  if(fam.hunger>0.82 && d<BEAR_HUNGRY_R) return true;
+  return d<BEAR_CURIOUS_R && fam.hunger>0.65;
+}
+function bearShouldFlee(b,fam,pp,d){
+  if(b.provokedT>0 || fam.anger>0.4 || fam.hunger>0.75) return false;
+  return d<BEAR_FLEE_R;
 }
 function bearTargetPos(b){
   if(b.targetKind==="player"){
-    if(mode==="car" && !car.dead) return {x:car.x,y:car.y,r:car.R};
-    if(mode==="foot") return {x:ped.x,y:ped.y,r:ped.r};
-    return null;
+    const pp=playerPos();
+    return pp?{x:pp.x,y:pp.y,r:pp.r}:null;
   }
   if(b.targetKind==="ped" && b.target && b.target.state!=="down") return {x:b.target.x,y:b.target.y,r:b.target.r};
   return null;
-}
-function findBearTarget(b){
-  let best=null, bestD=1e9, kind=null;
-  if(mode==="foot" || (mode==="car" && !car.dead)){
-    const ax=mode==="car"?car.x:ped.x, ay=mode==="car"?car.y:ped.y;
-    const ar=mode==="car"?car.R:ped.r, d=Math.hypot(ax-b.x,ay-b.y);
-    if(d<250 && d<bestD){ best={x:ax,y:ay,r:ar}; bestD=d; kind="player"; }
-  }
-  for(const p of peds){
-    if(p.state==="down") continue;
-    const d=Math.hypot(p.x-b.x,p.y-b.y);
-    if(d<210 && d<bestD){ best=p; bestD=d; kind="ped"; }
-  }
-  return best?{ref:best, kind, d:bestD}:null;
 }
 function killBear(b){
   const i=bears.indexOf(b);
@@ -88,14 +133,16 @@ function killBear(b){
 function bearHit(b,dmg,kx,ky,bloodAmt){
   if(b.hp<=0) return;
   b.hp-=dmg;
+  rallyFamily(b,"hurt");
   if(b.hp>0){
     spawnBlood(b.x,b.y,kx,ky,0.35);
     b.state="chase";
     b.targetKind="player";
     b.target=null;
-    b.roarCd=0;
+    b.provokedT=Math.max(b.provokedT,22);
     return;
   }
+  rallyFamily(b,"hurt");
   killBear(b);
 }
 function bearTryAttack(b,dt){
@@ -104,57 +151,88 @@ function bearTryAttack(b,dt){
   const tp=bearTargetPos(b);
   if(!tp) return;
   const dx=tp.x-b.x, dy=tp.y-b.y, d=Math.hypot(dx,dy)||1;
-  const hitR=b.r+tp.r+12;
-  if(d>hitR+6) return;
+  if(d>b.r+tp.r+14) return;
   if(b.attackCd>0) return;
-  b.attackCd=0.78;
+  b.attackCd=0.82;
   b.attackT=0.32;
   const nx=dx/d, ny=dy/d;
   if(b.targetKind==="player"){
-    if(mode==="foot") damage(rand(18,30));
-    else if(mode==="car" && !car.dead) damageCar(car, rand(16,26), b.x, b.y, "impact");
+    if(mode==="foot") damage(rand(14,24));
+    else if(mode==="car" && !car.dead) damageCar(car, rand(14,22), b.x, b.y, "impact");
   } else if(b.targetKind==="ped" && b.target){
-    pedHit(b.target, rand(38,58), nx*150, ny*150, 0.95);
+    pedHit(b.target, rand(32,48), nx*130, ny*130, 0.85, true);
   }
 }
 function updateBear(b,dt){
-  if(!inForestAt(b.x,b.y) && b.state==="wander"){
-    bearWanderTarget(b);
-    b.repick=0.4;
+  const fam=getFamily(b.familyId);
+  if(!fam){ b.state="wander"; }
+  else{
+    fam.hunger=Math.min(1,fam.hunger+dt*0.000018);
+    if(fam.anger>0) fam.anger=Math.max(0,fam.anger-dt*0.025);
   }
-  const tg=findBearTarget(b);
-  if(tg){
-    if(b.state!=="chase" && b.state!=="attack"){
-      b.state="chase";
-      b.target=tg.kind==="ped"?tg.ref:null;
-      b.targetKind=tg.kind;
-      alertPeds(b.x,b.y,240);
-      if(b.roarCd<=0){ b.roarCd=2.5; playBoom(0.12); }
-    } else {
-      b.target=tg.kind==="ped"?tg.ref:null;
-      b.targetKind=tg.kind;
-    }
-  } else if(b.state==="chase"){
-    b.state="wander";
-    b.target=null;
-    b.targetKind=null;
-    b.repick=rand(0.8,2);
+  if(b.provokedT>0) b.provokedT=Math.max(0,b.provokedT-dt);
+  if(b.fleeT>0) b.fleeT=Math.max(0,b.fleeT-dt);
+
+  if(!inForestAt(b.x,b.y) && (b.state==="wander"||b.state==="flee")){
+    bearWanderTarget(b,fam);
+    b.repick=0.5;
   }
 
-  let spd=b.speed, destX=b.tx, destY=b.ty;
-  if(b.state==="chase" || b.state==="attack"){
+  const pp=playerPos();
+  let destX=b.tx, destY=b.ty, spd=b.speed;
+
+  if(pp){
+    const d=Math.hypot(pp.x-b.x,pp.y-b.y);
+    if(bearShouldAggro(b,fam||{hunger:0,anger:0},pp,d)){
+      b.state="chase";
+      b.targetKind="player";
+      b.target=null;
+      b.fleeT=0;
+      if(b.roarCd<=0 && d<110){ b.roarCd=3.5; playBoom(0.08); }
+    } else if(bearShouldFlee(b,fam||{hunger:0,anger:0},pp,d)){
+      b.state="flee";
+      b.targetKind=null;
+      b.target=null;
+      b.fleeT=Math.max(b.fleeT,1.2);
+      destX=b.x+(b.x-pp.x)/d*220;
+      destY=b.y+(b.y-pp.y)/d*220;
+      spd=b.run*1.05;
+    } else if(b.state==="chase"||b.state==="attack"){
+      b.state="wander";
+      b.targetKind=null;
+      b.repick=rand(0.6,1.6);
+    }
+  } else if(b.state==="chase"||b.state==="attack"){
+    b.state="wander";
+    b.targetKind=null;
+    b.repick=0.8;
+  }
+
+  if(b.state==="chase"||b.state==="attack"){
     const tp=bearTargetPos(b);
-    if(!tp){ b.state="wander"; b.repick=0.5; }
-    else {
+    if(!tp){ b.state="wander"; b.repick=0.6; }
+    else{
       destX=tp.x; destY=tp.y;
       spd=b.run;
       const d=Math.hypot(destX-b.x,destY-b.y);
-      if(d<b.r+tp.r+14) b.state="attack";
-      else b.state="chase";
+      b.state=d<b.r+tp.r+16?"attack":"chase";
     }
-  } else {
+  } else if(b.state!=="flee"){
     b.repick-=dt;
-    if(b.repick<=0){ bearWanderTarget(b); b.repick=rand(2,5); }
+    if(b.repick<=0){ bearWanderTarget(b,fam); b.repick=rand(2.5,6); }
+    if(fam){
+      let cx=0,cy=0,n=0;
+      for(const o of bears) if(o.familyId===fam.id){ cx+=o.x; cy+=o.y; n++; }
+      if(n>1){
+        cx/=n; cy/=n;
+        b.tx+=(cx-b.tx)*0.012;
+        b.ty+=(cy-b.ty)*0.012;
+      }
+      if(Math.hypot(b.x-fam.hx,b.y-fam.hy)>FAMILY_HOME_R){
+        b.tx=fam.hx+rand(-80,80); b.ty=fam.hy+rand(-80,80);
+        b.repick=1.5;
+      }
+    }
   }
 
   const dx=destX-b.x, dy=destY-b.y, d=Math.hypot(dx,dy)||1;
@@ -164,27 +242,24 @@ function updateBear(b,dt){
     b.x+=dx/d*spd*mv*dt;
     b.y+=dy/d*spd*mv*dt;
     b.moving=true;
-    // LPC walk: ~100 ms/frame; scale step rate with movement speed
     b.walkT=(b.walkT||0)+dt*(0.55+spd/180);
   } else b.moving=false;
+
   pushBearFromBuildings(b);
   collideTrees(b);
   if(inWater(b.x,b.y)){
     const px=b.x-Math.cos(b.a)*spd*dt, py=b.y-Math.sin(b.a)*spd*dt;
     if(!inWater(px,b.y)) b.x=px; else if(!inWater(b.x,py)) b.y=py;
-    else bearWanderTarget(b);
+    else bearWanderTarget(b,fam);
   }
   b.roarCd-=dt;
-  if(b.state==="attack" || b.state==="chase") bearTryAttack(b,dt);
+  if(b.state==="attack"||b.state==="chase") bearTryAttack(b,dt);
 
   if(mode==="car" && !car.dead){
     const cd=Math.hypot(car.x-b.x,car.y-b.y);
     if(cd<car.R+b.r){
       const sp=Math.hypot(car.vx,car.vy);
-      if(sp>38){
-        const nx=(b.x-car.x)/cd, ny=(b.y-car.y)/cd;
-        bearHit(b, sp*0.42, nx*120, ny*120, 0.85);
-      }
+      if(sp>38) bearHit(b, sp*0.38, (b.x-car.x)/cd*110, (b.y-car.y)/cd*110, 0.75);
     }
   }
 }
@@ -196,12 +271,14 @@ function updateWildlife(dt){
     updateBear(b,dt);
     if(Math.hypot(b.x-focusX,b.y-focusY)>2400 || b.hp<=0) bears.splice(i,1);
   }
+  for(let i=bearFamilies.length-1;i>=0;i--){
+    if(!bears.some(b=>b.familyId===bearFamilies[i].id)) bearFamilies.splice(i,1);
+  }
   if(!forest) return;
-  const cap=Math.min(10, 4+Math.floor(Math.max(VW,VH)/420));
-  if(bears.length<cap && bearTimer<=0){
-    bearTimer=bears.length<3?0.35:0.75;
-    const nb=spawnBear();
-    if(nb) bears.push(nb);
+  if(bearFamilies.length<MAX_FAMILIES && bearTimer<=0){
+    bearTimer=rand(2.5,5.5);
+    const group=spawnBearFamily();
+    if(group) bears.push(...group);
   }
 }
 function bearDir8(a){
@@ -240,7 +317,6 @@ function drawBear(b){
   const fr=bearAnimFrame(b);
   const dir=bearDir8(b.a);
   const sc=bearDrawScale(b,m,dir);
-  const w=(m.frameWidth||128)*sc, h=(m.frameHeight||128)*sc;
   ctx.fillStyle="rgba(0,0,0,.24)";
   ctx.beginPath(); ctx.ellipse(b.x+2,b.y+4,b.r*0.95,b.r*0.46,0,0,7); ctx.fill();
   ctx.save();
@@ -248,7 +324,7 @@ function drawBear(b){
   const sm=ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled=true;
   try{ ctx.imageSmoothingQuality="high"; }catch(e){}
-  ctx.drawImage(img, fr*fw, 0, fw, fh, -ax*sc, -ay*sc, w, h);
+  ctx.drawImage(img, fr*fw, 0, fw, fh, -ax*sc, -ay*sc, fw*sc, fh*sc);
   ctx.imageSmoothingEnabled=sm;
   ctx.restore();
   if(b.hp<b.maxHp){

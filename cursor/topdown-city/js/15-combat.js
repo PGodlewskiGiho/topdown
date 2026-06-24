@@ -39,12 +39,14 @@ function buyWeapon(idx){
   else if(w.kind==="melee"){ showBigMsg("JUŻ MASZ"); }
   else { const rc=Math.max(40,(w.price*0.3)|0); if(money<rc){ showBigMsg("ZA MAŁO KASY"); return; } money-=rc; ammo[idx]=Math.min(w.cap*3, ammo[idx]+w.cap); showBigMsg("AMUNICJA +"+w.cap); saveGame(); }
 }
-function pedHit(p,dmg,kx,ky,bloodAmt){
+function pedHit(p,dmg,kx,ky,bloodAmt,noHeat){
   if(p.state==="down") return;
   if(p.armed) p.hostile=true;
   p._hp-=dmg;
   if(p._hp>0){ spawnBlood(p.x,p.y,kx,ky,0.25); return; }
-  p.state="down"; p.vx=kx*0.5; p.vy=ky*0.5; p.downT=0; addHeat(p.armed?0.5:0.8); spawnBlood(p.x,p.y,kx,ky,bloodAmt);
+  p.state="down"; p.vx=kx*0.5; p.vy=ky*0.5; p.downT=0;
+  if(!noHeat) addHeat(p.armed?0.5:0.8);
+  spawnBlood(p.x,p.y,kx,ky,bloodAmt);
   if(p.armed && p.weapon!=null) dropWeapon(p.x,p.y,p.weapon);
 }
 const drops=[];                                            // weapons dropped on the ground
