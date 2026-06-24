@@ -3,17 +3,18 @@
 const bears=[];
 let bearTimer=0;
 const BEAR_VARIANTS=["brown","dark","cinnamon","grizzly"];
+const BEAR_ASSET_V=5;
 const BEAR_SPRITE={ready:false,meta:null,img:{}};
 
 (function loadBearSprites(){
-  fetch("assets/bears/meta.json").then(r=>r.json()).then(meta=>{
+  fetch("assets/bears/meta.json?v="+BEAR_ASSET_V).then(r=>r.json()).then(meta=>{
     BEAR_SPRITE.meta=meta;
     const kinds=Object.keys(meta.variants||{}); let left=kinds.length||0;
     if(!left){ BEAR_SPRITE.ready=true; return; }
     for(const k of kinds){
       const im=new Image();
       im.onload=im.onerror=()=>{ if(--left<=0) BEAR_SPRITE.ready=true; };
-      im.src="assets/bears/"+meta.variants[k].file;
+      im.src="assets/bears/"+meta.variants[k].file+"?v="+BEAR_ASSET_V;
       BEAR_SPRITE.img[k]=im;
     }
   }).catch(()=>{ BEAR_SPRITE.ready=true; });
@@ -233,7 +234,7 @@ function drawBear(b){
   ctx.beginPath(); ctx.ellipse(b.x+2,b.y+4,b.r*0.95,b.r*0.46,0,0,7); ctx.fill();
   ctx.save();
   ctx.translate(b.x,b.y);
-  ctx.rotate(b.a+(m.angleOffset||0));
+  ctx.rotate(b.a);
   const sm=ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled=true;
   try{ ctx.imageSmoothingQuality="high"; }catch(e){}

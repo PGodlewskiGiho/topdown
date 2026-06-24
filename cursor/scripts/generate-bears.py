@@ -21,13 +21,11 @@ REF_CACHE = Path("/tmp/bear-refs/lpc_animals.zip")
 LPC_URL = "https://opengameart.org/sites/default/files/lpc_animals_2022_v1.1.zip"
 
 # LPC individual sheet layout (64×64 cells): rows 0–3 walk S/W/E/N, 4–7 attack, 8–11 die.
-# Rows 0/3 = top-down (head toward camera / away); rows 1/2 = side profile.
-WALK_ROW = 0   # south — true top-down
-ATK_ROW = 4
+# Row 1 = walk east: head unambiguously at +X in sprite (matches atan2 heading).
+WALK_ROW = 1
+ATK_ROW = 5
 WALK_COLS = (0, 1, 2, 3)
 ATK_COL = 1
-# Top-down row 0: head/snout toward +Y in source frame. Game heading uses +X at angle 0.
-# Do NOT rotate in generator — 22-wildlife.js applies meta.angleOffset when drawing.
 FACE_ROT = 0
 SRC = 64
 SCALE = 2  # 64 → 128 px frames
@@ -171,7 +169,6 @@ def main():
         "anchorX": ANCHOR_X,
         "anchorY": ANCHOR_Y,
         "walkStep": 0.11,
-        "angleOffset": 1.5707963267948966,
         "variants": {},
     }
     for name, cfg in VARIANTS.items():
