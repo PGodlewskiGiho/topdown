@@ -20,6 +20,164 @@ let driftLead = null;
 let driftEventSpawnCd = 0;
 let jHeld = false;
 let driftWasNight = false;
+let driftEventPreviewId = null;
+
+function drawCircuitOnCanvas(cctx, W, H, circuit, markers){
+  if(!circuit||!circuit.points||!circuit.points.length) return;
+  ensureCircuitMeta({circuit});
+  const b=circuit.bounds, pad=10;
+  const spanX=Math.max(40, b.maxX-b.minX), spanY=Math.max(40, b.maxY-b.minY);
+  const scale=Math.min((W-pad*2)/spanX, (H-pad*2)/spanY);
+  const cx=(b.minX+b.maxX)/2, cy=(b.minY+b.maxY)/2;
+  const tx=wx=>W/2+(wx-cx)*scale, ty=wy=>H/2+(wy-cy)*scale;
+
+  cctx.clearRect(0,0,W,H);
+  cctx.fillStyle="#080a10";
+  cctx.fillRect(0,0,W,H);
+  cctx.strokeStyle="rgba(255,255,255,.06)";
+  cctx.strokeRect(0.5,0.5,W-1,H-1);
+
+  cctx.strokeStyle="#3a4048";
+  cctx.lineWidth=5;
+  cctx.lineJoin="round";
+  cctx.lineCap="round";
+  cctx.beginPath();
+  cctx.moveTo(tx(circuit.points[0].x), ty(circuit.points[0].y));
+  for(let i=1;i<circuit.points.length;i++) cctx.lineTo(tx(circuit.points[i].x), ty(circuit.points[i].y));
+  cctx.stroke();
+
+  cctx.strokeStyle="#ff7a38";
+  cctx.lineWidth=2.2;
+  cctx.beginPath();
+  cctx.moveTo(tx(circuit.points[0].x), ty(circuit.points[0].y));
+  for(let i=1;i<circuit.points.length;i++) cctx.lineTo(tx(circuit.points[i].x), ty(circuit.points[i].y));
+  cctx.stroke();
+
+  if(circuit.corners){
+    cctx.fillStyle="#ffd23b";
+    for(const cr of circuit.corners){
+      cctx.beginPath();
+      cctx.arc(tx(cr.x), ty(cr.y), 2.2, 0, 7);
+      cctx.fill();
+    }
+  }
+
+  cctx.fillStyle="rgba(255,120,60,.45)";
+  cctx.beginPath();
+  cctx.arc(tx(circuit.cx), ty(circuit.cy), 3.5, 0, 7);
+  cctx.fill();
+
+  if(markers&&markers.lead){
+    cctx.fillStyle="#ff5c2e";
+    cctx.strokeStyle="rgba(0,0,0,.6)";
+    cctx.lineWidth=1;
+    cctx.beginPath();
+    cctx.arc(tx(markers.lead.x), ty(markers.lead.y), 4.5, 0, 7);
+    cctx.fill();
+    cctx.stroke();
+    cctx.fillStyle="#ffe0cc";
+    cctx.font="bold 7px monospace";
+    cctx.textAlign="center";
+    cctx.fillText("L", tx(markers.lead.x), ty(markers.lead.y)+2.5);
+  }
+  if(markers&&markers.player){
+    cctx.fillStyle="#f0f2f8";
+    cctx.strokeStyle="rgba(0,0,0,.65)";
+    cctx.lineWidth=1;
+    const px=tx(markers.player.x), py=ty(markers.player.y);
+    cctx.beginPath();
+    cctx.moveTo(px, py-5); cctx.lineTo(px+4.5, py+4); cctx.lineTo(px-4.5, py+4);
+    cctx.closePath();
+    cctx.fill();
+    cctx.stroke();
+  }
+}
+
+function setDriftEventPreview(ev){
+  driftEventPreviewId=ev?ev.id:null;
+  const label=document.getElementById("bigmap-event-preview-label");
+  const cv=document.getElementById("bigmap-event-preview-cv");
+  if(label) label.textContent=ev?`${ev.name} · ${ev.zone}`:"Najedź lub wybierz wyścig";
+  if(cv){
+    const cctx=cv.getContext("2d");
+    if(!ev){ cctx&&cctx.clearRect(0,0,cv.width,cv.height); return; }
+    drawCircuitOnCanvas(cctx, cv.width, cv.height, ensureCircuitMeta(ev), null);
+  }
+  const list=document.getElementById("bigmap-event-list");
+  if(list){
+    for(const li of list.querySelectorAll("li[data-ev]")){
+      li.classList.toggle("selected", li.dataset.ev===driftEventPreviewId);
+    }
+  }
+}
+
+function drawDriftBattleRadar(){
+  const cv=document.getElementById("drift-track-preview");
+  if(!cv||!driftBattle) return;
+  cv.classList.remove("hidden");
+  const ev=driftBattle.event;
+  const lead=ev&&ev.lead;
+  drawCircuitOnCanvas(cv.getContext("2d"), cv.width, cv.height, ensureCircuitMeta(ev), {
+    player:{x:car.x,y:car.y},
+    lead:lead?{x:lead.x,y:lead.y}:null,
+  });
+}
+
+function hideDriftBattleRadar(){
+  const cv=document.getElementById("drift-track-preview");
+  if(cv) cv.classList.add("hidden");
+}
+
+function drawNfsChevron(x,y,angle,alpha,scale){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(angle);
+  const bob=Math.sin(performance.now()/110+x*0.02)*2.5;
+  ctx.translate(0,bob-6);
+  ctx.globalAlpha=alpha;
+  const s=scale||1;
+  ctx.fillStyle="#ffd23b";
+  ctx.strokeStyle="rgba(20,14,0,.85)";
+  ctx.lineWidth=1.8;
+  ctx.lineJoin="round";
+  ctx.beginPath();
+  ctx.moveTo(11*s,0);
+  ctx.lineTo(-5*s,-8*s);
+  ctx.lineTo(-1*s,0);
+  ctx.lineTo(-5*s,8*s);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawNfsTurnArrows(ox,oy,ev){
+  if(!driftBattle||!ev||mode!=="car") return;
+  const circuit=ensureCircuitMeta(ev);
+  if(!circuit||!circuit.corners||!circuit.corners.length) return;
+  const ca=Math.cos(car.a), sa=Math.sin(car.a);
+  const t=performance.now()/1000;
+
+  for(const cr of circuit.corners){
+    const dx=cr.x-car.x, dy=cr.y-car.y;
+    const dist=Math.hypot(dx,dy);
+    if(dist>300||dist<14) continue;
+    const ahead=dx*ca+dy*sa;
+    if(ahead<12) continue;
+    const fade=clamp(1-(dist-40)/240, 0.2, 1)*clamp(ahead/80, 0.35, 1);
+    if(fade<0.15) continue;
+
+    const stacks=4;
+    for(let k=0;k<stacks;k++){
+      const back=22+k*20;
+      const ax=cr.x-Math.cos(cr.inA)*back;
+      const ay=cr.y-Math.sin(cr.inA)*back;
+      if(ax<ox-50||ax>ox+VW+50||ay<oy-50||ay>oy+VH+50) continue;
+      const pulse=0.55+0.45*Math.sin(t*9-k*0.55-dist*0.015);
+      drawNfsChevron(ax, ay, cr.turnA, fade*pulse*(1-k*0.12), 0.95-k*0.06);
+    }
+  }
+}
 
 function isNightDriftHour(h){
   h=h==null?gameHour:h;
@@ -65,7 +223,42 @@ function buildDriftCircuit(wx,wy){
   if(pts.length<4) return null;
   const cx=pts.reduce((s,p)=>s+p.x,0)/pts.length;
   const cy=pts.reduce((s,p)=>s+p.y,0)/pts.length;
-  return {points:pts, cx, cy};
+  return enrichDriftCircuit({points:pts, cx, cy});
+}
+
+function enrichDriftCircuit(circuit){
+  const pts=circuit.points;
+  const corners=[];
+  for(let i=1;i<pts.length-1;i++){
+    const ax=pts[i-1].x-pts[i].x, ay=pts[i-1].y-pts[i].y;
+    const bx=pts[i+1].x-pts[i].x, by=pts[i+1].y-pts[i].y;
+    const la=Math.hypot(ax,ay), lb=Math.hypot(bx,by);
+    if(la<8||lb<8) continue;
+    const dot=(ax*bx+ay*by)/(la*lb);
+    const ang=Math.acos(clamp(dot,-1,1));
+    if(ang<0.32) continue;
+    const cross=ax*by-ay*bx;
+    corners.push({
+      x:pts[i].x, y:pts[i].y,
+      inA:Math.atan2(-ay,-ax), outA:Math.atan2(by,bx),
+      turnA:Math.atan2(by,bx)+(cross>0?0.42:-0.42),
+      side:cross>0?1:-1, sharp:ang, idx:i,
+    });
+  }
+  let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
+  for(const p of pts){
+    minX=Math.min(minX,p.x); maxX=Math.max(maxX,p.x);
+    minY=Math.min(minY,p.y); maxY=Math.max(maxY,p.y);
+  }
+  circuit.corners=corners;
+  circuit.bounds={minX,maxX,minY,maxY};
+  return circuit;
+}
+
+function ensureCircuitMeta(ev){
+  if(!ev||!ev.circuit) return null;
+  if(!ev.circuit.bounds) enrichDriftCircuit(ev.circuit);
+  return ev.circuit;
 }
 
 function pickDriftEventSpot(){
@@ -222,6 +415,7 @@ function startTandemBattle(ev){
     bestProx:0, bestAngle:0,
   };
   driftLead=ev.lead;
+  ensureCircuitMeta(ev);
   showBigMsg("TSUISO · KLEJ SIĘ ZA LIDEREM · 75 s");
 }
 
@@ -235,6 +429,7 @@ function endTandemBattle(reason){
   else if(reason==="manual") msg=`KONIEC TSUISO · ${pts.toLocaleString("pl")} pkt`;
   showBigMsg(msg);
   driftBattle=null;
+  hideDriftBattleRadar();
 }
 
 function updateTandemBattle(dt){
@@ -330,15 +525,29 @@ function refreshDriftEventList(){
     li.className="bigmap-event-empty";
     li.textContent=isNightDriftHour()?"Brak aktywnych wyścigów":"Wyścigi tylko w nocy (po ~19:30)";
     list.appendChild(li);
+    setDriftEventPreview(null);
     return;
   }
   for(const ev of items){
     const li=document.createElement("li");
+    li.dataset.ev=ev.id;
     const left=driftEventTimeLabel(ev);
     const dist=Math.hypot(ev.x-playerWorldPos().x, ev.y-playerWorldPos().y);
     li.innerHTML=`<span class="ev-name">${ev.name}</span><span class="ev-meta">${left} · ${(dist/100|0)*100} m</span>`;
-    li.addEventListener("click", ()=>{ navigateToDriftEvent(ev); if(typeof drawBigMap==="function") drawBigMap(); });
+    li.addEventListener("mouseenter", ()=>setDriftEventPreview(ev));
+    li.addEventListener("click", ()=>{
+      setDriftEventPreview(ev);
+      navigateToDriftEvent(ev);
+      if(typeof drawBigMap==="function") drawBigMap();
+    });
+    if(ev.id===driftEventPreviewId) li.classList.add("selected");
     list.appendChild(li);
+  }
+  if(driftEventPreviewId){
+    const cur=items.find(e=>e.id===driftEventPreviewId);
+    if(cur) setDriftEventPreview(cur);
+    else if(items.length) setDriftEventPreview(items[0]);
+    else setDriftEventPreview(null);
   }
 }
 
@@ -350,6 +559,7 @@ function initDriftEventMapUI(){
     window.toggleBigMap=function(force){
       _toggle(force);
       if(bigMapOpen) refreshDriftEventList();
+      else setDriftEventPreview(null);
     };
   }
   const _draw=typeof drawBigMap==="function"?drawBigMap:null;
@@ -398,6 +608,7 @@ function updateDriftEvents(dt){
 }
 
 function drawDriftEventWorld(ox,oy){
+  if(driftBattle&&driftBattle.event) drawNfsTurnArrows(ox,oy,driftBattle.event);
   const p=playerWorldPos();
   for(const ev of driftEvents){
     if(ev.x<ox-120||ev.x>ox+VW+120||ev.y<oy-120||ev.y>oy+VH+120) continue;
@@ -438,6 +649,22 @@ function drawDriftEventMap(mctx, tx, ty){
     if(left<=0) continue;
     const pulse=0.7+0.3*Math.sin(performance.now()/400+ev.id.length);
     mapDrawBlip(mctx, tx(ev.x), ty(ev.y), 3.8+pulse*0.8, DRIFT_MAP_BLIP, "diamond");
+    if(ev.id===driftEventPreviewId){
+      const circuit=ensureCircuitMeta(ev);
+      if(circuit&&circuit.points.length>1){
+        mctx.save();
+        mctx.strokeStyle="rgba(255,180,80,.75)";
+        mctx.lineWidth=2.4;
+        mctx.lineJoin="round";
+        mctx.setLineDash([5,4]);
+        mctx.beginPath();
+        mctx.moveTo(tx(circuit.points[0].x), ty(circuit.points[0].y));
+        for(let i=1;i<circuit.points.length;i++) mctx.lineTo(tx(circuit.points[i].x), ty(circuit.points[i].y));
+        mctx.stroke();
+        mctx.setLineDash([]);
+        mctx.restore();
+      }
+    }
   }
 }
 
@@ -466,6 +693,7 @@ function drawTandemHud(){
       `<span>linia <b>${(s.linePts|0)}</b></span>`+
       `<span>styl <b>${(s.stylePts|0)}</b></span>`;
   }
+  drawDriftBattleRadar();
 }
 
 window.addEventListener("keydown", e=>{

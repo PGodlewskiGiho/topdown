@@ -45,6 +45,11 @@
   #drift-hud{position:absolute;right:22px;bottom:220px;min-width:168px;padding:12px 14px;border-radius:12px;
     background:linear-gradient(145deg,rgba(22,16,12,.88),rgba(12,14,18,.92));border:1px solid rgba(255,140,60,.28);
     box-shadow:0 8px 28px rgba(0,0,0,.45);font-family:var(--mono);transition:opacity .2s}
+  #drift-hud .drift-hud-layout{display:flex;align-items:flex-start;gap:10px}
+  #drift-hud .drift-hud-main{flex:1;min-width:0}
+  #drift-hud .drift-track-preview{display:block;border-radius:8px;background:#080a10;
+    box-shadow:0 0 0 1px rgba(255,140,60,.22);flex-shrink:0}
+  #drift-hud .drift-track-preview.hidden{display:none!important}
   #drift-hud.hidden{display:none!important}
   #drift-hud .drift-row{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
   #drift-hud .drift-label{font-size:11px;letter-spacing:.22em;color:#ff9a52;text-transform:uppercase}
@@ -94,10 +99,14 @@
   #bigmap-event-search{font-family:var(--mono);font-size:12px;padding:8px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.12);
     background:rgba(0,0,0,.35);color:#e8eaef;outline:none}
   #bigmap-event-search:focus{border-color:rgba(255,120,60,.45)}
+  .bigmap-event-preview{border-radius:10px;overflow:hidden;background:#080a10;border:1px solid rgba(255,120,60,.18)}
+  #bigmap-event-preview-cv{display:block;width:100%;height:auto}
+  .bigmap-event-preview-label{padding:6px 8px 8px;font-size:10px;color:#aeb4bf;line-height:1.35;letter-spacing:.03em}
   #bigmap-event-list{list-style:none;margin:0;padding:0;overflow-y:auto;flex:1;min-height:0}
   #bigmap-event-list li{padding:10px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent;margin-bottom:6px;
     background:rgba(255,255,255,.03)}
   #bigmap-event-list li:hover{background:rgba(255,120,60,.12);border-color:rgba(255,120,60,.25)}
+  #bigmap-event-list li.selected{background:rgba(255,120,60,.18);border-color:rgba(255,140,60,.45)}
   #bigmap-event-list .ev-name{display:block;font-size:12px;color:#ffe8d8;font-weight:600}
   #bigmap-event-list .ev-meta{display:block;margin-top:3px;font-size:10px;color:#8a919e}
   #bigmap-event-list .bigmap-event-empty{font-size:11px;color:#7f8794;cursor:default;padding:12px 8px}

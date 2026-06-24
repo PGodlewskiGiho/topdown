@@ -25,6 +25,9 @@
   <div id="prompt"></div>
   <div id="gunshop"></div>
   <div id="drift-hud" class="hidden">
+    <div class="drift-hud-layout">
+      <canvas id="drift-track-preview" class="drift-track-preview hidden" width="104" height="104"></canvas>
+      <div class="drift-hud-main">
     <div class="drift-row">
       <span class="drift-label">DRIFT</span>
       <span class="drift-score">0</span>
@@ -36,6 +39,8 @@
     </div>
     <div class="drift-sub">—</div>
     <div class="drift-breakdown hidden"></div>
+      </div>
+    </div>
   </div>
   <div class="keys">
     <b>W / ↑</b> gaz &nbsp; <b>S / ↓</b> hamulec/wsteczny<br>
@@ -61,6 +66,10 @@
   <div class="bigmap-events" id="bigmap-events">
     <div class="bigmap-events-head">WYŚCIGI DRIFTU</div>
     <input type="text" id="bigmap-event-search" placeholder="Szukaj wyścigu…" autocomplete="off" spellcheck="false" />
+    <div class="bigmap-event-preview" id="bigmap-event-preview">
+      <canvas id="bigmap-event-preview-cv" width="248" height="132"></canvas>
+      <div class="bigmap-event-preview-label" id="bigmap-event-preview-label">Najedź lub wybierz wyścig</div>
+    </div>
     <ul id="bigmap-event-list"></ul>
     <p class="bigmap-events-note">Tylko w nocy · klejenie za liderem (tsuiso)</p>
   </div>
@@ -210,7 +219,7 @@
   <script src="js/21-menu.js?v=4"></script>
   <script src="js/22-wildlife.js?v=19"></script>
   <script src="js/37-drift.js?v=2"></script>
-  <script src="js/38-drift-events.js?v=1"></script>
+  <script src="js/38-drift-events.js?v=2"></script>
   <script src="js/20-main.js?v=8"></script>
 </body>
 </html>

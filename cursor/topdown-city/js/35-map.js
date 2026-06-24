@@ -398,7 +398,12 @@ function initBigMapEvents(){
       const w=bigMapEventToWorld(ev);
       if(typeof hitDriftEventAt==="function"){
         const de=hitDriftEventAt(w.x,w.y,16);
-        if(de){ navigateToDriftEvent(de); drawBigMap(); return; }
+        if(de){
+          if(typeof setDriftEventPreview==="function") setDriftEventPreview(de);
+          navigateToDriftEvent(de);
+          drawBigMap();
+          return;
+        }
       }
       if(mapDiscoveredAt(w.x,w.y)) setNavTarget(w.x,w.y);
       else showBigMsg("NIEODKRYTY TEREN");
