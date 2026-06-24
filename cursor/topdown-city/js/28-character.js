@@ -144,31 +144,44 @@ function renderCharacterUI(){
   drawCharacterPreview();
 }
 
+function drawCharacterStage(pc, w, h, char, opts){
+  opts=opts||{};
+  const t=opts.t!=null?opts.t:performance.now()*0.001;
+  pc.setTransform(1,0,0,1,0,0);
+  pc.clearRect(0,0,w,h);
+  const g=pc.createRadialGradient(w/2,h*0.42,8,w/2,h*0.55,w*0.72);
+  g.addColorStop(0,"#243040"); g.addColorStop(0.55,"#141c24"); g.addColorStop(1,"#0a0e12");
+  pc.fillStyle=g; pc.fillRect(0,0,w,h);
+  pc.fillStyle="rgba(48,72,42,0.28)"; pc.beginPath(); pc.ellipse(w/2,h*0.9,w*0.44,h*0.07,0,0,7); pc.fill();
+  pc.strokeStyle="rgba(127,224,168,0.12)"; pc.lineWidth=1;
+  for(let x=12;x<w;x+=14){ pc.beginPath(); pc.moveTo(x,h*0.72); pc.lineTo(x,h*0.96); pc.stroke(); }
+  for(let y=h*0.72;y<h;y+=14){ pc.beginPath(); pc.moveTo(8,y); pc.lineTo(w-8,y); pc.stroke(); }
+  const spot=pc.createRadialGradient(w/2,h*0.52,4,w/2,h*0.52,w*0.38);
+  spot.addColorStop(0,"rgba(255,220,160,0.14)"); spot.addColorStop(1,"rgba(255,220,160,0)");
+  pc.fillStyle=spot; pc.fillRect(0,0,w,h);
+  pc.strokeStyle="rgba(127,224,168,0.28)"; pc.lineWidth=1;
+  pc.strokeRect(0.5,0.5,w-1,h-1);
+  const spin=opts.spin!=null?opts.spin:Math.sin(t*0.55)*0.45;
+  const bob=Math.sin(t*5.5)*1.4;
+  const preview={
+    x:w/2, y:h*0.54+bob, a:Math.PI/2+spin, r:bodyRadius(char.body),
+    skin:char.skin, shirt:char.shirt, pants:char.pants,
+    hair:char.hairStyle==="bald"?null:char.hair,
+    hairStyle:char.hairStyle, beard:char.beard,
+    shirtStyle:char.shirtStyle, hat:char.hat, hatColor:char.hatColor,
+    body:char.body, previewT:t, vx:28, vy:0,
+  };
+  pc.save(); pc.scale(opts.scale||2.75,opts.scale||2.75);
+  drawPerson(preview, preview.shirt, false, pc);
+  pc.restore();
+}
+
 function drawCharacterPreview(){
   const cv=document.getElementById("char-preview");
   if(!cv) return;
   const pc=cv.getContext("2d");
-  const w=cv.width, h=cv.height;
-  pc.setTransform(1,0,0,1,0,0);
-  pc.clearRect(0,0,w,h);
-  const g=pc.createLinearGradient(0,0,0,h);
-  g.addColorStop(0,"#1a2430"); g.addColorStop(1,"#0e1418");
-  pc.fillStyle=g; pc.fillRect(0,0,w,h);
-  pc.fillStyle="rgba(48,72,42,0.35)"; pc.beginPath(); pc.ellipse(w/2,h*0.88,w*0.42,h*0.08,0,0,7); pc.fill();
-  pc.strokeStyle="rgba(127,224,168,0.25)"; pc.lineWidth=1;
-  pc.strokeRect(0.5,0.5,w-1,h-1);
   syncCharacterFromUI();
-  const spin=performance.now()*0.00035;
-  const preview={
-    x:w/2, y:h*0.56, a:Math.PI/2+Math.sin(spin)*0.55, r:bodyRadius(playerCharacter.body),
-    skin:playerCharacter.skin, shirt:playerCharacter.shirt, pants:playerCharacter.pants,
-    hair:playerCharacter.hairStyle==="bald"?null:playerCharacter.hair,
-    hairStyle:playerCharacter.hairStyle, beard:playerCharacter.beard,
-    shirtStyle:playerCharacter.shirtStyle, hat:playerCharacter.hat, hatColor:playerCharacter.hatColor,
-  };
-  pc.save(); pc.scale(2.6,2.6);
-  drawPerson(preview, preview.shirt, false, pc);
-  pc.restore();
+  drawCharacterStage(pc, cv.width, cv.height, playerCharacter, {scale:2.75});
   const nm=document.getElementById("char-preview-name");
   if(nm) nm.textContent=playerCharacter.name;
 }
@@ -218,6 +231,7 @@ function openCharacterCreator(){
   startCharPreviewLoop();
 }
 
+window.drawCharacterStage=drawCharacterStage;
 window.playerCharacter=playerCharacter;
 window.applyCharacterToPed=applyCharacterToPed;
 window.characterFromPed=characterFromPed;

@@ -32,11 +32,16 @@ function spawnTrafficCar(){
   placeTrafficOnEdge(c); return c;
 }
 function spawnPed(){
-  const armed=rng()<0.13, wi=armed?pick([2,3,4]):null;          // ~13% carry pistol/uzi/shotgun
+  const armed=rng()<0.13, wi=armed?pick([2,3,4]):null;
   const skin=pick(SKIN), shirt=armed?pick(SHIRT_DARK):pick(SHIRT);
-  const hair=rng()<0.12?null:pick(HAIR), hr=rng(), hat=hr<0.18?"cap":(hr<0.30?"beanie":null);
-  const p={state:"walk", x:focusX,y:focusY, a:rng()*6.283, tx:focusX,ty:focusY, speed:rand(30,46), r:8,
-          color:shirt, skin, shirt, hair, hat, hatColor:pick(HATCOL),
+  const pants=pick(["#2a3444","#1a2430","#3a3a48","#283828","#4a4038"]);
+  const body=rng()<0.42?"male":(rng()<0.72?"female":"hardy");
+  const hairStyle=body==="female"?pick(["short","long","ponytail","bald"]):pick(["short","long","ponytail","bald"]);
+  const hair=hairStyle==="bald"?null:pick(HAIR), hr=rng(), hat=hr<0.18?"cap":(hr<0.30?"beanie":null);
+  const p={state:"walk", x:focusX,y:focusY, a:rng()*6.283, tx:focusX,ty:focusY, speed:rand(30,46), r:body==="hardy"?11:(body==="female"?8.5:9),
+          color:shirt, skin, shirt, pants, hair, hairStyle, body,
+          shirtStyle:pick(["tee","tee","jacket","vest"]), beard:body==="female"?"none":pick(["none","none","stubble"]),
+          hat, hatColor:pick(HATCOL),
           vx:0,vy:0, downT:0, repick:0, _hp: armed?42:12, armed, weapon:wi, hostile:false, fireCd:rand(0.6,1.6),
           onGraph:false, pside: rng()<0.5?1:-1, pt:0, cross:0, crossProg:0, _wait:false, waitT:0, waitAxis:0,
           act:null, actCd:rand(4,12), chatT:0, bubT:0, partner:null, tcar:null, tlot:null, panic:0, threatX:0, threatY:0};
@@ -333,6 +338,7 @@ function updateNpcPed(p,dt){
       if(dd<p.r){ if(dd>0.001){p.x+=ex/dd*(p.r-dd); p.y+=ey/dd*(p.r-dd);} if(!p.onGraph)p.repick=0; }
     } } }
   if(!p.onGraph) collideFences(p);
-  } finally { if(inWater(p.x,p.y)){ p.x=_wx; p.y=_wy; } }
+  p.vx=(p.x-_wx)/Math.max(dt,0.001); p.vy=(p.y-_wy)/Math.max(dt,0.001);
+  } finally { if(inWater(p.x,p.y)){ p.x=_wx; p.y=_wy; p.vx=0; p.vy=0; } }
 }
 

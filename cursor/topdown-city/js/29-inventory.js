@@ -395,16 +395,9 @@ function renderInventoryUI(){
 }
 function drawInvCharPreview(){
   const cv=document.getElementById("inv-char-preview");
-  if(!cv||typeof drawPerson!=="function") return;
+  if(!cv||typeof drawCharacterStage!=="function") return;
   const pc=cv.getContext("2d");
-  pc.clearRect(0,0,cv.width,cv.height);
-  pc.fillStyle="#121820"; pc.fillRect(0,0,cv.width,cv.height);
-  const preview={x:cv.width/2,y:cv.height*0.58,a:Math.PI/2,r:ped.r||9,
-    skin:ped.skin, shirt:ped.shirt, pants:ped.pants, hair:ped.hair, hairStyle:ped.hairStyle,
-    beard:ped.beard, shirtStyle:ped.shirtStyle, hat:ped.hat, hatColor:ped.hatColor, body:ped.body};
-  pc.save(); pc.scale(2.2,2.2);
-  drawPerson(preview, preview.shirt, false, pc);
-  pc.restore();
+  drawCharacterStage(pc, cv.width, cv.height, characterFromPed(), {scale:2.2, spin:0.35});
 }
 function updateInventoryHUD(){
   const wEl=document.getElementById("weapon");
