@@ -42,6 +42,7 @@ function applyCharacterToPed(ch){
   ped.pants=ch.pants;
   ped.hat=ch.hat;
   ped.hatColor=ch.hatColor;
+  ped.height=ch.height||1;
   ped.r=bodyRadius(ped.body);
   car.riderShirt=ped.shirt;
   car.riderSkin=ped.skin;
@@ -171,7 +172,7 @@ function drawCharacterStage(pc, w, h, char, opts){
     hair:char.hairStyle==="bald"?null:char.hair,
     hairStyle:char.hairStyle, beard:char.beard,
     shirtStyle:char.shirtStyle, hat:char.hat, hatColor:char.hatColor,
-    body:char.body, previewT:t, vx:28, vy:0,
+    body:char.body, height:1, previewT:t, vx:28, vy:0,
   };
   if(typeof drawPerson==="function") drawPerson(preview, preview.shirt, false, pc);
   pc.restore();

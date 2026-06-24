@@ -91,6 +91,9 @@ function resolveModel(p){
   }
   if(p.shorts) md.shorts=true;
   if(p.hairStyle==="mohawk") md.mohawk=true;
+  md.tw=isFinite(md.tw)?md.tw:0.90;
+  md.th=isFinite(md.th)?md.th:1.10;
+  md.head=isFinite(md.head)?md.head:1.00;
   return md;
 }
 
@@ -186,7 +189,8 @@ function drawTorso(c,tw,th,shirt,md,lit){
   lit=isFinite(lit)?clamp(lit,0,1):0.5;
   tw=Math.max(1,isFinite(tw)?tw:8);
   th=Math.max(1,isFinite(th)?th:8);
-  const g=c.createRadialGradient(-tw*0.12,-th*0.08,th*0.08, 0,0, Math.max(tw,th));
+  const gx=-tw*0.12, gy=-th*0.08, gr=Math.max(0.1,th*0.08), gr2=Math.max(1,Math.max(tw,th));
+  const g=c.createRadialGradient(gx,gy,gr, 0,0, gr2);
   g.addColorStop(0,normHex(hShade(shirt,clamp(lit*0.30,0,0.28))));
   g.addColorStop(0.55,shirt);
   g.addColorStop(1,normHex(hShade(shirt,-0.22)));
@@ -389,7 +393,7 @@ function draw(c,p,color,down){
   c.restore();
 }
 
-const Humanoid2D={draw,MODELS,ARCH_MODEL,resolveModel,BUILD:20260625,
+const Humanoid2D={draw,MODELS,ARCH_MODEL,resolveModel,BUILD:20260626,
   modelForArchetype(id, age, build){
     if(id==="city_elder"||age==="senior") return "civilian";
     return ARCH_MODEL[id]||"civilian";
