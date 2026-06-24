@@ -1148,6 +1148,7 @@ function addBuilding(lot,bx,by,bw,bh,r,type){
     b.chimney=[bx+(r()<0.5?bw*0.2:bw*0.68), by+bh*0.2+r()*bh*0.4];
   }
   lot.buildings.push(b);
+  return b;
 }
 function placeOldTownBuildings(lot,r){
   const m=8, x0=lot.x+m, y0=lot.y+m, w=lot.w-2*m, h=lot.h-2*m;
@@ -1161,8 +1162,8 @@ function placeOldTownBuildings(lot,r){
     const cx=x0+cI*pw+pw*0.5, cy=y0+rI*ph+ph*0.5;
     if(typeof inRynek==="function"&&inRynek(cx,cy)) continue;
     const ty=r()<0.68?"house":(r()<0.5?"shop":"house");
-    addBuilding(lot, x0+cI*pw+(pw-bw)/2, y0+rI*ph+(ph-bh)/2, bw, bh, r, ty);
-    const b=lot.buildings[lot.buildings.length-1];
+    const b=addBuilding(lot, x0+cI*pw+(pw-bw)/2, y0+rI*ph+(ph-bh)/2, bw, bh, r, ty);
+    if(!b) continue;
     b.historic=true;
     if(ty==="house"){ b.color=pick(OLD_TOWN_WALL); b.roofC=pick(OLD_TOWN_ROOF); }
     else { b.color=pick(SHOP_WALL); b.sign=pick(SIGN_COL); }
