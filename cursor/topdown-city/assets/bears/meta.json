@@ -1,0 +1,29 @@
+{
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "frames": 5,
+  "walkFrames": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "attackFrame": 4,
+  "anchorX": 64,
+  "anchorY": 120,
+  "walkStep": 0.11,
+  "variants": {
+    "grizzly": {
+      "file": "bear-grizzly.png"
+    },
+    "dark": {
+      "file": "bear-dark.png"
+    },
+    "brown": {
+      "file": "bear-brown.png"
+    },
+    "cinnamon": {
+      "file": "bear-cinnamon.png"
+    }
+  }
+}

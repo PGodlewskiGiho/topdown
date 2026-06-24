@@ -1,21 +1,39 @@
 # Jak uruchomić grę online (GitHub Pages)
 
-## Jednorazowe włączenie (2 minuty)
+## Dlaczego 404?
+
+404 = repo jest publiczne, ale **Pages nie ma jeszcze włączonego źródła**.
+Sam kod na gałęzi `gh-pages` nie wystarczy — trzeba **jednorazowo** wybrać gałąź w ustawieniach.
+
+## Włączenie (telefon lub komputer)
 
 1. Otwórz: **https://github.com/PGodlewskiGiho/topdown/settings/pages**
-2. W **Build and deployment** → **Source** wybierz: **Deploy from a branch**
-3. **Branch:** `gh-pages` → folder **`/ (root)`** → **Save**
-4. Poczekaj ~1–2 minuty (Status: „Your site is live at…”)
 
-## Adres gry
+2. W sekcji **Build and deployment** → **Source** wybierz:
+   - **Deploy from a branch** ← ważne, NIE „GitHub Actions”
 
-**https://pgodlewskigiho.github.io/topdown/**
+3. Ustaw:
+   - **Branch:** `gh-pages`
+   - **Folder:** `/ (root)`
+   - Kliknij **Save**
 
-(Ctrl+F5 po pierwszym wdrożeniu)
+4. Odśwież stronę Settings → Pages — po ~1–2 min powinno być:
+   > *Your site is live at https://pgodlewskigiho.github.io/topdown/*
 
-## Alternatywa: GitHub Actions
+5. Otwórz grę (Ctrl+F5 / wyczyść cache):
+   **https://pgodlewskigiho.github.io/topdown/**
 
-W Settings → Pages możesz też wybrać **GitHub Actions** — wtedy każdy push do `main` wdraża grę automatycznie (workflow już jest w repo).
+## Co już jest gotowe
+
+- Gałąź **`gh-pages`** — pełna gra + niedźwiedzie + plik `.nojekyll`
+- Nie trzeba nic budować ani płacić
+
+## Jeśli nadal 404
+
+- Poczekaj 2–5 minut po Save
+- Sprawdź, czy repo jest **Public** (Settings → General → Visibility)
+- Upewnij się, że wybrałeś gałąź **`gh-pages`**, nie `main`
+- Sprawdź dokładny URL z zielonego komunikatu na stronie Pages
 
 ## Lokalnie (bez GitHub)
 
