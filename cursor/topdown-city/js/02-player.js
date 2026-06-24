@@ -352,8 +352,10 @@ function jackCar(c){
     car.brand=c.brand||""; car.carName=c.carName||"Auto"; car.type=c.type||"sedan"; car.era=c.era||"modern";
     car.accent=c.accent||"#ff5b46"; car.power=1.2; car.topSpeed=200;
   }
+  const driverLook=rollNpcAppearance(c.x,c.y,{});
   const driver={state:"walk", x:c.x-Math.sin(c.a)*22, y:c.y+Math.cos(c.a)*22, a:c.a+Math.PI/2,
-                tx:0,ty:0, speed:rand(70,95), r:8, color:pick(PEDCOL), vx:0,vy:0, downT:0, repick:0};
+                tx:0,ty:0, speed:rand(70,95), vx:0,vy:0, downT:0, repick:0, act:null, panic:0};
+  applyNpcLook(driver, driverLook);
   if(peds.length<40) peds.push(driver); else Object.assign(peds[(Math.random()*peds.length)|0], driver);
   const i=traffic.indexOf(c); if(i>=0) traffic.splice(i,1);
   traffic.push(spawnTrafficCar());
