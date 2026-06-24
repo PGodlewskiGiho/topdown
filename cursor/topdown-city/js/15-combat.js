@@ -117,9 +117,13 @@ function carExplode(v){
   blastQ.push({x:v.x, y:v.y});
 }
 function drainBlasts(){ let g=0; while(blastQ.length && g++<3000){ const b=blastQ.shift(); explode(b.x,b.y); } if(blastQ.length) blastQ.length=0; }
+function legacyVehicleParts(){
+  return {front:0,rear:0,left:0,right:0,hood:0,windows:0,hoodOff:false,bumpFront:false,bumpRear:false,doorL:false,doorR:false};
+}
 function initVehicleDamageState(v){
-  if(typeof initVehicleParts==="function") initVehicleParts(v);
-  else if(v && !v.parts) v.parts={front:0,rear:0,left:0,right:0,hood:0,windows:0,hoodOff:false,bumpFront:false,bumpRear:false,doorL:false,doorR:false};
+  if(!v) return;
+  if(v.kind==="car" && typeof initVehicleParts==="function") initVehicleParts(v);
+  else if(!v.parts) v.parts=legacyVehicleParts();
 }
 function impactSeverity(speed, relInto){
   const hard=Math.max(0, -(relInto||0));
@@ -146,7 +150,7 @@ function spawnCrashDebris(v, zone, sev){
 function maybeBreakPart(v, zone, sev){
   initVehicleDamageState(v);
   const p=v.parts;
-  if(sev<0.72) return;
+  if(!p || p._v===2 || sev<0.72) return;
   if((zone==="front"||zone==="rear") && p[zone]>0.82 && !p["bump"+(zone==="front"?"Front":"Rear")]){
     p["bump"+(zone==="front"?"Front":"Rear")]=true; spawnCrashDebris(v, zone, sev*1.1);
   }
@@ -169,8 +173,9 @@ function damageZoneFromPoint(v,hx,hy){
 function applyPartDamage(v,zone,amt,type){
   initVehicleDamageState(v);
   const p=v.parts;
+  if(!p || p._v===2) return;
   const sev=clamp(amt/Math.max(60,v.maxHp||120), 0.01, 0.55);
-  const add=(k,x)=>p[k]=clamp(p[k]+x,0,1.35);
+  const add=(k,x)=>{ if(p[k]==null) p[k]=0; p[k]=clamp(p[k]+x,0,1.35); };
   if(zone==="front"){ add("front",sev*1.35); add("hood",sev*1.15); if(type==="explosion") add("windows",sev*1.0); }
   else if(zone==="rear"){ add("rear",sev*1.28); if(type==="explosion") add("windows",sev*0.65); }
   else if(zone==="left"){ add("left",sev*1.22); if(type==="explosion") add("windows",sev*0.55); }

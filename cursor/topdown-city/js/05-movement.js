@@ -191,32 +191,32 @@ function updateCam(dt){
   const slip=driving?(car._slip||0):0;
   const velA=driving&&spd>8?Math.atan2(car.vy,car.vx):a.a;
 
-  const leadMax=driving?Math.min(VH*0.44, VW*0.30, 300):0;
-  let lead=clamp(spd*(driving?0.34:0), 0, leadMax);
-  if(driving&&slip>0.25) lead=clamp(spd*0.42, lead, leadMax*1.15);
+  const leadMax=driving?Math.min(VH*0.36, VW*0.24, 240):0;
+  let lead=clamp(spd*(driving?0.26:0), 0, leadMax);
+  if(driving&&slip>0.38) lead=clamp(spd*0.30, lead, leadMax*1.05);
 
   let tx, ty;
-  if(driving&&slip>0.22&&spd>30){
+  if(driving&&slip>0.34&&spd>42){
     tx=a.x+Math.cos(velA)*lead;
     ty=a.y+Math.sin(velA)*lead;
     const latSign=Math.sign(car._lat||0)||Math.sign(steerFromKeys());
-    const targetLat=latSign*clamp(spd*0.075+slip*90, 0, VW*0.14);
-    cam.latOff+=(targetLat-cam.latOff)*(1-Math.exp(-9*dt));
+    const targetLat=latSign*clamp(spd*0.04+slip*42, 0, VW*0.08);
+    cam.latOff+=(targetLat-cam.latOff)*(1-Math.exp(-6*dt));
     tx+=-Math.sin(velA)*cam.latOff;
     ty+= Math.cos(velA)*cam.latOff;
-    const targetRoll=clamp(-(car._lat||0)/Math.max(spd,40), -0.14, 0.14)*slip*2.2;
-    cam.roll+=(targetRoll-cam.roll)*(1-Math.exp(-7*dt));
-    cam.shake=Math.max(cam.shake, slip*0.011);
+    const targetRoll=clamp(-(car._lat||0)/Math.max(spd,55), -0.06, 0.06)*slip*1.1;
+    cam.roll+=(targetRoll-cam.roll)*(1-Math.exp(-5*dt));
+    cam.shake=Math.max(cam.shake, slip*0.004);
   } else {
     tx=a.x+Math.cos(a.a)*lead;
     ty=a.y+Math.sin(a.a)*lead;
-    if(driving&&spd>24){ tx+=car.vx*0.14; ty+=car.vy*0.14; }
-    cam.latOff*=1-Math.exp(-11*dt);
-    cam.roll+=(0-cam.roll)*(1-Math.exp(-9*dt));
+    if(driving&&spd>28){ tx+=car.vx*0.08; ty+=car.vy*0.08; }
+    cam.latOff*=1-Math.exp(-12*dt);
+    cam.roll+=(0-cam.roll)*(1-Math.exp(-10*dt));
   }
-  cam.shake*=Math.pow(0.88, dt*60);
+  cam.shake*=Math.pow(0.82, dt*60);
 
-  const rate=driving?(13+spd*0.038+slip*6):14;
+  const rate=driving?(10+spd*0.028+slip*2.2):12;
   const k=1-Math.exp(-rate*dt);
   cam.x+=(tx-cam.x)*k;
   cam.y+=(ty-cam.y)*k;

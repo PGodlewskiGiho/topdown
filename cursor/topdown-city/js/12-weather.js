@@ -147,18 +147,19 @@ function drawPuddleBody(p){
   const [gr,gg,gb]=puddleGroundTint(p.x,p.y);
   const {px,py,rip}=puddleParallax(p);
   ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(p.a||0);
-  // wet asphalt bleed — puddle edge melts into ground colour
-  const bleed=ctx.createRadialGradient(0,0,Math.max(rx,ry)*0.35, 0,0, Math.max(rx,ry)*1.18);
-  bleed.addColorStop(0,`rgba(${gr},${gg},${gb},${(0.42*a).toFixed(3)})`);
-  bleed.addColorStop(0.7,`rgba(${gr-8},${gg-8},${gb-6},${(0.18*a).toFixed(3)})`);
+  // soft wet edge — thin water film, not tar stain
+  const bleed=ctx.createRadialGradient(0,0,Math.max(rx,ry)*0.42, 0,0, Math.max(rx,ry)*1.14);
+  bleed.addColorStop(0,`rgba(${gr+12},${gg+18},${gb+28},${(0.20*a).toFixed(3)})`);
+  bleed.addColorStop(0.72,`rgba(${gr+6},${gg+10},${gb+18},${(0.10*a).toFixed(3)})`);
   bleed.addColorStop(1,"rgba(0,0,0,0)");
-  ctx.fillStyle=bleed; ctx.beginPath(); ctx.ellipse(0,0,rx*1.12,ry*1.12,0,0,7); ctx.fill();
-  const depth=ctx.createRadialGradient(px*0.3,py*0.2,Math.min(rx,ry)*0.08, px*0.1,py*0.15, Math.max(rx,ry));
-  depth.addColorStop(0,`rgba(${gr+18},${gg+22},${gb+32},${(0.55*a).toFixed(3)})`);
-  depth.addColorStop(0.45,`rgba(12,20,32,${(0.72*a).toFixed(3)})`);
-  depth.addColorStop(1,`rgba(6,10,16,${(0.28*a).toFixed(3)})`);
+  ctx.fillStyle=bleed; ctx.beginPath(); ctx.ellipse(0,0,rx*1.08,ry*1.08,0,0,7); ctx.fill();
+  const depth=ctx.createRadialGradient(px*0.3,py*0.2,Math.min(rx,ry)*0.06, px*0.1,py*0.15, Math.max(rx,ry));
+  depth.addColorStop(0,`rgba(${gr+55},${gg+72},${gb+95},${(0.42*a).toFixed(3)})`);
+  depth.addColorStop(0.38,`rgba(72,108,138,${(0.34*a).toFixed(3)})`);
+  depth.addColorStop(0.78,`rgba(48,78,104,${(0.22*a).toFixed(3)})`);
+  depth.addColorStop(1,`rgba(36,58,78,${(0.08*a).toFixed(3)})`);
   ctx.fillStyle=depth; ctx.beginPath(); ctx.ellipse(0,0,rx,ry,0,0,7); ctx.fill();
-  ctx.strokeStyle=`rgba(${gr+70},${gg+80},${gb+95},${(0.22*a).toFixed(3)})`; ctx.lineWidth=1.2;
+  ctx.strokeStyle=`rgba(150,185,215,${(0.28*a).toFixed(3)})`; ctx.lineWidth=1.0;
   ctx.beginPath(); ctx.ellipse(0,0,rx*0.97,ry*0.97,0,0,7); ctx.stroke();
   if(weatherI>0.2&&p.ripple!=null){
     const ripPh=(p.ripple+puddleT*2.4)%6.28;
@@ -169,9 +170,11 @@ function drawPuddleBody(p){
     }
   }
   const N=typeof nightFactor!=="undefined"?nightFactor(gameHour):0.35;
-  const spec=lerp(210,120,N)|0;
-  ctx.fillStyle=`rgba(${spec},${spec+10},${spec+24},${(0.14*a*(1-N*0.5)).toFixed(3)})`;
-  ctx.beginPath(); ctx.ellipse(-rx*0.12+px*0.2,-ry*0.18+py*0.15,rx*0.38,ry*0.26,0,0,7); ctx.fill();
+  const spec=lerp(225,150,N)|0;
+  ctx.fillStyle=`rgba(${spec},${spec+12},${spec+28},${(0.22*a*(1-N*0.35)).toFixed(3)})`;
+  ctx.beginPath(); ctx.ellipse(-rx*0.10+px*0.2,-ry*0.16+py*0.15,rx*0.42,ry*0.30,0,0,7); ctx.fill();
+  ctx.fillStyle=`rgba(255,255,255,${(0.06*a*(1-N*0.6)).toFixed(3)})`;
+  ctx.beginPath(); ctx.ellipse(-rx*0.04+px*0.15,-ry*0.10+py*0.12,rx*0.16,ry*0.10,0,0,7); ctx.fill();
   ctx.restore();
 }
 function drawPuddleReflections(ox,oy){
@@ -298,8 +301,8 @@ function drawWet(ox,oy){
     if(cx<ox-80||cx>ox+VW+80||cy<oy-80||cy>oy+VH+80) continue;
     const paved=L.parking||L.biome==="city"||puddleAsphaltNear(cx,cy);
     if(!paved) continue;
-    const a=(0.10+0.14*wetness).toFixed(3);
-    ctx.fillStyle=`rgba(14,18,26,${a})`;
+    const a=(0.06+0.10*wetness).toFixed(3);
+    ctx.fillStyle=`rgba(38,52,68,${a})`;
     ctx.fillRect(L.x,L.y,L.w,L.h);
   }
   ctx.restore();

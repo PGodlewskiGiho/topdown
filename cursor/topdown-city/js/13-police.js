@@ -526,4 +526,4 @@ function drawLawSearchZone(ox,oy){
   ctx.restore();
 }
 
-if(typeof Game!=="undefined") Game.registerSystem({ drawWorldOverlay:drawLawSearchZone });
+if(typeof Game!=="undefined") Game.register({ id:"law-search-zone", drawWorldOverlay:drawLawSearchZone });
