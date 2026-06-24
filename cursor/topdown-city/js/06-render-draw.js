@@ -1,12 +1,15 @@
 /* TOPDOWN CITY — 06-render-draw.js */
 /* ---------- rendering ---------- */
+let drawFrameId=0;
 const css = getComputedStyle(document.documentElement);
 const COL = n => css.getPropertyValue(n).trim();
 function draw(){
+  drawFrameId++;
+  if(typeof perfFrameStart==="function") perfFrameStart();
   if(mode==="inside"){
-    if(typeof canalInterior!=="undefined"&&canalInterior&&typeof drawCanalInterior==="function"){ drawCanalInterior(); return; }
+    if(typeof canalInterior!=="undefined"&&canalInterior&&typeof drawCanalInterior==="function"){ drawCanalInterior(); if(typeof perfFrameEnd==="function") perfFrameEnd(); return; }
     if(!interior){ mode="foot"; }
-    else { drawInterior(); return; }
+    else { drawInterior(); if(typeof perfFrameEnd==="function") perfFrameEnd(); return; }
   }
   ctx.setTransform(ZOOM/PX,0,0,ZOOM/PX,0,0);
   const ox = cam.x - VW/2, oy = cam.y - VH/2;
@@ -22,6 +25,7 @@ function draw(){
   ctx.translate(-ox,-oy);
 
   // base ground fill (biome ground per lot, over which roads are layered)
+  if(typeof perfBegin==="function") perfBegin("ground");
   const i0=Math.floor((ox-NODE_VAR*2)/GAP)-2, i1=Math.floor((ox+VW+NODE_VAR*2)/GAP)+2;
   const j0=Math.floor((oy-NODE_VAR*2)/GAP)-2, j1=Math.floor((oy+VH+NODE_VAR*2)/GAP)+2;
   // fill entire view with the most common ground first
@@ -46,15 +50,22 @@ function draw(){
     else { fillCell(L, L.B.walk); texFill(L,"concrete"); pavingLines(L); }
     if(L.oldtown){ fillCell(L, "#a89e8c"); }
   }
+  if(typeof perfEnd==="function") perfEnd("ground");
+  if(typeof perfBegin==="function") perfBegin("terrain");
   drawTerrainRelief(ox,oy);   // elevation shading over ground (before water)
   drawMountainRelief(ox,oy);
+  if(typeof perfEnd==="function") perfEnd("terrain");
+  if(typeof perfBegin==="function") perfBegin("water");
   drawWaterGlobal(ox,oy);   // lakes / sea (forest rivers drawn separately)
   drawForestRivers(ox,oy);
+  if(typeof perfEnd==="function") perfEnd("water");
+  if(typeof perfBegin==="function") perfBegin("roads");
   // organic bezier roads drawn on top of ground
   drawRoads(ox,oy);
   Game.drawAfterRoads(ox,oy);
   drawPlazas(ox,oy);
   drawCrosswalks(ox,oy);
+  if(typeof perfEnd==="function") perfEnd("roads");
 
   // skid marks
   for(const m of skid){
@@ -76,6 +87,7 @@ function draw(){
   drawCanopyShades(ox,oy); // ALTTP forest canopy pools (ambient, under elevated crowns)
   drawBlockGrounds(ox,oy); // courtyards, paths, gardens around bloks
 
+  if(typeof perfBegin==="function") perfBegin("buildings");
   // buildings (second pass so shadows sit over neighbouring ground)
   // Culling must account for the upward "lean": a tall building whose base has already
   // scrolled off the bottom edge can still have its drawn roof/floors well inside the
@@ -105,6 +117,8 @@ function draw(){
       if(b._ga!==undefined && b._ga<0.999){ ctx.globalAlpha=b._ga; drawBuildingRoof(b); ctx.globalAlpha=1; }
       else drawBuildingRoof(b);
     } }
+  if(typeof perfEnd==="function") perfEnd("buildings");
+  if(typeof perfBegin==="function") perfBegin("trees");
   drawTrunks(ox,oy);       // tree poles over buildings/ground, under actors (canopies come later)
   drawScorches(ox,oy);
   drawParked(ox,oy);
@@ -119,6 +133,7 @@ function draw(){
   drawBlood(ox,oy);
   drawDrops(ox,oy);
 
+  if(typeof perfBegin==="function") perfBegin("actors");
   // NPC pedestrians (culled) — drawn under vehicles so run-overs read correctly
   for(const p of peds){ if(p.x<ox-30||p.x>ox+VW+30||p.y<oy-30||p.y>oy+VH+30) continue; drawPerson(p,p.color,p.state==="down"); if(p.act==="chat"&&p.talking&&p.state!=="down") drawSpeech(p); }
   Game.drawActors(ox,oy,"beforeTraffic");
@@ -134,8 +149,11 @@ function draw(){
   if(mode==="foot") drawPerson(ped, ped.shirt||"#2f5fa0", false);
   drawLamps(ox,oy);                                     // 3D lamp posts over vehicles
   drawSignals(ox,oy);                                   // 3D traffic-light posts over vehicles
+  if(typeof perfEnd==="function") perfEnd("actors");
+  if(typeof perfBegin==="function") perfBegin("weather");
   drawPuddleReflections(ox,oy);                           // sky + entity reflections in rain puddles
   drawCanopies(ox,oy);                                  // tree crowns over everything -> drive/walk under them
+  if(typeof perfEnd==="function") perfEnd("trees");
   drawTreeWildlife(ox,oy);                              // squirrels on branches (above canopy layer)
   drawBirds(ox,oy);                                     // gulls over water + city pigeons
   drawWindLeaves(ox,oy);                                // forest leaves on the wind (scales with gusts)
@@ -145,8 +163,10 @@ function draw(){
   drawSlashes();
   drawExplosions();
   drawSparks(ox,oy);
+  if(typeof perfEnd==="function") perfEnd("weather");
   ctx.restore();
   const N = nightFactor(gameHour);
+  if(typeof perfBegin==="function") perfBegin("night");
   if(N>0.02){
     const r=lerp(38,9,N)|0, g=lerp(26,15,N)|0, b=lerp(40,44,N)|0;
     ctx.fillStyle=`rgba(${r},${g},${b},${(N*0.6).toFixed(3)})`;
@@ -160,7 +180,9 @@ function draw(){
       if(warm>0.06){ ctx.fillStyle=`rgba(255,168,86,${(0.08*warm*(1-N)).toFixed(3)})`; ctx.fillRect(0,0,VW,VH); } } }
   if(typeof drawSunFlareScreen==="function") drawSunFlareScreen();
   drawRain();
+  if(typeof perfEnd==="function") perfEnd("night");
   vignette();
   drawCrosshair();
+  if(typeof perfFrameEnd==="function") perfFrameEnd();
 }
 

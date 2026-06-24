@@ -468,11 +468,57 @@ function drawWallTexture(P, fillPoly, seed, rows, cols){
     const s0=P(tt,0.2+rng()*0.2), s1=P(tt,0.85);
     ctx.beginPath(); ctx.moveTo(s0[0],s0[1]); ctx.lineTo(s1[0],s1[1]); ctx.stroke(); }
 }
+// Facade LOD: 0 = flat glass/tint, 1 = coarse bands, 2 = full window grid.
+function wallFacadeLod(b,Hh){
+  const cx=b.x+b.w*0.5, cy=b.y+b.h*0.5;
+  const dist=Math.hypot(cx-cam.x, cy-cam.y);
+  if(Hh<22||dist>VW*2.4) return 0;
+  if(Hh<50||dist>VW*1.3) return 1;
+  return 2;
+}
+function drawTowerFacadeLod(b,a,cc,ar,P,fillPoly,Hh,hx,hy,lod){
+  const ux=cc[0]-a[0],uy=cc[1]-a[1], L=Math.hypot(ux,uy);
+  const rows=Math.min(lod===0?3:9, Math.max(2, Math.round(Hh/(lod===0?42:26))));
+  const tint=b.glassTint||"#7fa0bd", dark=(b.style||"")==="darkglass";
+  for(let r=0;r<rows;r++){
+    const u0=r/rows, u1=(r+1)/rows, sky=1-u0;
+    const p0=P(0,u0),p1=P(1,u0),p2=P(1,u1),p3=P(0,u1);
+    ctx.fillStyle=dark?shade(tint,-38+sky*18):shade(tint,-6+sky*20);
+    fillPoly([p0,p1,p2,p3]);
+    if(lod===1&&r%2===0){
+      ctx.fillStyle=dark?"rgba(220,200,150,.14)":"rgba(232,240,248,.22)";
+      fillPoly([p0,p1,P(1,u0+0.55/rows),P(0,u0+0.55/rows)]);
+    }
+  }
+  const cr=[cc[0]+hx, cc[1]+hy];
+  const wp=getTex((b.style||"")==="concrete"?"paneltex":"glasstex");
+  if(wp){ ctx.save(); ctx.fillStyle=wp; fillPoly([a,cc,cr,ar]); ctx.restore(); }
+  ctx.fillStyle="rgba(0,0,0,.14)"; fillPoly([P(0,0),P(0.05,0),P(0.05,1),P(0,1)]);
+  ctx.fillStyle="rgba(20,28,36,.45)"; fillPoly([P(0,1-1/Math.max(rows,2)),P(1,1-1/Math.max(rows,2)),P(1,1),P(0,1)]);
+}
+function drawBlokFacadeLod(b,a,cc,ar,P,fillPoly,Hh,hx,hy,lod){
+  const rows=Math.min(lod===0?4:10, Math.max(2, Math.round(Hh/34)));
+  const cols=Math.max(2, Math.min(lod===0?3:6, Math.round(Math.hypot(cc[0]-a[0],cc[1]-a[1])/34)));
+  const lit=b.litSeed||((Math.round(a[0])*131+Math.round(a[1])*97)>>>0);
+  const accent=b.accent||"#8a6f5a";
+  for(let r=0;r<rows;r++){ const u0=r/rows,u1=(r+1)/rows;
+    ctx.fillStyle=shade(b.color,(r%2?-5:4)); fillPoly([P(0,u0),P(1,u0),P(1,u1),P(0,u1)]); }
+  const cr=[cc[0]+hx, cc[1]+hy], wp=getTex("plaster");
+  if(wp){ ctx.save(); ctx.fillStyle=wp; fillPoly([a,cc,cr,ar]); ctx.restore(); }
+  if(lod===0) return;
+  for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){
+    const cx=(c+0.5)/cols, cy=(r+0.46)/rows, pw=0.42/cols, ph=0.38/rows;
+    const isLit=(((r*7+c*11+lit)>>>0)%5)===0;
+    ctx.fillStyle=isLit?"#e8dcc0":shade(accent,-18);
+    fillPoly([P(cx-pw,cy-ph),P(cx+pw,cy-ph),P(cx+pw,cy+ph),P(cx-pw,cy+ph)]);
+  }
+}
 function drawWallWindows(b,a,cc,ar,face){
   const ux=cc[0]-a[0],uy=cc[1]-a[1], hx=ar[0]-a[0],hy=ar[1]-a[1];
   const L=Math.hypot(ux,uy), Hh=Math.hypot(hx,hy); if(Hh<6||L<6) return;
   const P=(t,u)=>[a[0]+ux*t+hx*u, a[1]+uy*t+hy*u];                    // wall-space (along t, up u) -> world
   const t=b.type;
+  const lod=wallFacadeLod(b,Hh);
   if(t==="house"){
     if(b.historic&&typeof drawHistoricFacade==="function"&&drawHistoricFacade(b,a,cc,ar,P,fillPoly)) return;
     if(b.church){
@@ -509,6 +555,8 @@ function drawWallWindows(b,a,cc,ar,face){
   }
   const isTower=t==="tower", isBlok=t==="blok";
   const style=b.style||"";
+  if(isTower&&lod<2){ drawTowerFacadeLod(b,a,cc,ar,P,fillPoly,Hh,hx,hy,lod); return; }
+  if(isBlok&&lod<2){ drawBlokFacadeLod(b,a,cc,ar,P,fillPoly,Hh,hx,hy,lod); return; }
   // ---- TOWER styles: glass / gridglass / banded / concrete / darkglass ----
   if(isTower){
     const rows=Math.min(120,Math.max(3,Math.round(Hh/22)));
@@ -1632,7 +1680,10 @@ function treeSortKey(p){
   const [vx,vy]=treeLean(p);
   return p.y + vy * 0.05 + p.x * 0.0001;
 }
-function forEachVisibleTree(ox,oy,fn){
+let _visTreesFrame=-1, _visTreesOx=0, _visTreesOy=0, _visTrees=[];
+function getVisibleTrees(ox,oy){
+  const fid=typeof drawFrameId!=="undefined"?drawFrameId:0;
+  if(_visTreesFrame===fid&&_visTreesOx===ox&&_visTreesOy===oy) return _visTrees;
   const cl=cam.x-VW/2-96, cr=cam.x+VW/2+96, ct=cam.y-VH/2-96, cb=cam.y+VH/2+96;
   const i0=Math.floor((ox-NODE_VAR)/GAP)-2, i1=Math.floor((ox+VW+NODE_VAR)/GAP)+2;
   const j0=Math.floor((oy-NODE_VAR)/GAP)-2, j1=Math.floor((oy+VH+NODE_VAR)/GAP)+2;
@@ -1640,6 +1691,11 @@ function forEachVisibleTree(ox,oy,fn){
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ const L=getLot(i,j); if(!L.props.length) continue;
     for(const p of L.props){ if(p.t!=="tree"||!p.outline) continue; if(!treeVisible(p,cl,cr,ct,cb)) continue; trees.push(p); } }
   trees.sort((a,b)=>treeSortKey(a)-treeSortKey(b));
+  _visTreesFrame=fid; _visTreesOx=ox; _visTreesOy=oy; _visTrees=trees;
+  return trees;
+}
+function forEachVisibleTree(ox,oy,fn){
+  const trees=getVisibleTrees(ox,oy);
   for(const p of trees) fn(p);
 }
 function updateTreeGhostAlpha(p){

@@ -64,6 +64,13 @@ function drawTerrainRelief(ox,oy){
   const x1=ox+VW+step*2, y1=oy+VH+step*2;
   const Sun=sunShadow(gameHour);
   const lx=Sun?-0.58:-0.46, ly=Sun?-0.72:-0.58;
+  const lotCache=new Map();
+  const reliefLot=(ci,cj)=>{
+    const k=ci+","+cj;
+    let L=lotCache.get(k);
+    if(!L){ L=getLot(ci,cj); lotCache.set(k,L); }
+    return L;
+  };
 
   ctx.save();
   for(let gy=y0; gy<y1; gy+=step){
@@ -71,7 +78,7 @@ function drawTerrainRelief(ox,oy){
       const cx=gx+step*0.5, cy=gy+step*0.5;
       if(inWater(cx,cy)) continue;
       const [ci,cj]=cellAt(cx,cy);
-      const L=getLot(ci,cj);
+      const L=reliefLot(ci,cj);
       if(terrainLotSkip(L)) continue;
 
       const v00=terrainScore(gx,gy), v10=terrainScore(gx+step,gy);
@@ -101,7 +108,7 @@ function drawTerrainRelief(ox,oy){
       const sl=terrainSlope(cx,cy);
       if(sl<0.0022) continue;
       const [ci,cj]=cellAt(cx,cy);
-      if(terrainLotSkip(getLot(ci,cj))) continue;
+      if(terrainLotSkip(reliefLot(ci,cj))) continue;
       const g=terrainGrad(cx,cy), gl=Math.hypot(g[0],g[1])||1;
       const px=-g[1]/gl, py=g[0]/gl;
       const el=terrainScore(cx,cy);

@@ -134,6 +134,23 @@ function collectPuddleBuildingRefs(p,rx,ry){
   out.sort((a,b)=>a.by-b.by);
   return out;
 }
+const MAX_PUDDLE_REFL=18, MAX_PUDDLE_ENT_REFL=24;
+let _puddleRefsFrame=-1;
+const _puddleRefsCache=new Map();
+function getPuddleBuildingRefs(p,rx,ry){
+  const fid=typeof drawFrameId!=="undefined"?drawFrameId:0;
+  if(_puddleRefsFrame!==fid){ _puddleRefsCache.clear(); _puddleRefsFrame=fid; }
+  const k=(p.x|0)+","+(p.y|0)+","+(rx*10|0);
+  let refs=_puddleRefsCache.get(k);
+  if(!refs){ refs=collectPuddleBuildingRefs(p,rx,ry); _puddleRefsCache.set(k,refs); }
+  return refs;
+}
+function puddleReflPriority(p,ox,oy){
+  const {rx,ry}=puddleDims(p);
+  const sz=(rx+ry)*(p.size!=null?p.size:1);
+  const dx=p.x-(ox+VW*0.5), dy=p.y-(oy+VH*0.5);
+  return sz*2-Math.hypot(dx,dy)*0.002;
+}
 function collectPuddlesInView(ox,oy){
   const out=[], pad=50;
   const i0=Math.floor((ox-ROAD)/GAP)-1,i1=Math.floor((ox+VW)/GAP)+1,j0=Math.floor((oy-ROAD)/GAP)-1,j1=Math.floor((oy+VH)/GAP)+1;
@@ -189,8 +206,11 @@ function drawPuddleBody(p){
 }
 function drawPuddleReflections(ox,oy){
   if(wetness<0.06) return;
-  const puddles=collectPuddlesInView(ox,oy);
+  let puddles=collectPuddlesInView(ox,oy);
   if(!puddles.length) return;
+  if(puddles.length>MAX_PUDDLE_REFL){
+    puddles=puddles.slice().sort((a,b)=>puddleReflPriority(b,ox,oy)-puddleReflPriority(a,ox,oy)).slice(0,MAX_PUDDLE_REFL);
+  }
   const N=typeof nightFactor!=="undefined"?nightFactor(gameHour):0.35;
   const skyTop=lerp(150,40,N)|0, skyMid=lerp(190,70,N)|0;
   const sun=typeof sunShadow!=="undefined"?sunShadow(gameHour):null;
@@ -215,7 +235,7 @@ function drawPuddleReflections(ox,oy){
       ctx.fillStyle=`rgba(220,235,255,${(flash*0.38*str).toFixed(3)})`;
       ctx.beginPath(); ctx.ellipse(0,0,rx*0.7,ry*0.7,0,0,7); ctx.fill();
     }
-    for(const b of collectPuddleBuildingRefs(p,rx,ry)){
+    for(const b of getPuddleBuildingRefs(p,rx,ry)){
       const dx=b.bx-p.x, dy=b.by-p.y;
       const fall=1-Math.hypot(dx,dy)/(rx*2.2+ry*1.8+b.bh);
       if(fall<=0) continue;
@@ -243,8 +263,9 @@ function drawPuddleReflections(ox,oy){
       const L=getLot(i,j); if(!L.lamps) continue;
       for(const lm of L.lamps){ if(!lm.dead) pushRef(lm.hx,lm.hy,6,6,0,"#ffd898","lamp"); }
     }
-    reflectors.sort((a,b)=>a.y-b.y);
-    for(const r of reflectors){
+    reflectors.sort((a,b)=>Math.hypot(a.dx,a.dy)-Math.hypot(b.dx,b.dy));
+    const reflSlice=reflectors.slice(0,MAX_PUDDLE_ENT_REFL);
+    for(const r of reflSlice){
       const dist=Math.hypot(r.dx,r.dy), fall=1-dist/(rx*2.6+ry*2+48);
       if(fall<=0) continue;
       const fa=0.20*str*fall*fall;
