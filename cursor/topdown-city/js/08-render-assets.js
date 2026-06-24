@@ -1844,7 +1844,7 @@ const TRUNK_PAL={
   bush:     {m:"#5a4030",d:"#382616",l:"#6a5038"},
 };
 const TREE_LEAN_DEPTH=0.80;
-function treeDepthK(t){ return t.city?1.38:1.0; }
+function treeDepthK(t){ return t.city?1.72:1.0; }
 // Trees lean with the EXACT same camera-relative math as buildings (leanVec): a constant upward
 // tilt (perceived height) plus a small, bounded horizontal parallax. This is what makes the
 // canopy sit on top of the trunk and "behave like a block" as you drive past.
@@ -1946,6 +1946,7 @@ function drawLeaningTreeStrip(p,sy0,sy1){
   return true;
 }
 function drawTreeTrunkSprite(p){
+  if(p.city) return false;
   const tr=p.trunk||{tw:p.s*0.1,frac:0.5};
   if(tr.frac<0.18) return true;
   const hw=tr.tw*0.72, bx=p.x, by=p.y;
@@ -1954,6 +1955,7 @@ function drawTreeTrunkSprite(p){
   return drawLeaningTreeStrip(p, Math.max(0, m.splitY-Math.max(2, Math.round(m.height/64))), m.height);
 }
 function drawTreeCanopySprite(p){
+  if(p.city) return false;
   const m=treeKindMeta(p.kind||"deciduous"), split=Math.min(m.height-1, m.splitY+Math.max(14, Math.round(m.height/36)));
   return drawLeaningTreeStrip(p, 0, split);
 }
@@ -2102,7 +2104,19 @@ function drawTreeCanopy(cx,cy,t,lod){
   ctx.fillStyle=pal.d; path(1.05,R*0.02,R*0.10); ctx.fill();          // shaded underside (expanded, sits behind = soft edge, no hard outline)
   ctx.fillStyle=pal.m; path(1.0,0,0); ctx.fill();                     // mid body
   if(t.lobes){ const lb=t.lobes.slice().sort((a,b)=>b.oy-a.oy); const round=t.kind==="bush"; for(const L of lb) drawCTLobe(map,R,pal,L.ox,L.oy,L.lr,round); }
-  if(!lod) drawFoliageStipple(map,R,pal,t);                           // dense leaf-speck thicket (no outline)
+  if(!lod) drawFoliageStipple(map,R,pal,t);
+  if(t.city&&!lod) drawCityTreeFinish(t,ax,ay,R,pal);
+}
+function drawCityTreeFinish(t,ax,ay,R,pal){
+  const N=typeof nightFactor!=="undefined"?nightFactor(gameHour):0.3;
+  ctx.fillStyle="rgba(0,0,0,.20)";
+  ctx.beginPath(); ctx.ellipse(t.x+4,t.y+6,R*0.52,R*0.20,0,0,7); ctx.fill();
+  const warmA=(0.20*(1-N)).toFixed(3);
+  ctx.strokeStyle=`rgba(255,${220-(N*70|0)},${150-(N*50|0)},${warmA})`;
+  ctx.lineWidth=2.4;
+  ctx.beginPath(); ctx.ellipse(ax,ay-R*0.10,R*0.94,R*0.72,0,0,7); ctx.stroke();
+  ctx.fillStyle=`rgba(255,255,240,${(0.06*(1-N)).toFixed(3)})`;
+  ctx.beginPath(); ctx.ellipse(ax-R*0.22,ay-R*0.28,R*0.22,R*0.14,0,0,7); ctx.fill();
 }
 function drawProps(L){
   const cl=cam.x-VW/2-34, cr=cam.x+VW/2+34, ct=cam.y-VH/2-34, cb=cam.y+VH/2+34, lod=VW>1500;

@@ -1545,6 +1545,10 @@ function makeTree(x,y,s,r,forceKind,opts){
   t.trunk={tw:s*(kind==="oak"?0.10:kind==="birch"||kind==="willow"?0.07:0.085),frac:0.62};
   t.outline=leafyOutline(r,env.ry,env.lobes,0.15);
   t.lobes=canopyLobes(r,kind);
+  if(city&&kind!=="bush"){
+    for(const L of t.lobes) L.lr*=1.14;
+    t.crownR*=1.08;
+  }
   t.hitR=Math.max(t.trunk.tw*0.55+3, city?5:9);
   return t;
 }

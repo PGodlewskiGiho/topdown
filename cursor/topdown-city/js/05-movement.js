@@ -152,10 +152,30 @@ const cam = {x:car.x, y:car.y};
 function updateCam(dt){
   const a=mode==="car"?car:ped;
   const spd=mode==="car"?Math.hypot(car.vx,car.vy):Math.hypot(ped.vx,ped.vy);
-  const lead=mode==="car"?clamp(spd*0.22,0,120):0;
-  const tx=a.x+Math.cos(a.a)*lead, ty=a.y+Math.sin(a.a)*lead;
-  const ease=mode==="car"?Math.min(1,6+spd*0.012):8;
-  cam.x+=(tx-cam.x)*Math.min(1,ease*dt);
-  cam.y+=(ty-cam.y)*Math.min(1,ease*dt);
+  const driving=mode==="car";
+
+  // Look-ahead grows with speed; cap scales with viewport so fast cars stay framed.
+  const leadMax=driving?Math.min(VH*0.42, VW*0.28, 280):0;
+  const lead=clamp(spd*(driving?0.32:0), 0, leadMax);
+  let tx=a.x+Math.cos(a.a)*lead;
+  let ty=a.y+Math.sin(a.a)*lead;
+  if(driving&&spd>24){
+    tx+=car.vx*0.14;
+    ty+=car.vy*0.14;
+  }
+
+  // Exponential follow — snaps harder at high speed instead of lagging behind.
+  const rate=driving?(12+spd*0.034):14;
+  const k=1-Math.exp(-rate*dt);
+  cam.x+=(tx-cam.x)*k;
+  cam.y+=(ty-cam.y)*k;
+
+  // Hard frame: never let the player leave the view (car was driving off-screen).
+  const mx=driving?VW*0.20:VW*0.24, my=driving?VH*0.22:VH*0.26;
+  const ox=cam.x-VW/2, oy=cam.y-VH/2;
+  if(a.x<ox+mx) cam.x=a.x+mx-VW/2;
+  else if(a.x>ox+VW-mx) cam.x=a.x-mx+VW/2;
+  if(a.y<oy+my) cam.y=a.y+my-VH/2;
+  else if(a.y>oy+VH-my) cam.y=a.y-my+VH/2;
 }
 
