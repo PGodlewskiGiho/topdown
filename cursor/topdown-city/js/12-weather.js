@@ -1,8 +1,18 @@
 /* TOPDOWN CITY — 12-weather.js */
 /* ---------- weather (rain + puddles) ---------- */
-const MAXRAIN=440;
+const MAXRAIN=520;
 const rain=[];
-for(let i=0;i<MAXRAIN;i++) rain.push({x:Math.random()*2000, y:Math.random()*1300, l:8+Math.random()*9, s:720+Math.random()*420});
+for(let i=0;i<MAXRAIN;i++){
+  const layer=Math.random();
+  rain.push({
+    x:Math.random()*2000, y:Math.random()*1300,
+    l:6+layer*14+Math.random()*8,
+    s:520+layer*380+Math.random()*280,
+    w:0.55+layer*0.95,
+    a:0.22+layer*0.48,
+    layer
+  });
+}
 let weatherI=0, weatherTarget=0, weatherTimer=10, wetness=0, flash=0;
 let windT=0, windAmp=0.22, windGust=0;   // tree sway clock + strength (Witcher-style gusts)
 const WPRESET=[0,0.5,0.85,1]; let wIdx=0;
@@ -284,10 +294,15 @@ function updateWeather(dt){
 }
 function updateRain(dt){
   const n=Math.floor(weatherI*MAXRAIN);
+  const wind=120+weatherI*90+windGust*140;
+  const skew=0.22+Math.sin(windT*0.9)*0.08;
   for(let i=0;i<n;i++){
-    const d=rain[i]; d.y+=d.s*dt; d.x+=150*dt;
-    if(d.y>VH+10){ d.y=-10; d.x=Math.random()*(VW+200)-100; }
-    else if(d.x>VW+60){ d.x=-60; }
+    const d=rain[i];
+    d.y+=d.s*dt;
+    d.x+=(wind+skew*80)*(0.75+d.layer*0.35)*dt;
+    if(d.y>VH+24){ d.y=-d.l-Math.random()*50; d.x=Math.random()*(VW+120)-60; }
+    else if(d.x>VW+80){ d.x=-50-Math.random()*40; }
+    else if(d.x<-80){ d.x=VW+Math.random()*40; }
   }
 }
 function drawWet(ox,oy){
@@ -306,17 +321,38 @@ function drawWet(ox,oy){
     ctx.fillRect(L.x,L.y,L.w,L.h);
   }
   ctx.restore();
+  if(typeof drawWetRoadReflections==="function") drawWetRoadReflections(ox,oy);
   const puddles=collectPuddlesInView(ox,oy);
   for(const p of puddles) drawPuddleBody(p);
 }
 function drawRain(){
   if(weatherI<0.02) return;
-  ctx.fillStyle=`rgba(60,70,85,${(weatherI*0.14).toFixed(3)})`; ctx.fillRect(0,0,VW,VH);  // veil
-  const n=Math.floor(weatherI*MAXRAIN);
-  ctx.strokeStyle=`rgba(175,195,215,${(0.26+0.24*weatherI).toFixed(3)})`; ctx.lineWidth=1.1;
-  ctx.beginPath();
-  for(let i=0;i<n;i++){ const d=rain[i]; ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-d.l*0.25, d.y-d.l); }
-  ctx.stroke();
+  const veil=weatherI*0.11;
+  const g=ctx.createLinearGradient(0,0,0,VH);
+  g.addColorStop(0,`rgba(72,88,108,${(veil*0.55).toFixed(3)})`);
+  g.addColorStop(0.45,`rgba(58,72,90,${veil.toFixed(3)})`);
+  g.addColorStop(1,`rgba(48,58,72,${(veil*1.15).toFixed(3)})`);
+  ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH);
+  const n=Math.floor(weatherI*MAXRAIN), base=0.32+weatherI*0.5;
+  ctx.lineCap="round";
+  for(let i=0;i<n;i++){
+    const d=rain[i], sl=2.5+d.layer*5.5;
+    const rg=ctx.createLinearGradient(d.x,d.y,d.x+sl,d.y+d.l);
+    rg.addColorStop(0,`rgba(215,228,245,${(d.a*base*0.3).toFixed(3)})`);
+    rg.addColorStop(0.4,`rgba(178,198,222,${(d.a*base).toFixed(3)})`);
+    rg.addColorStop(1,`rgba(128,148,172,${(d.a*base*0.12).toFixed(3)})`);
+    ctx.strokeStyle=rg; ctx.lineWidth=d.w;
+    ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x+sl,d.y+d.l); ctx.stroke();
+  }
+  ctx.lineCap="butt";
+  if(weatherI>0.38){
+    ctx.fillStyle=`rgba(198,214,232,${(weatherI*0.035).toFixed(3)})`;
+    const t=performance.now()*0.001;
+    for(let k=0;k<Math.floor(weatherI*22);k++){
+      const sx=(k*113+t*18)%VW, sy=(k*67+t*42)%VH;
+      ctx.fillRect(sx,sy,1,1.5+weatherI*2.2);
+    }
+  }
   if(flash>0){ ctx.fillStyle=`rgba(220,230,255,${(flash*0.5).toFixed(3)})`; ctx.fillRect(0,0,VW,VH); }
 }
 function weatherLabel(w){ if(w<0.12)return"POGODNIE"; if(w<0.4)return"POCHMURNO"; if(w<0.8)return"DESZCZ"; return"BURZA"; }

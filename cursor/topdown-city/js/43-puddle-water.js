@@ -1,37 +1,123 @@
-/* TOPDOWN CITY — 43-puddle-water.js — bridge: PuddleWaterSim library → rain puddles */
+/* TOPDOWN CITY — 43-puddle-water.js — PuddleWaterSim: puddles, lakes, rivers, wet roads */
 
 let puddleWaterSim=null;
 
-function ensurePuddleWater(){
+function getWaterSim(){
   if(puddleWaterSim!==null) return puddleWaterSim.ok?puddleWaterSim:null;
   if(typeof PuddleWaterSim==="undefined"){ puddleWaterSim={ok:false}; return null; }
-  puddleWaterSim=new PuddleWaterSim({size:208});
+  puddleWaterSim=new PuddleWaterSim({size:256});
   if(!puddleWaterSim.ok){ puddleWaterSim={ok:false}; return null; }
   return puddleWaterSim;
 }
 
+function waterSimCrop(sim,wx,wy,uScale,vScale){
+  const S=sim.size, crop=S*0.82;
+  const us=uScale!=null?uScale:0.011;
+  const vs=vScale!=null?vScale:0.009;
+  const uo=((wx*us+sim.t*0.38)%1+1)%1;
+  const vo=((wy*vs-sim.t*0.22)%1+1)%1;
+  return {sx:uo*(S-crop), sy:vo*(S-crop), crop};
+}
+
+function drawWaterSimTiled(ox,oy,ww,hh,preset,alpha,uScale){
+  const sim=getWaterSim();
+  if(!sim) return;
+  sim.setPreset(preset||"lake");
+  const a=alpha!=null?alpha:0.7;
+  const tile=96, S=sim.size, crop=S*0.82;
+  const us=uScale!=null?uScale:0.007;
+  ctx.save();
+  ctx.globalAlpha=a;
+  ctx.globalCompositeOperation="source-over";
+  for(let y=Math.floor(oy/tile)*tile; y<oy+hh+tile; y+=tile){
+    for(let x=Math.floor(ox/tile)*tile; x<ox+ww+tile; x+=tile){
+      const c=waterSimCrop(sim,x,y,us,us*0.88);
+      ctx.drawImage(sim.canvas,c.sx,c.sy,c.crop,c.crop,x,y,tile,tile);
+    }
+  }
+  ctx.restore();
+}
+
+function applyWaterSimInClip(preset,alpha,uScale){
+  const sim=getWaterSim();
+  if(!sim) return;
+  sim.setPreset(preset||"lake");
+  drawWaterSimTiled(-1e7,-1e7,2e7,2e7,preset,alpha!=null?alpha:0.62,uScale);
+}
+
+function drawWetRoadReflections(ox,oy){
+  if(typeof wetness==="undefined"||wetness<0.10) return;
+  const sim=getWaterSim();
+  if(!sim) return;
+  sim.setPreset("wet");
+  const a=wetness*0.48;
+  const i0=Math.floor((ox-NODE_VAR*2)/GAP)-1, i1=Math.floor((ox+VW+NODE_VAR*2)/GAP)+2;
+  const j0=Math.floor((oy-NODE_VAR*2)/GAP)-1, j1=Math.floor((oy+VH+NODE_VAR*2)/GAP)+2;
+  const S=sim.size, crop=S*0.82;
+  ctx.save();
+  ctx.globalCompositeOperation="screen";
+  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
+    for(const[di,dj]of[[1,0],[0,1]]){
+      const e=getEdge(i,j,di,dj);
+      if(!e.exists||e.bridge||e.klass==="trail") continue;
+      const paved=e.klass==="st"||e.klass==="art"||e.klass==="blvd"||e.klass==="hwy"||nodeIsCity(i,j);
+      if(!paved) continue;
+      const g=edgeGeom(i,j,di,dj);
+      const steps=Math.max(4,Math.ceil(g.e.len/24));
+      const pw=Math.min(e.width*0.88,e.width);
+      const ph=10+wetness*6;
+      for(let s=0;s<=steps;s++){
+        const t=s/steps;
+        const p=bez(g.p0,g.cp,g.p1,t);
+        const tan=bezTan(g.p0,g.cp,g.p1,t);
+        const ang=Math.atan2(tan[1],tan[0]);
+        const c=waterSimCrop(sim,p[0],p[1],0.018,0.014);
+        ctx.save();
+        ctx.translate(p[0],p[1]);
+        ctx.rotate(ang);
+        ctx.globalAlpha=a*(0.55+0.45*wetness);
+        ctx.drawImage(sim.canvas,c.sx,c.sy,c.crop,c.crop,-pw*0.5,-ph*0.5,pw,ph);
+        ctx.restore();
+      }
+    }
+    if(isRoundabout(i,j)&&nodeIsCity(i,j)){
+      const A=node(i,j), R=roundaboutR(i,j)*0.92;
+      const c=waterSimCrop(sim,A[0],A[1],0.014,0.012);
+      ctx.save();
+      ctx.translate(A[0],A[1]);
+      ctx.globalAlpha=a*0.65;
+      ctx.drawImage(sim.canvas,c.sx,c.sy,c.crop,c.crop,-R,-R,R*2,R*2);
+      ctx.restore();
+    }
+  }
+  ctx.restore();
+}
+
 function updatePuddleWaterSim(dt){
-  const sim=ensurePuddleWater();
+  const sim=getWaterSim();
   if(!sim) return;
   const N=typeof nightFactor!=="undefined"?nightFactor(gameHour):0.35;
   sim.setNight(N);
+  sim.setPreset("puddle");
   sim.step(dt);
-  if(weatherI>0.10&&Math.random()<dt*7*weatherI) sim.randomRipple();
-  if(weatherI>0.28){
+
+  if(weatherI>0.08&&Math.random()<dt*5*weatherI) sim.randomRipple();
+  if(weatherI>0.22){
     for(const p of rainPuddles){
-      if(Math.random()<dt*0.42*weatherI) sim.splashAtWorld(p.x,p.y,0.05+weatherI*0.06);
+      if(Math.random()<dt*0.38*weatherI) sim.splashAtWorld(p.x,p.y,0.05+weatherI*0.06,0.016);
     }
+  }
+  if(weatherI>0.12&&Math.random()<dt*3.5*weatherI){
+    const wx=focusX+(Math.random()-0.5)*VW*0.9, wy=focusY+(Math.random()-0.5)*VH*0.9;
+    if(typeof lakeScore==="function"&&lakeScore(wx,wy)>0) sim.splashAtWorld(wx,wy,0.06+weatherI*0.05,0.006);
+    else if(typeof riverScore==="function"&&riverScore(wx,wy)>0) sim.splashAtWorld(wx,wy,0.07+weatherI*0.06,0.008);
   }
 }
 
 function drawPuddleBodySim(sim,p,rx,ry,a){
   const [gr,gg,gb]=puddleGroundTint(p.x,p.y);
-  sim.setTint((gr+40)/255,(gg+55)/255,(gb+75)/255);
-  const S=sim.size;
-  const uo=((p.x*0.016+puddleT*0.13)%1+1)%1;
-  const vo=((p.y*0.013-puddleT*0.09)%1+1)%1;
-  const crop=S*0.78;
-  const sx=uo*(S-crop), sy=vo*(S-crop);
+  sim.setPreset("puddle");
+  const c=waterSimCrop(sim,p.x,p.y,0.016,0.013);
 
   ctx.save();
   ctx.translate(p.x,p.y);
@@ -45,10 +131,10 @@ function drawPuddleBodySim(sim,p,rx,ry,a){
 
   ctx.globalAlpha=a;
   ctx.beginPath(); ctx.ellipse(0,0,rx,ry,0,0,7); ctx.clip();
-  ctx.drawImage(sim.canvas,sx,sy,crop,crop,-rx,-ry,rx*2,ry*2);
+  ctx.drawImage(sim.canvas,c.sx,c.sy,c.crop,c.crop,-rx,-ry,rx*2,ry*2);
 
   ctx.globalCompositeOperation="soft-light";
-  ctx.fillStyle=`rgba(${gr},${gg},${gb},0.22)`;
+  ctx.fillStyle=`rgba(${gr},${gg},${gb},0.18)`;
   ctx.fillRect(-rx,-ry,rx*2,ry*2);
   ctx.globalCompositeOperation="source-over";
 
@@ -64,7 +150,7 @@ function drawPuddleBody(p){
   const {rx,ry}=puddleDims(p);
   if(rx<1.2||ry<0.8) return;
   const a=clamp(0.35+0.65*wetness*(p.size!=null?p.size:1),0,1);
-  const sim=ensurePuddleWater();
+  const sim=getWaterSim();
   if(sim) drawPuddleBodySim(sim,p,rx,ry,a);
   else if(_drawPuddleBodyOrig) _drawPuddleBodyOrig(p);
 }
@@ -74,7 +160,7 @@ Game.register({
   order:43,
   update(dt){
     if(typeof gamePhase!=="undefined"&&gamePhase!=="playing") return;
-    if(wetness<0.02&&weatherI<0.08) return;
+    if((typeof wetness==="undefined"||wetness<0.02)&&(typeof weatherI==="undefined"||weatherI<0.06)) return;
     updatePuddleWaterSim(dt);
   },
 });

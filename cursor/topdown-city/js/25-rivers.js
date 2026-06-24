@@ -124,6 +124,7 @@ function drawForestRivers(ox,oy){
 
   ctx.save(); ctx.clip();
   if(typeof applyWaterPattern==="function") applyWaterPattern("water_river",ox,oy,t,0.68,1.35);
+  if(typeof applyWaterSimInClip==="function") applyWaterSimInClip("river",0.52,0.008);
   if(typeof tintWaterDepth==="function") tintWaterDepth(polys,riverScore,[6,30,26],[50,120,100]);
   else for(const q of polys){
     let cx=0,cy=0; for(const p of q){ cx+=p[0]; cy+=p[1]; } cx/=q.length; cy/=q.length;

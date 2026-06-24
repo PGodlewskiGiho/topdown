@@ -1,4 +1,4 @@
-/* puddle-water-sim.js — WebGL2 shallow-water ripple library for canvas puddles (MIT) */
+/* puddle-water-sim.js — WebGL2 shallow-water ripple library (MIT) */
 (function(global){
 "use strict";
 
@@ -54,6 +54,12 @@ uniform vec2 u_texel;
 uniform float u_time;
 uniform float u_night;
 uniform vec3 u_tint;
+uniform vec3 u_deep;
+uniform vec3 u_shallow;
+uniform float u_specMul;
+uniform float u_fresMul;
+uniform float u_caustMul;
+uniform float u_alphaMul;
 out vec4 outColor;
 ${DEC}
 void main(){
@@ -64,18 +70,25 @@ void main(){
   vec3 light=normalize(vec3(0.28,0.52,0.82));
   float spec=pow(max(dot(n,light),0.0),56.0);
   float fres=pow(1.0-max(n.z,0.0),3.0);
-  vec3 deep=mix(vec3(0.10,0.20,0.30),vec3(0.04,0.07,0.12),u_night);
-  vec3 shallow=mix(vec3(0.40,0.62,0.80),vec3(0.14,0.20,0.30),u_night);
+  vec3 deep=mix(u_deep, u_deep*0.35, u_night);
+  vec3 shallow=mix(u_shallow, u_shallow*0.42, u_night);
   vec3 base=mix(deep,shallow,0.50+h*0.55);
   base=mix(base,u_tint,0.20);
   vec3 col=base;
-  col+=vec3(0.75,0.88,1.0)*spec*1.0;
-  col+=vec3(0.52,0.68,0.84)*fres*0.45;
+  col+=vec3(0.75,0.88,1.0)*spec*u_specMul;
+  col+=vec3(0.52,0.68,0.84)*fres*u_fresMul;
   float caust=sin(u_time*4.1+v_uv.x*38.0+v_uv.y*31.0)*sin(u_time*2.7-v_uv.x*22.0+v_uv.y*27.0);
-  col+=vec3(0.20,0.30,0.38)*caust*0.04;
+  col+=vec3(0.20,0.30,0.38)*caust*u_caustMul;
   float edge=smoothstep(0.0,0.16,v_uv.x)*smoothstep(0.0,0.16,1.0-v_uv.x)*smoothstep(0.0,0.16,v_uv.y)*smoothstep(0.0,0.16,1.0-v_uv.y);
-  outColor=vec4(col,0.92*edge);
+  outColor=vec4(col,u_alphaMul*edge);
 }`;
+
+const PRESETS={
+  puddle:{deep:[0.10,0.20,0.30],shallow:[0.40,0.62,0.80],tint:[0.42,0.58,0.72],spec:1.0,fres:0.45,caust:0.04,alpha:0.92},
+  lake:{deep:[0.08,0.22,0.38],shallow:[0.30,0.54,0.74],tint:[0.20,0.46,0.66],spec:0.82,fres:0.38,caust:0.05,alpha:0.74},
+  river:{deep:[0.06,0.24,0.22],shallow:[0.34,0.60,0.54],tint:[0.16,0.50,0.44],spec:0.70,fres:0.34,caust:0.06,alpha:0.70},
+  wet:{deep:[0.12,0.16,0.22],shallow:[0.36,0.46,0.56],tint:[0.30,0.36,0.44],spec:1.15,fres:0.52,caust:0.02,alpha:0.42},
+};
 
 function clamp(v,a,b){ return v<a?a:v>b?b:v; }
 
@@ -96,19 +109,19 @@ function link(gl,vs,fs){
 
 class PuddleWaterSim{
   constructor(opts={}){
-    this.size=opts.size||192;
+    this.size=opts.size||256;
     this.canvas=document.createElement("canvas");
     this.canvas.width=this.size;
     this.canvas.height=this.size;
     this.ok=false;
     this.t=0;
     this._night=0.35;
-    this._tint=[0.42,0.58,0.72];
+    this._preset="puddle";
     this._splashQ=[];
     const gl=this.canvas.getContext("webgl2",{alpha:true,premultipliedAlpha:false,antialias:false});
     if(!gl) return;
     this.gl=gl;
-    try{ this._init(gl); this.ok=true; }
+    try{ this._init(gl); this.ok=true; this.setPreset("puddle"); }
     catch(e){ console.warn("PuddleWaterSim init failed",e); }
   }
 
@@ -124,7 +137,14 @@ class PuddleWaterSim{
     this._loc={
       sim:{prev:gl.getUniformLocation(this._sim,"u_prev"),cur:gl.getUniformLocation(this._sim,"u_curr"),texel:gl.getUniformLocation(this._sim,"u_texel")},
       splash:{cur:gl.getUniformLocation(this._splash,"u_curr"),center:gl.getUniformLocation(this._splash,"u_center"),radius:gl.getUniformLocation(this._splash,"u_radius"),amp:gl.getUniformLocation(this._splash,"u_amp")},
-      render:{height:gl.getUniformLocation(this._render,"u_height"),texel:gl.getUniformLocation(this._render,"u_texel"),time:gl.getUniformLocation(this._render,"u_time"),night:gl.getUniformLocation(this._render,"u_night"),tint:gl.getUniformLocation(this._render,"u_tint")},
+      render:{
+        height:gl.getUniformLocation(this._render,"u_height"),texel:gl.getUniformLocation(this._render,"u_texel"),
+        time:gl.getUniformLocation(this._render,"u_time"),night:gl.getUniformLocation(this._render,"u_night"),
+        tint:gl.getUniformLocation(this._render,"u_tint"),
+        deep:gl.getUniformLocation(this._render,"u_deep"),shallow:gl.getUniformLocation(this._render,"u_shallow"),
+        specMul:gl.getUniformLocation(this._render,"u_specMul"),fresMul:gl.getUniformLocation(this._render,"u_fresMul"),
+        caustMul:gl.getUniformLocation(this._render,"u_caustMul"),alphaMul:gl.getUniformLocation(this._render,"u_alphaMul"),
+      },
     };
 
     this._fb=[this._mkTex(gl),this._mkTex(gl)];
@@ -166,17 +186,23 @@ class PuddleWaterSim{
     gl.drawArrays(gl.TRIANGLE_STRIP,0,4);
   }
 
+  setPreset(name){
+    const p=PRESETS[name]||PRESETS.puddle;
+    this._preset=name;
+    this._p=p;
+  }
+
   setNight(n){ this._night=clamp(n,0,1); }
-  setTint(r,g,b){ this._tint=[r,g,b]; }
 
   splash(u,v,amp,radius){
     if(!this.ok) return;
     this._splashQ.push({u:clamp(u,0.04,0.96),v:clamp(v,0.04,0.96),amp:amp||0.14,radius:radius||0.05});
   }
 
-  splashAtWorld(wx,wy,amp){
-    const u=((wx*0.013+this.t*0.07)%1+1)%1;
-    const v=((wy*0.011-this.t*0.05)%1+1)%1;
+  splashAtWorld(wx,wy,amp,scale){
+    const sc=scale||0.013;
+    const u=((wx*sc+this.t*0.07)%1+1)%1;
+    const v=((wy*sc*0.9-this.t*0.05)%1+1)%1;
     this.splash(u,v,amp||0.10,0.035+Math.random()*0.03);
   }
 
@@ -215,17 +241,26 @@ class PuddleWaterSim{
     this._ping=next;
 
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);
-    gl.useProgram(this._render);
+    const p=this._p||PRESETS.puddle;
+    const ren=this._render;
+    gl.useProgram(ren);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D,this._fb[this._ping].tex);
     gl.uniform1i(this._loc.render.height,0);
     gl.uniform2fv(this._loc.render.texel,texel);
     gl.uniform1f(this._loc.render.time,this.t);
     gl.uniform1f(this._loc.render.night,this._night);
-    gl.uniform3fv(this._loc.render.tint,this._tint);
-    this._draw(this._render);
+    gl.uniform3fv(this._loc.render.tint,p.tint);
+    gl.uniform3fv(this._loc.render.deep,p.deep);
+    gl.uniform3fv(this._loc.render.shallow,p.shallow);
+    gl.uniform1f(this._loc.render.specMul,p.spec);
+    gl.uniform1f(this._loc.render.fresMul,p.fres);
+    gl.uniform1f(this._loc.render.caustMul,p.caust);
+    gl.uniform1f(this._loc.render.alphaMul,p.alpha);
+    this._draw(ren);
   }
 }
 
 global.PuddleWaterSim=PuddleWaterSim;
+global.PuddleWaterPresets=PRESETS;
 })(typeof window!=="undefined"?window:globalThis);

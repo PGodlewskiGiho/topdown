@@ -1294,6 +1294,7 @@ function drawWaterGlobal(ox,oy){
     const wg=ctx.createLinearGradient(0,oy,0,oy+VH); wg.addColorStop(0,"#2c6c97"); wg.addColorStop(0.55,"#286888"); wg.addColorStop(1,"#1f5278"); ctx.fillStyle=wg; ctx.fill();
     ctx.save(); ctx.clip();
     applyWaterPattern("water_lake",ox,oy,t,0.62);
+    if(typeof applyWaterSimInClip==="function") applyWaterSimInClip("lake",0.58,0.006);
     tintWaterDepth(polys,lakeScore,[8,28,48],[40,100,130]);
     drawShallowWater(polys,lakeScore,ox,oy,t);
     const wy=(x,ry)=> ry + Math.sin(x*0.10 - t*1.4 + ry*0.05)*2.6 + Math.sin(x*0.045 + ry*0.09 + t*0.8)*2.0;
@@ -1365,6 +1366,7 @@ function drawWater(L){
   const wg=ctx.createLinearGradient(x0,y0,x0,y0+hh); wg.addColorStop(0,"#2c6c97"); wg.addColorStop(1,"#235c87");
   ctx.fillStyle=wg; ctx.fill();
   ctx.save(); ctx.clip();                                                      // surface detail clipped to the water shape
+  if(typeof applyWaterSimInClip==="function") applyWaterSimInClip("lake",0.55,0.007);
   ctx.fillStyle="rgba(15,46,74,.30)"; for(const r of L.ripples){ ctx.beginPath(); ctx.ellipse(r.x,r.y,r.w*0.62,r.w*0.32,0,0,7); ctx.fill(); }
   const wy=(x,ry)=> ry + Math.sin(x*0.10 - t*1.4 + ry*0.05)*2.6 + Math.sin(x*0.045 + ry*0.09 + t*0.8)*2.0;
   ctx.strokeStyle="rgba(13,40,66,.42)"; ctx.lineWidth=2.2; ctx.beginPath();
