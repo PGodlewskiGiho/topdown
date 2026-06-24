@@ -11,9 +11,18 @@ const SHIRT=["#3a6ea5","#a4513f","#4f7d4a","#7a5fa0","#b59a3f","#5a5e66","#a85a7
 const SHIRT_DARK=["#3a3540","#2e3a44","#43352e","#33403a","#4a3340"];
 const HAIR=["#2a1c10","#4a3018","#6a4a22","#9a7838","#cdbb88","#6a6a6a","#141414","#b04a2a"];
 const HATCOL=["#b5483b","#3f5b86","#d8a93f","#3f7d5a","#222222","#e0e0e0","#7a4d6b"];
+function assignTrafficLane(c, width){
+  if(c.laneSide==null) c.laneSide=rng()<0.5?1:-1;
+  if(c.laneIdx==null) c.laneIdx=(rng()*roadLanesPerSide(width))|0;
+}
+function trafficRoadOffset(c, width, taper){
+  taper=taper==null?1:taper;
+  assignTrafficLane(c, width);
+  return c.laneSide*trafficLaneOffset(width, c.laneIdx)*taper;
+}
 function placeTrafficOnEdge(c){
   const g=edgeGeom(c.ai,c.aj,c.bi,c.bj), p=bez(g.p0,g.cp,g.p1,c.t), tn=bezTan(g.p0,g.cp,g.p1,c.t), tl=Math.hypot(tn[0],tn[1])||1;
-  const off=g.e.width*0.22;                               // keep to one side of the road
+  const off=trafficRoadOffset(c, g.e.width, 1);
   c.x=p[0]-tn[1]/tl*off; c.y=p[1]+tn[0]/tl*off; c.a=Math.atan2(tn[1],tn[0]);
 }
 function spawnTrafficCell(){
@@ -251,10 +260,11 @@ function updateTrafficCar(c,dt){
       enterRoundabout(c);
     } else if(c.t>=1){
       const nb=pickExit(c.ai,c.aj,c.bi,c.bj); c.ai=c.bi; c.aj=c.bj; c.bi=nb[0]; c.bj=nb[1]; c.t=0;
+      c.laneIdx=null; c.laneSide=null;
     } else {
       const tn2=bezTan(g.p0,g.cp,g.p1,c.t), tl2=Math.hypot(tn2[0],tn2[1])||1, fx2=tn2[0]/tl2, fy2=tn2[1]/tl2;
       const taper=Math.max(0,Math.min(1, c.t/0.18, (1-c.t)/0.18));      // lane offset fades to 0 at nodes -> no sideways jump on turns
-      const off=g.e.width*0.22*taper, p=bez(g.p0,g.cp,g.p1,c.t);
+      const off=trafficRoadOffset(c, g.e.width, taper), p=bez(g.p0,g.cp,g.p1,c.t);
       c.x=p[0]-fy2*off; c.y=p[1]+fx2*off;
       let ta=Math.atan2(fy2,fx2), da=ta-c.a; while(da>Math.PI)da-=6.283185307; while(da<-Math.PI)da+=6.283185307; c.a+=da*Math.min(1,9*dt);   // smooth heading through curves
     }

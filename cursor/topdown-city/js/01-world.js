@@ -5,6 +5,7 @@
 // buildings (towers 20-50 m, bloki 10-200 m) fit inside a block, off the roads.
 const ROAD = 200, BLOCK = 1050, GAP = BLOCK+ROAD;
 const ROADCOL = "#33363c";
+const ROAD_LANE_W = 78;                         // ~3.5 m lane (matches markings + traffic AI)
 // Each car: type (silhouette) + era (classic boxy / modern) + a palette of
 // colour variants. `colors` are the body-paint options; first is the default.
 const CARS=[
@@ -336,9 +337,15 @@ function isMountain(i,j){
   return cellElev(i,j)>(b==="desert"?0.84:0.80);
 }
 function elevation(i,j){ return cellElev(i,j); }                   // legacy alias
-const ROADCLR={ hwy:"#3a3d44", art:"#34373d", st:"#33363c", rural:"#4a4438", dirt:"#5a4f3c", trail:"#5a4838" };
+const ROADCLR={ hwy:"#3a3d44", blvd:"#353840", art:"#34373d", st:"#33363c", rural:"#4a4438", dirt:"#5a4f3c", trail:"#5a4838" };
+function roadLanesPerSide(width){ return Math.max(1, Math.round((width*0.5-6)/ROAD_LANE_W)); }
+function trafficLaneOffset(width, laneIdx){
+  const lanes=roadLanesPerSide(width);
+  const idx=((laneIdx%lanes)+lanes)%lanes;
+  return ROAD_LANE_W*(idx+0.5);
+}
 function roadBendFrac(klass,i,j,di,dj){
-  const base={hwy:0.034, art:0.062, st:0.098, rural:0.17, dirt:0.24, trail:0.30}[klass];
+  const base={hwy:0.030, blvd:0.026, art:0.048, st:0.082, rural:0.17, dirt:0.24, trail:0.30}[klass];
   const roll=hsh(i*5+di*2,j*3+dj*4,31);
   let mul=1;
   if(roll<0.30) mul=1.9+roll*0.85;
@@ -352,7 +359,7 @@ function roadBendFrac(klass,i,j,di,dj){
   }
   return base*mul;
 }
-function roadBendCap(klass){ return {hwy:108, art:128, st:132, rural:96, dirt:90, trail:84}[klass]; }
+function roadBendCap(klass){ return {hwy:112, blvd:96, art:118, st:128, rural:96, dirt:90, trail:84}[klass]; }
 function computeRoadBendOff(i,j,di,dj,klass,len,h2){
   const cap=roadBendCap(klass);
   let off=(h2*2-1)*len*roadBendFrac(klass,i,j,di,dj);
@@ -423,10 +430,20 @@ function getEdge(i,j,di,dj){
   if(!isHwy && terrainSlope((x1+x2)/2,(y1+y2)/2)>0.0036 && h1<0.74) exists=false;
   let klass;
   if(isHwy) klass="hwy";
-  else if(city){ const cc=nearestCity(i,j); klass = cc.dist < cc.R*0.3 ? "art" : (h2<0.3?"art":"st"); }
+  else if(city){
+    const zA=cityZone(i,j), zB=cityZone(ii,jj);
+    if(zA==="downtown"||zB==="downtown") klass="blvd";
+    else if(zA==="midrise"||zB==="midrise") klass="art";
+    else klass = h2<0.28 ? "art" : "st";
+    if(!isHwy){
+      const dense=zA==="downtown"||zA==="midrise"||zB==="downtown"||zB==="midrise";
+      if(dense) exists = h1>0.04;
+      else exists = h1>0.07;
+    }
+  }
   else if(bA==="forest"&&bB==="forest") klass="trail";
   else klass = (bA==="forest"||bB==="forest") ? "rural" : (h2<0.5?"rural":"dirt");
-  const WR={hwy:[230,290], art:[160,210], st:[120,156], rural:[70,104], dirt:[52,80], trail:[40,58]}[klass];
+  const WR={hwy:[380,520], blvd:[460,500], art:[300,400], st:[220,310], rural:[88,120], dirt:[64,92], trail:[48,68]}[klass];
   const width=Math.round(WR[0]+h3*(WR[1]-WR[0]));
   const dx=x2-x1,dy=y2-y1, len=Math.hypot(dx,dy)||1;
   let off=computeRoadBendOff(i,j,di,dj,klass,len,h2);
@@ -449,14 +466,14 @@ function getEdge(i,j,di,dj){
       else exists=false;
     }
   }
-  const markings=(klass==="hwy"||klass==="art"||klass==="st");
+  const markings=(klass==="hwy"||klass==="blvd"||klass==="art"||klass==="st");
   e={exists,width,klass,cp,col:bridge?"#6a5848":ROADCLR[klass], markings,len, bulge:Math.abs(off), bridge, hwy:isHwy};
   edgeCache.set(key,e); return e;
 }
 function neighbors(i,j){ const r=[]; for(const[di,dj]of EDIRS) if(getEdge(i,j,di,dj).exists) r.push([i+di,j+dj]); return r; }
 function nodeDegree(i,j){ let d=0; for(const[di,dj]of EDIRS) if(getEdge(i,j,di,dj).exists) d++; return d; }
 function nodeMaxWidth(i,j){ let m=0; for(const[di,dj]of EDIRS){ const e=getEdge(i,j,di,dj); if(e.exists)m=Math.max(m,e.width);} return m; }
-function nodeIsCity(i,j){ if(biomeOf(i,j)==="city") return true; for(const[di,dj]of EDIRS){ const e=getEdge(i,j,di,dj); if(e.exists&&(e.klass==="art"||e.klass==="st")) return true; } return false; }
+function nodeIsCity(i,j){ if(biomeOf(i,j)==="city") return true; for(const[di,dj]of EDIRS){ const e=getEdge(i,j,di,dj); if(e.exists&&(e.klass==="blvd"||e.klass==="art"||e.klass==="st")) return true; } return false; }
 
 // roundabouts at occasional busy city intersections (spaced out)
 function isRoundabout(i,j){
@@ -656,18 +673,16 @@ function drawRoads(ox,oy){
     }
   }
   // centre-line markings (yellow) + white dashed lane dividers (one per lane, ~3.5 m)
-  const LANE_W=78;
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
     for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||!e.markings||e.bridge) continue;
       if(isRoundabout(i,j)||isRoundabout(i+di,j+dj)) continue;
-      // white lane dividers between the centre line and each curb
-      const halfLanes=Math.max(1,Math.round((e.width*0.5-6)/LANE_W));
-      for(let k=1;k<=halfLanes;k++){ const off=k*LANE_W;
+      const halfLanes=Math.max(1, Math.round((e.width*0.5-6)/ROAD_LANE_W));
+      for(let k=1;k<=halfLanes;k++){ const off=k*ROAD_LANE_W;
         if(off>e.width*0.5-8) break;
         strokeEdgeOffset(i,j,di,dj, off,1.4,"rgba(225,228,233,.55)",[20,24]);
         strokeEdgeOffset(i,j,di,dj,-off,1.4,"rgba(225,228,233,.55)",[20,24]);
       }
-      if(e.hwy) strokeEdge(i,j,di,dj,4,"rgba(222,206,96,.9)");
+      if(e.hwy||e.klass==="blvd") strokeEdge(i,j,di,dj,4,"rgba(222,206,96,.9)");
       else strokeEdge(i,j,di,dj,3,"rgba(216,197,74,.75)",[18,28]);
     }
   }
@@ -881,15 +896,18 @@ function plotBuilding(i,j){
   // pure hash functions (nX/nY/nearestCity/hsh).
   const SIDEWALK_MIN = 26;                       // narrowest downtown sidewalk (kerb -> wall)
   // A city edge's class (art vs st) depends on a per-edge hash we cannot resolve here
-  // without calling getEdge (which would recurse). getEdge widths: art 160-210, st 120-156,
-  // hwy 230-290. Reserve for the widest road that could run along each specific edge.
-  const CITY_HALF_MAX = 210 * 0.5 + 4;          // widest city road (art) half + small margin
-  const HWY_HALF_MAX  = 290 * 0.5 + 4;          // widest highway half + small margin
-  // The edge from node (ci,cj) in direction (di,dj) is a highway iff it lies on a
-  // highway corridor (mirrors getEdge's isHwy test, which is pure).
+  // without calling getEdge (which would recurse). getEdge widths: blvd 460-500 (6 lanes),
+  // art 300-400, st 220-310, hwy 380-520.
+  const BLVD_HALF_MAX = 500 * 0.5 + 6;
+  const CITY_HALF_MAX = 400 * 0.5 + 4;
+  const HWY_HALF_MAX  = 520 * 0.5 + 4;
   const edgeHalfW = (ci,cj,di,dj) => {
     const isHwy = (di===1&&dj===0&&hwCorridorH(cj)) || (di===0&&dj===1&&hwCorridorV(ci));
-    return isHwy ? HWY_HALF_MAX : CITY_HALF_MAX;
+    if(isHwy) return HWY_HALF_MAX;
+    const z=cityZone(ci,cj);
+    if(z==="downtown") return BLVD_HALF_MAX;
+    if(z==="midrise") return CITY_HALF_MAX;
+    return CITY_HALF_MAX * 0.82;
   };
   // recursion-safe EXACT inward reach of a road's bezier centerline along the edge from
   // node (ci,cj) in direction (di,dj), but only sampled within a world-space span
@@ -901,7 +919,7 @@ function plotBuilding(i,j){
     const x1=nX(ci,cj), y1=nY(ci,cj), x2=nX(ci+di,cj+dj), y2=nY(ci+di,cj+dj);
     const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy)||1;
     const h2=hsh(ci+dj,cj+di,13);
-    const klass=isHwy?"hwy":"art";
+    const klass=isHwy?"hwy":"blvd";
     let off=computeRoadBendOff(ci,cj,di,dj,klass,len,h2);
     const cpx=(x1+x2)/2+(-dy/len)*off, cpy=(y1+y2)/2+(dx/len)*off;
     // running axis is perpendicular to the tracked axis: for vertical edges (dir 0,1)
@@ -949,7 +967,7 @@ function plotBuilding(i,j){
   [bx0,by0,bx1,by1] = computeRect(bx0,bx1, by0,by1);
   // recursion-safe roundabout radius estimate at a NODE (i,j). Mirrors the pure part
   // of isRoundabout's gate; uses a worst-case node width so we never under-reserve.
-  const RB_NODE_W = 290;                          // widest possible road (hwy) -> max node width
+  const RB_NODE_W = 520;
   const maybeRoundaboutR = (ni,nj) => {
     const inter = isInterchange(ni,nj);
     // pure gate: interchanges are always roundabouts; city nodes only when hash passes
@@ -1603,7 +1621,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=31;
+const LOT_CACHE_VER=32;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 
 const FOREST_MUSHROOMS=["shroom_red","shroom_brown","shroom_tan","shroom_puff","shroom_lilac","shroom_shelf"];
