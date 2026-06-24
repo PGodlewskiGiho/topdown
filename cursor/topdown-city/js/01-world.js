@@ -1119,7 +1119,10 @@ function coniferOutline(r){
 // cel-shaded at draw time (shadow SE, mid fill, highlight NW) — no dots, no noise.
 function canopyLobes(r,kind){
   const j=(v)=>v+(r()-0.5)*0.04;
-  if(kind==="bush") return [{ox:j(0),oy:j(0),lr:0.56},{ox:j(-0.22),oy:j(0.12),lr:0.38},{ox:j(0.20),oy:j(0.10),lr:0.34}];
+  if(kind==="bush") return [
+    {ox:j(0),oy:j(-0.18),lr:0.52},{ox:j(-0.20),oy:j(-0.06),lr:0.44},{ox:j(0.18),oy:j(-0.04),lr:0.42},
+    {ox:j(-0.10),oy:j(0.14),lr:0.36},{ox:j(0.12),oy:j(0.16),lr:0.34},
+  ];
   if(kind==="birch") return [{ox:j(0),oy:j(-0.22),lr:0.42},{ox:j(0),oy:j(0.10),lr:0.36},{ox:j(-0.12),oy:j(-0.04),lr:0.28}];
   if(kind==="oak") return [{ox:j(-0.04),oy:j(-0.06),lr:0.52},{ox:j(0.32),oy:j(0.08),lr:0.44},{ox:j(-0.30),oy:j(0.12),lr:0.40},{ox:j(0.06),oy:j(-0.24),lr:0.36}];
   if(kind==="maple") return [{ox:j(-0.02),oy:j(-0.10),lr:0.54},{ox:j(0.28),oy:j(0.06),lr:0.46},{ox:j(-0.28),oy:j(0.10),lr:0.42},{ox:j(0.04),oy:j(-0.22),lr:0.38}];
@@ -1133,9 +1136,9 @@ function makeTree(x,y,s,r,forceKind,opts){
   const kind=forceKind||(city?(s<24?"bush":"deciduous"):pickForestKind(opts.fi??0,opts.fj??0,r));
   const t={x,y,s,t:"tree",kind,forest:!city,city:city};
   if(kind==="bush"){
-    t.H=s*0.34; t.crownR=s*0.30; t.trunk={tw:s*0.10,frac:0.12};
-    t.outline=leafyOutline(r,0.74,6+(r()*3|0),0.20);
-    t.lobes=canopyLobes(r,"bush"); t.hitR=Math.max(s*0.16,5); return t;
+    t.H=s*0.54; t.crownR=s*0.38; t.trunk={tw:s*0.09,frac:0.22};
+    t.outline=leafyOutline(r,0.96,7+(r()*2|0),0.18);
+    t.lobes=canopyLobes(r,"bush"); t.hitR=Math.max(s*0.18,6); return t;
   }
   if(kind==="pine"||kind==="spruce"){
     const spr=kind==="spruce";
@@ -1259,7 +1262,7 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=19;
+const LOT_CACHE_VER=20;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
 function getLot(i,j){
   const key=i+","+j+","+LOT_CACHE_VER; let lot=lotCache.get(key); if(lot) return lot;

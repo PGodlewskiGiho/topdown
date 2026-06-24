@@ -1283,7 +1283,7 @@ function treeLean(t){
 function treeWindAt(t,u){
   const H=t.H||t.s*0.6, ph=((t.x*0.019+t.y*0.013)%6.283), ph2=ph*1.618+t.s*0.011;
   const h=u*u, kind=t.kind||"deciduous";
-  const k=kind==="pine"||kind==="spruce"?0.86:kind==="bush"?0.52:kind==="birch"?1.08:kind==="willow"?0.96:kind==="maple"?1.02:1.0;
+  const k=kind==="pine"||kind==="spruce"?0.86:kind==="bush"?0.68:kind==="birch"?1.08:kind==="willow"?0.96:kind==="maple"?1.02:1.0;
   const amp=H*(typeof windAmp!=="undefined"?windAmp:0.12)*h*k*0.55;
   const wt=typeof windT!=="undefined"?windT:0;
   const wx=Math.sin(wt*1.42+ph)*amp+Math.sin(wt*2.38+ph2)*amp*0.22;
@@ -1301,17 +1301,18 @@ function treeScreenBox(t){
 }
 function treeVisible(p,cl,cr,ct,cb){ const b=treeScreenBox(p); return b.maxX>=cl&&b.minX<=cr&&b.maxY>=ct&&b.minY<=cb; }
 // ── PNG tree sprites (Pillow-generated, assets/trees/*.png) ──────────────
+const TREE_ASSET_V=2;
 const TREE_SPRITE={ready:false,meta:null,img:{}};
 window.TREE_SPRITE=TREE_SPRITE;
 (function loadTreeSprites(){
-  fetch("assets/trees/meta.json").then(r=>r.json()).then(meta=>{
+  fetch("assets/trees/meta.json?v="+TREE_ASSET_V).then(r=>r.json()).then(meta=>{
     TREE_SPRITE.meta=meta;
     const kinds=Object.keys(meta.kinds); let left=kinds.length||0;
     if(!left){ TREE_SPRITE.ready=true; return; }
     for(const k of kinds){
       const im=new Image();
       im.onload=im.onerror=()=>{ if(--left<=0) TREE_SPRITE.ready=true; };
-      im.src="assets/trees/"+meta.kinds[k].file;
+      im.src="assets/trees/"+meta.kinds[k].file+"?v="+TREE_ASSET_V;
       TREE_SPRITE.img[k]=im;
     }
   }).catch(()=>{});
@@ -1332,8 +1333,8 @@ function treeKindMeta(kind){
 function treeSpriteScale(t){
   const m=treeKindMeta(t.kind||"deciduous");
   const H=t.H||t.s*0.6;
-  // Lock scale to lean height so PNG keeps native aspect — never squash to match crownR width.
   let sc=(H*TREE_LEAN_DEPTH*treeDepthK(t))/(m.height||128);
+  if(t.kind==="bush") sc*=1.18;
   sc=Math.round(sc*4)/4;
   return Math.max(0.35, sc);
 }
@@ -1383,15 +1384,16 @@ function treeRand(t){
   return ()=>{ s=(s*1664525+1013904223)>>>0; return s/4294967296; };
 }
 // Chrono Trigger sphere-clump: shadow blob (SE offset) → mid fill → NW highlight cap.
-function drawCTLobe(map,R,pal,ox,oy,lr){
+function drawCTLobe(map,R,pal,ox,oy,lr,round){
   const q=map(ox,oy,1,0,0), rr=lr*R;
   const lit=-ox*0.68-oy*0.52;
-  ctx.fillStyle=pal.m;                                              // subtle underside (leaf clusters add the real shading)
-  ctx.beginPath(); ctx.ellipse(q[0]+rr*0.08,q[1]+rr*0.10,rr*0.92,rr*0.62,0,0,7); ctx.fill();
-  ctx.fillStyle=lit>0.10?pal.l:pal.m;                               // body never goes full-dark (avoids black holes)
-  ctx.beginPath(); ctx.ellipse(q[0],q[1],rr,rr*0.70,0,0,7); ctx.fill();
-  ctx.fillStyle=lit>0.05?pal.h:pal.l;                               // gentle form light (stipple adds the sparkle)
-  ctx.beginPath(); ctx.ellipse(q[0]-rr*0.24,q[1]-rr*0.22,rr*0.34,rr*0.24,0,0,7); ctx.fill();
+  const sy=round?0.88:0.62, my=round?0.92:0.70, hy=round?0.36:0.24;
+  ctx.fillStyle=pal.m;
+  ctx.beginPath(); ctx.ellipse(q[0]+rr*0.08,q[1]+rr*0.10,rr*0.92,rr*sy,0,0,7); ctx.fill();
+  ctx.fillStyle=lit>0.10?pal.l:pal.m;
+  ctx.beginPath(); ctx.ellipse(q[0],q[1],rr,rr*my,0,0,7); ctx.fill();
+  ctx.fillStyle=lit>0.05?pal.h:pal.l;
+  ctx.beginPath(); ctx.ellipse(q[0]-rr*0.24,q[1]-rr*0.22,rr*0.34,rr*hy,0,0,7); ctx.fill();
 }
 // Chrono Trigger foliage: a dense stipple of small flat-toned leaf specks across the crown. Tone is
 // picked by NW light + a per-speck roll, so lit areas read bright and shaded areas dark WITHOUT the
@@ -1520,7 +1522,7 @@ function drawTreeCanopy(cx,cy,t,lod){
     ctx.closePath(); };
   ctx.fillStyle=pal.d; path(1.05,R*0.02,R*0.10); ctx.fill();          // shaded underside (expanded, sits behind = soft edge, no hard outline)
   ctx.fillStyle=pal.m; path(1.0,0,0); ctx.fill();                     // mid body
-  if(t.lobes){ const lb=t.lobes.slice().sort((a,b)=>b.oy-a.oy); for(const L of lb) drawCTLobe(map,R,pal,L.ox,L.oy,L.lr); }
+  if(t.lobes){ const lb=t.lobes.slice().sort((a,b)=>b.oy-a.oy); const round=t.kind==="bush"; for(const L of lb) drawCTLobe(map,R,pal,L.ox,L.oy,L.lr,round); }
   if(!lod) drawFoliageStipple(map,R,pal,t);                           // dense leaf-speck thicket (no outline)
 }
 function drawProps(L){

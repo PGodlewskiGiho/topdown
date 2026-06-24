@@ -391,10 +391,21 @@ def make_bush(variant: int = 0) -> Image.Image:
     pal = {k: hex_rgb(v) for k, v in {
         "dk": "#0a2010", "d": "#183820", "m": "#287830", "l": "#409040", "h": "#58a848", "hi": "#70c050"
     }.items()}
+    browns = {k: hex_rgb(v) for k, v in {"dk": "#281808", "d": "#382818", "m": "#483020", "l": "#604830"}.items()}
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
-    clusters = [(CX - s(12), s(68), s(20), s(14)), (CX + s(10), s(66), s(18), s(12)), (CX, s(58), s(22), s(16))]
-    draw_canopy_clusters(draw, clusters, r, pal, sc(65))
+    # Rounder clusters (ry≈rx), stacked vertically — reads as a bushy mound, not a flat mat
+    clusters = [
+        (CX - s(16), s(46), s(19), s(18)),
+        (CX + s(14), s(44), s(18), s(17)),
+        (CX, s(36), s(24), s(22)),
+        (CX - s(10), s(58), s(17), s(16)),
+        (CX + s(11), s(57), s(16), s(15)),
+    ]
+    draw_canopy_clusters(
+        draw, clusters, r, pal, sc(72),
+        trunk_collar=(CX, s(72), s(14), s(12)), browns=browns, trunk_w=s(5),
+    )
     return img
 
 
