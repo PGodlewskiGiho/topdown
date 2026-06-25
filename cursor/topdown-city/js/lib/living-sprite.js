@@ -1,9 +1,17 @@
-/* living-sprite.js — shared 8-dir facing, walk phase for living entities */
+/* living-sprite.js — shared 8-dir facing, animation state for living entities */
 (function(global){
 "use strict";
 
 /** Screen coords: atan2(dy,dx) → E=0, S=π/2, W=π, N=−π/2 */
 const DIR=["E","SE","S","SW","W","NW","N","NE"];
+
+const DEFAULT_ANIMS={
+  walk:{frames:16,fps:12,loop:true},
+  run:{frames:16,fps:18,loop:true},
+  swim:{frames:16,fps:10,loop:true},
+  death:{frames:16,fps:10,loop:false,hold_last:true},
+  gun:{frames:16,fps:12,loop:true},
+};
 
 function snap8Index(a){
   const d=((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
@@ -24,7 +32,6 @@ function dirNameFromDelta(dx,dy){
   return dirNameFromAngle(Math.atan2(dy,dx));
 }
 
-/** Set facing from movement input or displacement; keeps last dir when idle. */
 function setFacingFromDelta(entity,dx,dy){
   const dir=dirNameFromDelta(dx,dy);
   if(dir){
@@ -39,6 +46,10 @@ function isMoving(entity, threshold){
   return Math.hypot(entity.vx||0,entity.vy||0)>t;
 }
 
+function speedOf(entity){
+  return Math.hypot(entity.vx||0,entity.vy||0);
+}
+
 function facingAngle(entity){
   const vx=entity.vx||0, vy=entity.vy||0;
   if(Math.hypot(vx,vy)>0.5) return Math.atan2(vy,vx);
@@ -47,7 +58,6 @@ function facingAngle(entity){
   return 0;
 }
 
-/** Prefer live input/velocity; keep _faceDir only when idle. */
 function resolveDir(entity, opts){
   opts=opts||{};
   if(opts.keys){
@@ -73,22 +83,52 @@ function dirName(entity){
   return resolveDir(entity);
 }
 
-function walkPhase(entity){
-  const mv=Math.hypot(entity.vx||0,entity.vy||0);
+function animMeta(anim, meta){
+  if(meta&&meta.animations&&meta.animations[anim]) return meta.animations[anim];
+  return DEFAULT_ANIMS[anim]||DEFAULT_ANIMS.walk;
+}
+
+/** walk / run / swim / death / gun */
+function animName(entity, opts){
+  opts=opts||{};
+  if(opts.down||entity.state==="down") return "death";
+  if(entity.swimming) return "swim";
+  if(entity.hostile||entity.armed||entity.weapon!=null) return "gun";
+  const walkSpd=entity.walk||96;
+  const spd=speedOf(entity);
+  const running=typeof keys!=="undefined"&&keys["shift"]&&entity===ped;
+  if(running||spd>walkSpd*1.12) return "run";
+  return "walk";
+}
+
+function animFrame(entity, anim, meta){
+  const cfg=animMeta(anim, meta);
+  const frames=cfg.frames||16;
+  const fps=cfg.fps||12;
+  if(anim==="death"){
+    const t=entity.downT!=null?entity.downT:0;
+    return Math.min(frames-1, Math.floor(t*fps));
+  }
+  if(speedOf(entity)<0.35&&anim!=="gun") return 0;
   const time=entity.previewT!=null?entity.previewT:performance.now()*0.001;
-  return mv>0.5?((Math.sin(time*13)>0)?1:0):0;
+  return Math.floor(time*fps)%frames;
+}
+
+function walkPhase(entity){
+  return animFrame(entity, "walk")%2;
 }
 
 function walkFrameName(entity, down){
-  if(down) return "walk0";
-  return "walk"+walkPhase(entity);
+  const anim=animName(entity,{down});
+  return anim+"/"+frameTag(animFrame(entity, anim));
 }
+
+function frameTag(fi){ return "f"+String(fi).padStart(2,"0"); }
 
 function syncFacing(entity){
   return setFacingFromDelta(entity, entity.vx||0, entity.vy||0);
 }
 
-/** Resolve 8-dir label for draw; opts: {keys,isPlayer} */
 function spriteDir(entity, opts){
   opts=opts||{};
   if(opts.keys){
@@ -104,8 +144,10 @@ const LivingSprite={
   DIR,
   snap8Index, snap8Angle, snap8:snap8Angle,
   dirNameFromAngle, dirNameFromDelta, setFacingFromDelta,
-  facingAngle, dirName, resolveDir, spriteDir, walkPhase, walkFrameName,
-  isMoving, syncFacing,
+  facingAngle, dirName, resolveDir, spriteDir,
+  animName, animFrame, animMeta, speedOf,
+  walkPhase, walkFrameName, frameTag, isMoving, syncFacing,
+  DEFAULT_ANIMS,
 };
 global.LivingSprite=LivingSprite;
 })(typeof window!=="undefined"?window:globalThis);

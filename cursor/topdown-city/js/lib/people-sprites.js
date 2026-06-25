@@ -1,11 +1,10 @@
-/* people-sprites.js — GTA2 modular PNG pedestrians (relative paths, baked composites) */
+/* people-sprites.js — GTA2 modular PNG pedestrians (16 frames × 8 dirs per anim) */
 (function(global){
 "use strict";
 
-const BUILD=2026062701;
+const BUILD=2026062704;
 
-const META_URL="assets/people/gta2/meta.json";
-const ASSETS_BASE="assets/people/gta2/parts/bodies/";
+let resolvedRoot=null;
 
 const GO=global.Gta2Outfit;
 const LS=global.LivingSprite;
@@ -22,11 +21,39 @@ const BUILD_SCALE={
   hardy:{sx:1.12,sy:1.08},
 };
 
+function candidateRoots(){
+  const roots=[];
+  if(typeof location!=="undefined"){
+    const path=location.pathname||"";
+    if(path.includes("cursor/topdown-city")) roots.push("");
+    const m=path.match(/^(.*\/cursor\/topdown-city\/)/);
+    if(m) roots.push(m[1]);
+    const m2=path.match(/^(.*\/topdown\/)/);
+    if(m2){
+      roots.push(m2[1]+"cursor/topdown-city/");
+      roots.push(m2[1]);
+    }
+  }
+  if(!roots.includes("")) roots.push("");
+  const out=[];
+  for(const r of roots){
+    const n=r.endsWith("/")?r:(r?r+"/":"");
+    if(!out.includes(n)) out.push(n);
+  }
+  return out;
+}
+
+function rootPrefix(){ return resolvedRoot!=null?resolvedRoot:""; }
+function metaUrl(){ return rootPrefix()+"assets/people/gta2/meta.json"; }
+function assetsBase(){ return rootPrefix()+"assets/people/gta2/parts/bodies/"; }
+
 function outfitKey(o){
   return [o.body,o.shirt,o.pants,o.skin,o.hair||"none"].join("|");
 }
 
-function bakeKey(o,wf,dir){ return outfitKey(o)+"|"+wf+"|"+dir; }
+function frameTag(fi){ return "f"+String(fi).padStart(2,"0"); }
+
+function bakeKey(o, anim, fi, dir){ return outfitKey(o)+"|"+anim+"|"+fi+"|"+dir; }
 
 function queueImg(path, onload){
   if(!path) return;
@@ -53,22 +80,28 @@ function getImg(path){
 
 function init(){
   if(loadP) return loadP;
-  loadP=fetch(META_URL+"?v="+BUILD)
-    .then(r=>{
-      if(!r.ok) throw new Error("meta:"+r.status+" "+META_URL);
-      return r.json();
-    })
-    .then(m=>{
-      meta=m;
-      ready=true;
-      warmDefault();
-      return m;
-    })
-    .catch(e=>{
-      console.warn("PeopleSprites meta load failed",e,META_URL);
-      ready=false;
-      throw e;
-    });
+  loadP=(async()=>{
+    let lastErr=null;
+    for(const root of candidateRoots()){
+      try{
+        const url=root+"assets/people/gta2/meta.json?v="+BUILD;
+        const r=await fetch(url);
+        if(!r.ok){ lastErr=new Error("meta:"+r.status+" "+url); continue; }
+        const m=await r.json();
+        if(resolvedRoot!==root){
+          resolvedRoot=root;
+          for(const k in baked) delete baked[k];
+        }
+        meta=m;
+        ready=true;
+        warmDefault();
+        return m;
+      }catch(e){ lastErr=e; }
+    }
+    console.warn("PeopleSprites meta load failed",lastErr,metaUrl());
+    ready=false;
+    throw lastErr||new Error("meta load failed");
+  })();
   return loadP;
 }
 
@@ -79,17 +112,23 @@ function warmDefault(){
   const dirs=meta.directions||(LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]);
   const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
   for(const d of dirs){
-    prefetchOutfit(sample,"walk0",d);
-    prefetchOutfit(sample,"walk1",d);
+    prefetchOutfit(sample,"walk",0,d);
+    prefetchOutfit(sample,"walk",1,d);
+  }
+}
+
+function prefetchAnimRing(o, anim, direction, centerFi){
+  const frames=(meta&&meta.animations&&meta.animations[anim]&&meta.animations[anim].frames)||16;
+  const c=centerFi!=null?centerFi:0;
+  for(let i=0;i<4;i++){
+    const fi=(c+i)%frames;
+    prefetchOutfit(o, anim, fi, direction);
   }
 }
 
 function prefetchAllDirections(o){
   const dirs=meta.directions||(LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]);
-  for(const d of dirs){
-    prefetchOutfit(o,"walk0",d);
-    prefetchOutfit(o,"walk1",d);
-  }
+  for(const d of dirs) prefetchAnimRing(o,"walk",d,0);
 }
 
 function resolveOutfit(p){
@@ -122,7 +161,8 @@ function resolveOutfit(p){
   return o;
 }
 
-function layerPaths(o, wf, direction){
+function layerPaths(o, anim, fi, direction){
+  const tag=frameTag(fi);
   const order=meta.layer_order||["shoes","pants","arms","torso","skin","hair"];
   const b=o.body||"male";
   const map={
@@ -137,21 +177,19 @@ function layerPaths(o, wf, direction){
   for(const k of order){
     const rel=map[k];
     if(!rel) continue;
-    out.push(ASSETS_BASE+b+"/"+rel+"/"+wf+"/"+direction+".png");
+    out.push(assetsBase()+b+"/"+rel+"/"+anim+"/"+tag+"/"+direction+".png");
   }
   return out;
 }
 
-function prefetchOutfit(o, wf, direction){
-  for(const path of layerPaths(o, wf, direction)) queueImg(path, ()=>tryBake(o, wf, direction));
-  const alt=wf==="walk0"?"walk1":"walk0";
-  for(const path of layerPaths(o, alt, direction)) queueImg(path);
+function prefetchOutfit(o, anim, fi, direction){
+  for(const path of layerPaths(o, anim, fi, direction)) queueImg(path, ()=>tryBake(o, anim, fi, direction));
 }
 
-function tryBake(o, wf, dir){
-  const key=bakeKey(o,wf,dir);
+function tryBake(o, anim, fi, dir){
+  const key=bakeKey(o, anim, fi, dir);
   if(baked[key]) return baked[key];
-  const paths=layerPaths(o, wf, dir);
+  const paths=layerPaths(o, anim, fi, dir);
   const layers=[];
   for(const path of paths){
     const im=getImg(path);
@@ -167,9 +205,9 @@ function tryBake(o, wf, dir){
   return c;
 }
 
-function getBaked(o, wf, dir){
-  const key=bakeKey(o,wf,dir);
-  return baked[key]||tryBake(o,wf,dir);
+function getBaked(o, anim, fi, dir){
+  const key=bakeKey(o, anim, fi, dir);
+  return baked[key]||tryBake(o, anim, fi, dir);
 }
 
 function buildMul(o, p){
@@ -180,10 +218,50 @@ function buildMul(o, p){
 
 function clamp(v,a,b){ return v<a?a:v>b?b:v; }
 
+function pickDrawDir(p, forced){
+  const isPlayer=typeof ped!=="undefined"&&p===ped&&typeof mode!=="undefined"&&mode==="foot";
+  if(LS&&LS.spriteDir){
+    const live=LS.spriteDir(p, isPlayer&&typeof keys!=="undefined"?{keys,isPlayer:true}:{});
+    if(live) return live;
+  }
+  if(forced&&typeof forced==="string") return forced;
+  if(p._faceDir) return p._faceDir;
+  if(p._spriteDir) return p._spriteDir;
+  return "S";
+}
+
+function drawDirLayers(c, o, anim, fi, dir, ax, ay, sx, sy, bm){
+  const paths=layerPaths(o, anim, fi, dir);
+  let drew=false;
+  for(const path of paths){
+    const im=getImg(path);
+    if(!im){
+      queueImg(path);
+      continue;
+    }
+    drew=true;
+    c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
+  }
+  return drew;
+}
+
 function dirAngle(dir){
   if(!LS||!LS.DIR) return Math.PI/2;
   const i=LS.DIR.indexOf(dir);
   return (i>=0?i:2)*(Math.PI/4);
+}
+
+function resolveAnim(p, down){
+  if(LS&&LS.animName) return LS.animName(p,{down});
+  if(down||p.state==="down") return "death";
+  if(p.swimming) return "swim";
+  if(p.hostile||p.armed||p.weapon!=null) return "gun";
+  return "walk";
+}
+
+function resolveFrame(p, anim){
+  if(LS&&LS.animFrame) return LS.animFrame(p, anim, meta);
+  return 0;
 }
 
 function drawComposite(c, p, down, forcedDir){
@@ -197,9 +275,12 @@ function drawComposite(c, p, down, forcedDir){
   const ay=(meta.anchor||[11,21])[1]*sc;
   c.imageSmoothingEnabled=false;
 
-  const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down):"walk0";
-  const dir=(forcedDir&&typeof forcedDir==="string")?forcedDir:"S";
-  prefetchOutfit(o, wf, dir);
+  const anim=resolveAnim(p, down);
+  const fi=resolveFrame(p, anim);
+  const dir=pickDrawDir(p, forcedDir);
+  p._spriteDir=dir;
+  p._faceDir=dir;
+  prefetchAnimRing(o, anim, dir, fi);
 
   const ang=dirAngle(dir);
   c.save();
@@ -208,26 +289,10 @@ function drawComposite(c, p, down, forcedDir){
   c.fillRect(-8*sc, 3*sc, 16*sc, 4*sc);
   c.restore();
 
-  const bakedIm=getBaked(o, wf, dir);
-  if(bakedIm){
-    c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
-  } else {
-    let drew=false;
-    for(const path of layerPaths(o, wf, dir)){
-      const im=getImg(path);
-      if(!im) continue;
-      drew=true;
-      c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
-    }
-    if(!drew) return;
-  }
-
-  if(down){
-    c.save();
-    c.rotate(Math.PI/2);
-    c.fillStyle="rgba(0,0,0,.2)";
-    c.fillRect(-5*sc, 0, 10*sc, 4*sc);
-    c.restore();
+  if(!drawDirLayers(c, o, anim, fi, dir, ax, ay, sx, sy, bm)){
+    const bakedIm=getBaked(o, anim, fi, dir);
+    if(bakedIm) c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
+    else return;
   }
 
   if(p.hostile){
@@ -251,7 +316,7 @@ const PeopleSprites={
   get meta(){ return meta; },
   resolveOutfit,
   dirName(p){ return p._spriteDir||"S"; },
-  walkFrame(p){ return LS?LS.walkPhase(p):0; },
+  walkFrame(p){ return LS?LS.animFrame(p,"walk",meta):0; },
   facingAngle(p){ return LS?LS.facingAngle(p):0; },
 };
 global.PeopleSprites=PeopleSprites;

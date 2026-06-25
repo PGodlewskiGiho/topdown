@@ -5,15 +5,19 @@
 <title>TOPDOWN CITY</title>
 <script>
 (function(){
-  var target="/topdown/?v=2026062701";
-  if(location.pathname.indexOf("cursor/topdown-city")>=0){
-    target="index.html?v=2026062701";
+  var build="2026062703";
+  var path=location.pathname||"";
+  if(path.indexOf("cursor/topdown-city")>=0){
+    location.replace("index.html?v="+build);
+    return;
   }
-  location.replace(target);
+  var base=path.replace(/\/index\.html$/, "");
+  if(!base.endsWith("/")) base+="/";
+  location.replace(base+"cursor/topdown-city/?v="+build);
 })();
 </script>
 </head>
 <body>
-<p><a href="https://pgodlewskigiho.github.io/topdown/?v=2026062701">TOPDOWN CITY</a></p>
+<p><a href="https://pgodlewskigiho.github.io/topdown/cursor/topdown-city/?v=2026062703">TOPDOWN CITY</a></p>
 </body>
 </html>

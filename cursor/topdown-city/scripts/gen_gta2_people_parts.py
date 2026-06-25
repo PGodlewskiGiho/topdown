@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GTA2 modular pedestrian parts — palette-index masks, body types, skirts."""
+"""GTA2 modular pedestrians — south STY frames rotated to 8 dirs, 16 frames per anim set."""
 from __future__ import annotations
 
 import json
@@ -17,19 +17,25 @@ STY = os.environ.get("GTA2_STY", "/tmp/bil.sty")
 CANVAS = (22, 22)
 ANCHOR = (11, 21)
 DIR_NAMES = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"]
+FRAMES_PER_DIR = 16
 BODY_TYPES = ("male", "female", "hardy")
 
-# GTA2 ped walk cycle: 8 directions clockwise from South, 2 frames each
-FRAME_DIR_WALK = [
-    ("S", 0), ("S", 1),
-    ("SE", 0), ("SE", 1),
-    ("E", 0), ("E", 1),
-    ("NE", 0), ("NE", 1),
-    ("N", 0), ("N", 1),
-    ("NW", 0), ("NW", 1),
-    ("W", 0), ("W", 1),
-    ("SW", 0), ("SW", 1),
-]
+# South-facing STY ped sprite indices (bil.sty civilian remap 27)
+ANIM_SOURCES: dict[str, list[int]] = {
+    "walk": list(range(0, 8)) + list(range(0, 8)),
+    "run": list(range(8, 16)) + list(range(8, 16)),
+    "swim": list(range(224, 240)),
+    "death": list(range(96, 112)),
+    "gun": list(range(128, 144)),
+}
+
+ANIM_META = {
+    "walk": {"fps": 12, "loop": True},
+    "run": {"fps": 18, "loop": True},
+    "swim": {"fps": 10, "loop": True},
+    "death": {"fps": 10, "loop": False, "hold_last": True},
+    "gun": {"fps": 12, "loop": True},
+}
 
 REMAP_META = {
     27: {"shirt": "blue", "pants": "jeans"},
@@ -79,22 +85,45 @@ LAYER_EXTRA = {
     "hardy": {"torsos": (1.06, 1.05), "arms": (1.10, 1.04), "pants": (1.10, 1.06), "shoes": (1.06, 1.0)},
 }
 
+PART_DIRS = {
+    "torso": "torsos",
+    "skin": "skins",
+    "hair": "hairs",
+    "arms": "arms",
+    "pants": "pants",
+    "shoes": "shoes",
+}
+
+
+def all_sty_indices() -> list[int]:
+    out: list[int] = []
+    for ids in ANIM_SOURCES.values():
+        out.extend(ids)
+    return sorted(set(out))
+
+
+def sty_indices_arg() -> str:
+    return ",".join(str(i) for i in all_sty_indices())
+
 
 def export_frames(remap_id: int, out_dir: str):
     os.makedirs(out_dir, exist_ok=True)
     export_js = "/tmp/export_gta2_indices.mjs"
-    if not os.path.isfile(export_js):
-        shutil.copy(os.path.join(SCRIPTS, "export_gta2_indices.mjs"), export_js)
-    subprocess.run(["node", export_js, STY, out_dir, str(remap_id)], check=True, cwd="/tmp")
+    shutil.copy(os.path.join(SCRIPTS, "export_gta2_indices.mjs"), export_js)
+    subprocess.run(
+        ["node", export_js, STY, out_dir, str(remap_id), sty_indices_arg()],
+        check=True,
+        cwd="/tmp",
+    )
 
 
-def load_indices(frames_dir: str, idx: int) -> list[list[int]]:
-    with open(os.path.join(frames_dir, f"frame_{idx:02d}.idx.json"), encoding="utf-8") as f:
+def load_indices(frames_dir: str, sty_idx: int) -> list[list[int]]:
+    with open(os.path.join(frames_dir, f"frame_{sty_idx:03d}.idx.json"), encoding="utf-8") as f:
         return json.load(f)["indices"]
 
 
-def load_rgba_frame(frames_dir: str, idx: int) -> Image.Image:
-    return Image.open(os.path.join(frames_dir, f"frame_{idx:02d}.png")).convert("RGBA")
+def load_rgba_frame(frames_dir: str, sty_idx: int) -> Image.Image:
+    return Image.open(os.path.join(frames_dir, f"frame_{sty_idx:03d}.png")).convert("RGBA")
 
 
 def part_for_pixel(idx: int, x: int, y: int) -> str | None:
@@ -133,9 +162,9 @@ def mask_from_layer(layer: Image.Image) -> list[list[bool]]:
     return [[px[x, y][3] > 0 for x in range(CANVAS[0])] for y in range(CANVAS[1])]
 
 
-def build_masks(frames_dir: str) -> dict[int, dict[str, list[list[bool]]]]:
-    masks = {}
-    for i in range(16):
+def build_masks(frames_dir: str, sty_indices: list[int]) -> dict[int, dict[str, list[list[bool]]]]:
+    masks: dict[int, dict[str, list[list[bool]]]] = {}
+    for i in sty_indices:
         layers = split_layers(load_indices(frames_dir, i), load_rgba_frame(frames_dir, i))
         masks[i] = {k: mask_from_layer(v) for k, v in layers.items()}
     return masks
@@ -151,12 +180,21 @@ def apply_mask(src: Image.Image, mask: list[list[bool]]) -> Image.Image:
     return out
 
 
-def part_path(body: str, part: str, variant: str, walk: str, direction: str) -> str:
-    return os.path.join(PARTS, body, part, variant, walk, f"{direction}.png")
+def rotate_to_dir(layer: Image.Image, direction: str) -> Image.Image:
+    idx = DIR_NAMES.index(direction)
+    angle = (idx - 2) * 45
+    if angle == 0:
+        return layer.copy()
+    return layer.rotate(angle, center=ANCHOR, resample=Image.NEAREST, fillcolor=(0, 0, 0, 0))
 
 
-def save_part(body: str, part: str, variant: str, walk: str, direction: str, layer: Image.Image):
-    path = part_path(body, part, variant, walk, direction)
+def part_path(body: str, part: str, variant: str, anim: str, frame_i: int, direction: str) -> str:
+    folder = PART_DIRS.get(part, part)
+    return os.path.join(PARTS, body, folder, variant, anim, f"f{frame_i:02d}", f"{direction}.png")
+
+
+def save_part(body: str, part: str, variant: str, anim: str, frame_i: int, direction: str, layer: Image.Image):
+    path = part_path(body, part, variant, anim, frame_i, direction)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     layer.save(path, "PNG")
 
@@ -178,25 +216,30 @@ def scale_layer(im: Image.Image, sx: float, sy: float, ax: int = ANCHOR[0], ay: 
     return out
 
 
-def extract_all(masks: dict, frame_cache: dict[int, dict[int, Image.Image]]):
-    for i in range(16):
-        direction, walk_i = FRAME_DIR_WALK[i]
-        wf = f"walk{walk_i}"
-        m = masks[i]
+def extract_anim_set(masks: dict, frame_cache: dict[int, dict[int, Image.Image]], anim: str, sty_frames: list[int]):
+    for fi, sty_idx in enumerate(sty_frames[:FRAMES_PER_DIR]):
+        m = masks[sty_idx]
+        south: dict[str, Image.Image] = {}
 
         for shirt_id, rid in SHIRT_REMAP.items():
-            src = frame_cache[rid][i]
-            save_part("male", "torsos", shirt_id, wf, direction, apply_mask(src, m["torso"]))
-            save_part("male", "arms", shirt_id, wf, direction, apply_mask(src, m["arms"]))
+            src = frame_cache[rid][sty_idx]
+            south[f"torso:{shirt_id}"] = apply_mask(src, m["torso"])
+            south[f"arms:{shirt_id}"] = apply_mask(src, m["arms"])
 
         for pants_id, rid in PANTS_REMAP.items():
-            src = frame_cache[rid][i]
-            save_part("male", "pants", pants_id, wf, direction, apply_mask(src, m["pants"]))
-            save_part("male", "shoes", pants_id, wf, direction, apply_mask(src, m["shoes"]))
+            src = frame_cache[rid][sty_idx]
+            south[f"pants:{pants_id}"] = apply_mask(src, m["pants"])
+            south[f"shoes:{pants_id}"] = apply_mask(src, m["shoes"])
 
-        src27 = frame_cache[BASE_REMAP][i]
-        save_part("male", "skins", "medium", wf, direction, apply_mask(src27, m["skin"]))
-        save_part("male", "hairs", "brown", wf, direction, apply_mask(src27, m["hair"]))
+        src27 = frame_cache[BASE_REMAP][sty_idx]
+        south["skin:medium"] = apply_mask(src27, m["skin"])
+        south["hair:brown"] = apply_mask(src27, m["hair"])
+
+        for direction in DIR_NAMES:
+            for key, layer in south.items():
+                part, variant = key.split(":", 1)
+                rotated = rotate_to_dir(layer, direction)
+                save_part("male", part, variant, anim, fi, direction, rotated)
 
 
 def recolor_layer(im: Image.Image, src_rgb, dst_rgb, tol=48) -> Image.Image:
@@ -255,14 +298,14 @@ def build_body_variants():
                 src = os.path.join(root, fn)
                 rel = os.path.relpath(src, male_root)
                 part = rel.split(os.sep)[0]
-                bsx, bsy = extras.get(part, (sx, sy))
+                part_key = PART_DIRS.get(part, part)
+                bsx, bsy = extras.get(part_key, extras.get(part, (sx, sy)))
                 dst = os.path.join(PARTS, body, rel)
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 scale_layer(Image.open(src).convert("RGBA"), bsx, bsy).save(dst)
 
 
 def pants_to_skirt(pants: Image.Image, flare: float = 1.22) -> Image.Image:
-    """Lower-body flare skirt from jeans silhouette."""
     out = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
     px, opx = pants.load(), out.load()
     ax, ay = ANCHOR
@@ -294,11 +337,9 @@ def build_skirts(body: str = "female"):
             for skirt_id, rgb in SKIRT_VARIANTS.items():
                 dst = os.path.join(PARTS, body, "pants", skirt_id, rel)
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
-                # recolor from dominant jeans blue
                 recolor_layer(skirt_shape, (35, 43, 59), rgb, tol=80).save(dst)
                 shoes_dst = os.path.join(PARTS, body, "shoes", skirt_id, rel)
                 os.makedirs(os.path.dirname(shoes_dst), exist_ok=True)
-                # shoes from jeans shoes, slightly narrowed
                 shoes = scale_layer(
                     Image.open(os.path.join(PARTS, body, "shoes", "jeans", rel)).convert("RGBA"),
                     0.95, 1.0,
@@ -306,10 +347,8 @@ def build_skirts(body: str = "female"):
                 recolor_layer(shoes, (35, 43, 59), rgb, tol=80).save(shoes_dst)
 
 
-def composite_frame(outfit, frame_i: int, scale: int = 6) -> Image.Image:
+def composite_frame(outfit: dict, anim: str, frame_i: int, direction: str, scale: int = 6) -> Image.Image:
     body = outfit.get("body", "male")
-    direction, walk_i = FRAME_DIR_WALK[frame_i]
-    wf = f"walk{walk_i}"
     canvas = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
     for part, key in [
         ("shoes", outfit["pants"]),
@@ -319,7 +358,7 @@ def composite_frame(outfit, frame_i: int, scale: int = 6) -> Image.Image:
         ("skins", outfit["skin"]),
         ("hairs", outfit["hair"]),
     ]:
-        fp = part_path(body, part, key, wf, direction)
+        fp = part_path(body, part, key, anim, frame_i, direction)
         if os.path.isfile(fp):
             canvas = Image.alpha_composite(canvas, Image.open(fp).convert("RGBA"))
     if scale != 1:
@@ -336,13 +375,16 @@ def write_meta():
         {"id": "skirt_navy", "gender": "female"},
     ]
     meta = {
-        "version": 3,
+        "version": 4,
         "style": "gta2",
         "size": list(CANVAS),
         "anchor": list(ANCHOR),
         "directions": DIR_NAMES,
-        "walk_frames": 2,
-        "total_frames": 16,
+        "frames_per_dir": FRAMES_PER_DIR,
+        "animations": {
+            k: {"frames": FRAMES_PER_DIR, "source_south": v, **ANIM_META[k]}
+            for k, v in ANIM_SOURCES.items()
+        },
         "body_types": [{"id": b} for b in BODY_TYPES],
         "builds": [
             {"id": "slim", "sx": 0.88, "sy": 1.02},
@@ -376,22 +418,21 @@ def write_previews():
     scale = 6
     fw, fh = CANVAS[0] * scale, CANVAS[1] * scale
     pad = 4
-    cols = 8
-    sheet_h = len(BODY_PREVIEW) * (2 * (fh + pad) + pad) + pad
-    sheet = Image.new("RGBA", (cols * (fw + pad) + pad, sheet_h), (18, 16, 22, 255))
-    for combo_i, combo in enumerate(BODY_PREVIEW):
-        row_img = Image.new("RGBA", (cols * (fw + pad) + pad, 2 * (fh + pad) + pad), (0, 0, 0, 0))
-        for fi in range(16):
-            col, row = fi % cols, fi // cols
-            im = composite_frame(combo, fi, scale)
-            row_img.paste(im, (pad + col * (fw + pad), pad + row * (fh + pad)), im)
+    cols = FRAMES_PER_DIR
+    for combo in BODY_PREVIEW:
+        row_h = len(ANIM_SOURCES) * (fh + pad) + pad
+        row_img = Image.new("RGBA", (cols * (fw + pad) + pad, row_h), (18, 16, 22, 255))
+        y = pad
+        for ai, anim in enumerate(ANIM_SOURCES):
+            for fi in range(FRAMES_PER_DIR):
+                im = composite_frame(combo, anim, fi, "S", scale)
+                row_img.paste(im, (pad + fi * (fw + pad), y), im)
+            y += fh + pad
         row_img.save(os.path.join(PREVIEWS, f"{combo['id']}.png"))
-        sheet.paste(row_img, (pad, pad + combo_i * (2 * (fh + pad) + pad)), row_img)
-    sheet.save(os.path.join(PREVIEWS, "combinations_sheet.png"))
 
 
-def verify_masks(frames_dir: str, masks: dict):
-    for i in range(16):
+def verify_masks(frames_dir: str, masks: dict, sty_indices: list[int]):
+    for i in sty_indices:
         orig = load_rgba_frame(frames_dir, i)
         m = masks[i]
         rebuilt = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
@@ -400,23 +441,28 @@ def verify_masks(frames_dir: str, masks: dict):
         opx, rpx = orig.load(), rebuilt.load()
         miss = sum(1 for y in range(CANVAS[1]) for x in range(CANVAS[0]) if opx[x, y][3] and not rpx[x, y][3])
         if miss:
-            print(f"frame {i}: unmatched pixels miss={miss}")
+            print(f"sty {i}: unmatched pixels miss={miss}")
 
 
 def main():
+    if not os.path.isfile(STY):
+        raise SystemExit(f"Missing STY: {STY} (set GTA2_STY=...)")
     tmp = os.path.join(ROOT, "parts", "_frames")
     if os.path.isdir(PARTS):
         shutil.rmtree(PARTS)
+    sty_indices = all_sty_indices()
     frame_cache: dict[int, dict[int, Image.Image]] = {}
     for remap_id in set(REMAP_META) | {BASE_REMAP}:
         fd = os.path.join(tmp, str(remap_id))
         export_frames(remap_id, fd)
-        frame_cache[remap_id] = {i: load_rgba_frame(fd, i) for i in range(16)}
+        frame_cache[remap_id] = {i: load_rgba_frame(fd, i) for i in sty_indices}
 
     base_dir = os.path.join(tmp, str(BASE_REMAP))
-    masks = build_masks(base_dir)
-    verify_masks(base_dir, masks)
-    extract_all(masks, frame_cache)
+    masks = build_masks(base_dir, sty_indices)
+    verify_masks(base_dir, masks, sty_indices)
+    for anim, ids in ANIM_SOURCES.items():
+        print("extract", anim, len(ids), "south frames ->", len(DIR_NAMES), "dirs x", FRAMES_PER_DIR)
+        extract_anim_set(masks, frame_cache, anim, ids)
     build_color_variants("male")
     build_body_variants()
     for body in BODY_TYPES:
