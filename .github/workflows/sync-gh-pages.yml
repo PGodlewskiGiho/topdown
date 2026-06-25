@@ -14,17 +14,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: main
 
-      - name: Push game files to gh-pages root
+      - name: Copy game from main (before switching branches)
+        run: |
+          cp -a cursor/topdown-city/. /tmp/topdown-game/
+          echo "{\"build\":\"$(date -u +%Y%m%d)\",\"people\":7}" > /tmp/topdown-game/version.json
+          touch /tmp/topdown-game/.nojekyll
+
+      - name: Push to gh-pages
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git fetch origin gh-pages || true
           git checkout -B gh-pages origin/gh-pages 2>/dev/null || git checkout --orphan gh-pages
-          find . -mindepth 1 -maxdepth 1 ! -name '.git' ! -name 'cursor' ! -name '.github' -exec rm -rf {} +
-          cp -r cursor/topdown-city/* .
-          echo "{\"build\":\"$(date -u +%Y%m%d)\",\"people\":${People2D_BUILD:-7}}" > version.json
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp -a /tmp/topdown-game/. .
           git add -A
           git diff --staged --quiet && echo "No changes" && exit 0
           git commit -m "Auto-sync from main $(git rev-parse --short HEAD)"
