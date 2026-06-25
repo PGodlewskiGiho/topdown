@@ -48,6 +48,16 @@ function rootPrefix(){ return resolvedRoot!=null?resolvedRoot:gameBase(); }
 function metaUrl(){ return rootPrefix()+"assets/people/gta2/meta.json"; }
 function assetsBase(){ return rootPrefix()+"assets/people/gta2/parts/bodies/"; }
 
+const GTA2_FRAME_DIRS=["SE","E","NE","N","NW","W","SW","S"];
+const LEGACY_FILE_DIRS=["S","SE","E","NE","N","NW","W","SW"];
+
+/** Map game facing (atan2) to on-disk folder names from legacy export labels. */
+function fileDirForGame(gameDir){
+  const p=GTA2_FRAME_DIRS.indexOf(gameDir);
+  if(p<0) return gameDir;
+  return LEGACY_FILE_DIRS[p];
+}
+
 function outfitKey(o){
   return [o.body,o.shirt,o.pants,o.skin,o.hair||"none"].join("|");
 }
@@ -160,6 +170,7 @@ function layerPaths(o, wf, direction){
   const order=meta.layer_order||["shoes","pants","arms","torso","skin","hair"];
   const b=o.body||"male";
   const base=assetsBase();
+  const fileDir=fileDirForGame(direction);
   const map={
     shoes:"shoes/"+o.pants,
     pants:"pants/"+o.pants,
@@ -172,7 +183,7 @@ function layerPaths(o, wf, direction){
   for(const k of order){
     const rel=map[k];
     if(!rel) continue;
-    out.push(base+b+"/"+rel+"/"+wf+"/"+direction+".png");
+    out.push(base+b+"/"+rel+"/"+wf+"/"+fileDir+".png");
   }
   return out;
 }

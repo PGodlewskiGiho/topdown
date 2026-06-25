@@ -98,6 +98,18 @@ function evalLivingSpriteDirTests() {
     );
     if (!existsSync(layer)) fail(`missing GTA2 direction PNG: walk0/${d}.png`);
   }
+
+  const gameToLegacy = { S: "SW", SE: "S", E: "SE", NE: "E", N: "NE", NW: "N", W: "NW", SW: "W" };
+  for (const [gameDir, legacyDir] of Object.entries(gameToLegacy)) {
+    const legacyPath = path.join(
+      siteRoot,
+      "assets/people/gta2/parts/bodies/male/skins/medium/walk0",
+      `${legacyDir}.png`
+    );
+    if (!existsSync(legacyPath)) {
+      fail(`missing legacy GTA2 sprite for game dir ${gameDir}: walk0/${legacyDir}.png`);
+    }
+  }
 }
 
 const forbiddenRootIndex = path.join(repoRoot, "index.html");

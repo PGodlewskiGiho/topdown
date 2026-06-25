@@ -19,17 +19,13 @@ ANCHOR = (11, 21)
 DIR_NAMES = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"]
 BODY_TYPES = ("male", "female", "hardy")
 
-# GTA2 ped walk cycle: 8 directions clockwise from South, 2 frames each
-FRAME_DIR_WALK = [
-    ("S", 0), ("S", 1),
-    ("SE", 0), ("SE", 1),
-    ("E", 0), ("E", 1),
-    ("NE", 0), ("NE", 1),
-    ("N", 0), ("N", 1),
-    ("NW", 0), ("NW", 1),
-    ("W", 0), ("W", 1),
-    ("SW", 0), ("SW", 1),
-]
+# GTA2 ped walk cycle: 8 directions clockwise from South, 2 frames each.
+# STY export frame order is SE,E,NE,N,NW,W,SW,S — not S-first.
+GTA2_FRAME_DIRS = ["SE", "E", "NE", "N", "NW", "W", "SW", "S"]
+FRAME_DIR_WALK = []
+for _d in GTA2_FRAME_DIRS:
+    FRAME_DIR_WALK.append((_d, 0))
+    FRAME_DIR_WALK.append((_d, 1))
 
 REMAP_META = {
     27: {"shirt": "blue", "pants": "jeans"},
