@@ -301,8 +301,8 @@ function drawSpeech(p){
   ctx.globalAlpha=1;
 }
 function drawPerson(p,color,down,targetCtx){
+  if(typeof PeopleSprites!=="undefined"&&PeopleSprites.ready){ PeopleSprites.draw(targetCtx||ctx,p,color,down); return; }
   if(typeof People2D!=="undefined"){ People2D.draw(targetCtx||ctx,p,color,down); return; }
-  if(typeof Humanoid2D!=="undefined"){ Humanoid2D.draw(targetCtx||ctx,p,color,down); return; }
   const c=targetCtx||ctx;
   const skin=p.skin||"#e8b888", shirt=p.shirt||color;
   c.save(); c.translate(p.x,p.y); c.rotate(p.a);
