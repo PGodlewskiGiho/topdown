@@ -74,7 +74,11 @@ function dirName(entity){
 }
 
 function walkPhase(entity){
-  const mv=Math.hypot(entity.vx||0,entity.vy||0);
+  let mv=Math.hypot(entity.vx||0,entity.vy||0);
+  if(mv<=0.5){
+    const mx=entity._moveDx||0, my=entity._moveDy||0;
+    mv=Math.hypot(mx,my);
+  }
   const time=entity.previewT!=null?entity.previewT:performance.now()*0.001;
   return mv>0.5?((Math.sin(time*13)>0)?1:0):0;
 }

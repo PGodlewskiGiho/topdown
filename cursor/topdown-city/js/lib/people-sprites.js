@@ -2,7 +2,7 @@
 (function(global){
 "use strict";
 
-const BUILD=2026062703;
+const BUILD=2026062704;
 
 const GO=global.Gta2Outfit;
 const LS=global.LivingSprite;
@@ -117,8 +117,10 @@ function pick(arr, seed){ return arr[Math.abs(seed)%arr.length]; }
 function warmDefault(){
   if(!meta) return;
   const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
-  prefetchOutfit(sample,"walk0","S");
-  prefetchOutfit(sample,"walk1","S");
+  for(const d of ["S","E","W","N"]){
+    prefetchOutfit(sample,"walk0",d);
+    prefetchOutfit(sample,"walk1",d);
+  }
 }
 
 function resolveOutfit(p){
@@ -147,6 +149,9 @@ function resolveOutfit(p){
   if(p.hairId) o.hair=p.hairId;
   if(p.hairStyle==="bald"||p.hair==null) o.hair=null;
   p._gta2Outfit=o;
+  const seedDir=p._faceDir||"S";
+  prefetchOutfit(o,"walk0",seedDir);
+  prefetchOutfit(o,"walk1",seedDir);
   return o;
 }
 
@@ -173,6 +178,33 @@ function layerPaths(o, wf, direction){
 
 function prefetchOutfit(o, wf, direction){
   for(const path of layerPaths(o, wf, direction)) queueImg(path, ()=>tryBake(o, wf, direction));
+  const alt=wf==="walk0"?"walk1":"walk0";
+  for(const path of layerPaths(o, alt, direction)) queueImg(path, ()=>tryBake(o, alt, direction));
+}
+
+function allLayersReady(o, wf, dir){
+  for(const path of layerPaths(o, wf, dir)){
+    const im=getImg(path);
+    if(!im) return false;
+  }
+  return true;
+}
+
+function drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm){
+  for(const path of layerPaths(o, wf, dir)){
+    const im=getImg(path);
+    if(!im) return false;
+    c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
+  }
+  return true;
+}
+
+function resolveSpriteDir(p, forcedDir){
+  if(forcedDir&&typeof forcedDir==="string") return forcedDir;
+  if(p._faceDir) return p._faceDir;
+  if(p._spriteDir) return p._spriteDir;
+  if(LS) return LS.resolveDir(p);
+  return "S";
 }
 
 function tryBake(o, wf, dir){
@@ -233,11 +265,12 @@ function drawComposite(c, p, down, forcedDir){
   c.imageSmoothingEnabled=false;
 
   const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down):"walk0";
-  const dir=(forcedDir&&typeof forcedDir==="string")?forcedDir:"S";
+  const dir=resolveSpriteDir(p, forcedDir);
+  p._spriteDir=dir;
   prefetchOutfit(o, wf, dir);
 
-  const bakedIm=getBaked(o, wf, dir);
-  if(!bakedIm) return;
+  let bakedIm=getBaked(o, wf, dir);
+  if(!bakedIm&&allLayersReady(o, wf, dir)) bakedIm=tryBake(o, wf, dir);
 
   const ang=dirAngle(dir);
   c.save();
@@ -246,7 +279,11 @@ function drawComposite(c, p, down, forcedDir){
   c.fillRect(-8*sc, 3*sc, 16*sc, 4*sc);
   c.restore();
 
-  c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
+  if(bakedIm){
+    c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
+  } else if(!drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm)){
+    return;
+  }
 
   if(down){
     c.save();
