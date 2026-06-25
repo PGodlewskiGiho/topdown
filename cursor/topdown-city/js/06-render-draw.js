@@ -172,7 +172,7 @@ function draw(){
   if(typeof drawSunFlareScreen==="function") drawSunFlareScreen();
   drawRain();
   if(typeof perfEnd==="function") perfEnd("night");
-  vignette();
+  if(!(typeof perfSkipVignette==="function" && perfSkipVignette())) vignette();
   drawCrosshair();
   if(typeof perfFrameEnd==="function") perfFrameEnd();
 }

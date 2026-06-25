@@ -1492,6 +1492,7 @@ function drawBear(b){ drawForestMammal(b); }
 
 function updateWildlife(dt){
   const forest=inForestAt(focusX,focusY);
+  if(!forest && typeof perfWildlifeUpdates==="function" && !perfWildlifeUpdates()) return;
   bearTimer-=dt; deerTimer-=dt; wolfTimer-=dt; boarTimer-=dt;
   for(let i=bears.length-1;i>=0;i--){
     updateBear(bears[i],dt);

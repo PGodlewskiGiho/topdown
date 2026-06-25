@@ -18,11 +18,12 @@ function setPauseTab(tab){
   for(const btn of document.querySelectorAll(".pause-tab")){
     btn.classList.toggle("on", btn.dataset.tab===tab);
   }
-  for(const id of ["controls","map","missions","stats"]){
+  for(const id of ["controls","map","missions","perf","stats"]){
     document.getElementById("pause-tab-"+id)?.classList.toggle("hidden", id!==tab);
   }
   if(tab==="missions") refreshPauseMissions();
   if(tab==="stats") refreshPauseStats();
+  if(tab==="perf" && typeof refreshPerfPauseUi==="function") refreshPerfPauseUi();
   if(pauseMapActive){
     if(typeof resizeActiveMap==="function") resizeActiveMap();
     if(typeof drawPauseMap==="function") drawPauseMap();
@@ -72,6 +73,7 @@ function refreshPauseStats(){
     const s=getWorldSeed();
     rows.push(["Świat (seed)", s.toString(16).toUpperCase().padStart(8,"0")]);
   }
+  if(typeof perfQualityLabel==="function") rows.push(["Wydajność", perfQualityLabel()]);
   if(typeof navTarget!=="undefined"&&navTarget){
     const p=typeof playerWorldPos==="function"?playerWorldPos():{x:0,y:0};
     const d=Math.hypot(navTarget.x-p.x,navTarget.y-p.y);
@@ -98,6 +100,7 @@ function togglePauseMenu(force, tab){
   if(typeof firing!=="undefined") firing=false;
   refreshPauseMissions();
   refreshPauseStats();
+  if(typeof refreshPerfPauseUi==="function") refreshPerfPauseUi();
 }
 
 function openPauseTab(tab){
@@ -130,6 +133,13 @@ function initPauseMenu(){
     if(typeof drawPauseMap==="function") drawPauseMap();
   });
   if(pauseMapCv) initPauseMapEvents();
+  const perfBox=document.getElementById("pause-perf-body");
+  perfBox?.addEventListener("click", ev=>{
+    const btn=ev.target.closest("[data-perf]");
+    if(!btn || typeof setPerfQuality!=="function") return;
+    setPerfQuality(btn.dataset.perf);
+  });
+  if(typeof refreshPerfPauseUi==="function") refreshPerfPauseUi();
 }
 
 function initPauseMapEvents(){

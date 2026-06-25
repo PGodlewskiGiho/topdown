@@ -12,7 +12,11 @@ const TERRAIN_PAL={
   city:  {lo:[58,86,52], mid:[66,96,58], hi:[74,106,64]},
 };
 
-function terrainReliefStep(){ return ZOOM>1.65?16:ZOOM>1.15?20:28; }
+function terrainReliefStep(){
+  const forced=typeof perfTerrainStep==="function"?perfTerrainStep():null;
+  if(forced) return forced;
+  return ZOOM>1.65?16:ZOOM>1.15?20:28;
+}
 function terrainLotSkip(L){ return L.water||L.mountain||L.parking||L.mega||L.salon||L.gunshop||L.motodealer; }
 
 function terrainPalette(biome, elev, shade){

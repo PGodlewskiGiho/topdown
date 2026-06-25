@@ -63,6 +63,7 @@
         <button type="button" class="pause-tab on" data-tab="controls">Sterowanie</button>
         <button type="button" class="pause-tab" data-tab="map">Mapa</button>
         <button type="button" class="pause-tab" data-tab="missions">Misje</button>
+        <button type="button" class="pause-tab" data-tab="perf">Wydajność</button>
         <button type="button" class="pause-tab" data-tab="stats">Postęp</button>
       </nav>
       <div class="pause-panels">
@@ -135,6 +136,19 @@
         <div class="pause-panel hidden" id="pause-tab-missions">
           <div class="pause-mission-card" id="pause-mission-body">
             <p class="pause-empty">Ładowanie…</p>
+          </div>
+        </div>
+        <div class="pause-panel hidden" id="pause-tab-perf">
+          <div class="pause-perf-card" id="pause-perf-body">
+            <p class="pause-perf-lead">Wybierz profil grafiki i AI. Na słabszym laptopie użyj <b>Auto</b> lub <b>Średnia</b>.</p>
+            <div class="pause-perf-choices">
+              <button type="button" class="menu-choice" data-perf="auto">Auto</button>
+              <button type="button" class="menu-choice" data-perf="high">Wysoka</button>
+              <button type="button" class="menu-choice" data-perf="medium">Średnia</button>
+              <button type="button" class="menu-choice" data-perf="low">Niska</button>
+            </div>
+            <p class="pause-perf-hint" id="pause-perf-hint">—</p>
+            <p class="pause-perf-note">F3 — profiler klatek · Ctrl+scroll — zoom kamery</p>
           </div>
         </div>
         <div class="pause-panel hidden" id="pause-tab-stats">
@@ -311,6 +325,7 @@
   </div>
 </div>
   <script src="js/00-core.js"></script>
+  <script src="js/56-performance.js"></script>
   <script src="js/00-game.js"></script>
   <script src="js/00-palettes.js"></script>
   <script src="js/01-world.js"></script>

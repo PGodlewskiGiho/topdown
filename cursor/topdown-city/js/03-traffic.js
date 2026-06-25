@@ -106,26 +106,41 @@ function spawnPed(){
 }
 function trafficCap(){
   const ci=Math.round(focusX/GAP), cj=Math.round(focusY/GAP);
-  if(biomeOf(ci,cj)!=="city") return 34;
-  const z=cityZone(ci,cj);
-  if(z==="downtown") return 78;
-  if(z==="midrise") return 58;
-  return 38;
+  let cap;
+  if(biomeOf(ci,cj)!=="city") cap=34;
+  else {
+    const z=cityZone(ci,cj);
+    if(z==="downtown") cap=78;
+    else if(z==="midrise") cap=58;
+    else cap=38;
+  }
+  return Math.max(12, Math.round(cap*(typeof perfEntityScale==="function"?perfEntityScale():1)));
 }
 function pedCap(){
   const ci=Math.round(focusX/GAP), cj=Math.round(focusY/GAP);
-  if(biomeOf(ci,cj)!=="city") return 42;
-  const z=cityZone(ci,cj);
-  if(z==="downtown") return 88;
-  if(z==="midrise") return 68;
-  return 46;
+  let cap;
+  if(biomeOf(ci,cj)!=="city") cap=42;
+  else {
+    const z=cityZone(ci,cj);
+    if(z==="downtown") cap=88;
+    else if(z==="midrise") cap=68;
+    else cap=46;
+  }
+  return Math.max(14, Math.round(cap*(typeof perfEntityScale==="function"?perfEntityScale():1)));
+}
+function trimLivingWorldToCaps(){
+  const tc=trafficCap(), pc=pedCap();
+  while(traffic.length>tc) traffic.pop();
+  while(peds.length>pc) peds.pop();
 }
 function maintainTraffic(){
   const cap=trafficCap();
+  while(traffic.length>cap) traffic.pop();
   while(traffic.length<cap) traffic.push(spawnTrafficCar());
 }
 function maintainPeds(){
   const cap=pedCap();
+  while(peds.length>cap) peds.pop();
   while(peds.length<cap) peds.push(spawnPed());
 }
 const awayFromCam=(x,y)=>Math.hypot(x-cam.x,y-cam.y) > 720;
@@ -138,7 +153,10 @@ function isAhead(c,dx,dy,ox,oy,dist,lat){
 }
 function obstacleAhead(c,dx,dy){
   if(isAhead(c,dx,dy,car.x,car.y,72,24)) return true;
-  for(const o of traffic){ if(o===c||o.state!=="drive") continue; if(isAhead(c,dx,dy,o.x,o.y,64,22)) return true; }
+  const scanR=typeof perfTrafficScanDist==="function"?perfTrafficScanDist():1e9;
+  for(const o of traffic){ if(o===c||o.state!=="drive") continue;
+    if(scanR<1e8 && Math.hypot(o.x-c.x,o.y-c.y)>scanR) continue;
+    if(isAhead(c,dx,dy,o.x,o.y,64,22)) return true; }
   return false;
 }
 function obstacleDistAhead(c,dx,dy){
@@ -148,7 +166,10 @@ function obstacleDistAhead(c,dx,dy){
     if(fwd>0 && fwd<dist && side<lat) best=Math.min(best, fwd);
   };
   scan(car.x,car.y,72,24);
-  for(const o of traffic){ if(o===c||o.state!=="drive") continue; scan(o.x,o.y,64,22); }
+  const scanR=typeof perfTrafficScanDist==="function"?perfTrafficScanDist():1e9;
+  for(const o of traffic){ if(o===c||o.state!=="drive") continue;
+    if(scanR<1e8 && Math.hypot(o.x-c.x,o.y-c.y)>scanR) continue;
+    scan(o.x,o.y,64,22); }
   return best;
 }
 function pickAlternateLane(c, width){
@@ -491,6 +512,7 @@ function pedWalkGraph(p,dt){
   else p.a=Math.atan2(B.fy,B.fx);
 }
 function updateTrafficCar(c,dt){
+  if(typeof perfShouldUpdateEntity==="function" && !perfShouldUpdateEntity(c.x,c.y)) return;
   if(c.maxHp && !c.dead && c.hp>0 && c.hp<c.maxHp*0.08) damageCar(c, 1.4*dt, c.x, c.y, "burn");   // burning -> burns down
   if(c.state==="loose"){ updateLooseCar(c,dt); return; }
   if(c.ring){ updateRoundabout(c,dt); }
@@ -602,6 +624,7 @@ function updateLeaving(dt){
 }
 function drawLeaving(ox,oy){ for(const cpc of leaving){ if(cpc.x<ox-50||cpc.x>ox+VW+50||cpc.y<oy-50||cpc.y>oy+VH+50) continue; drawVehicle(cpc,cpc.color); } }
 function updateNpcPed(p,dt){
+  if(typeof perfShouldUpdateEntity==="function" && !perfShouldUpdateEntity(p.x,p.y) && p.state!=="down" && p.state!=="dying") return;
   const _wx=p.x, _wy=p.y; try{
   if(typeof LivingSprite!=="undefined") LivingSprite.tickAttackClip(p, dt);
   if(p.state==="dying"){

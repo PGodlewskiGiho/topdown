@@ -5,6 +5,12 @@
 // build everything with front = -y then rotate by v.a + PI/2 so forward=+x.
 function drawVehicle(v,color){
   if(v.kind==="moto"||v.kind==="bike"){ drawBike(v); return; }
+  if(typeof perfVehicleLodDist==="function"){
+    const lodD=perfVehicleLodDist();
+    if(lodD<1e8 && Math.hypot(v.x-cam.x,v.y-cam.y)>lodD){
+      drawVehicleSimple(v,color); return;
+    }
+  }
   ctx.save();
   ctx.translate(v.x, v.y);
   if(v.sinking!==undefined){
@@ -400,9 +406,12 @@ function buildingOccludesActor(b){
   // player first (most important)
   if(mode==="foot"){ if(test(ped.x,ped.y)) return true; }
   else if(!car.dead){ if(test(car.x,car.y)) return true; }
+  if(typeof perfLightOcclusion==="function" && perfLightOcclusion()) return false;
+  const skipPeds=typeof perfSkipPedOcclusion==="function" && perfSkipPedOcclusion();
   // traffic & cops near this building
   for(const c of traffic){ if(Math.abs(c.x-x)>w+260||Math.abs(c.y-y)>h+260) continue; if(test(c.x,c.y)) return true; }
   for(const c of cops){ if(Math.abs(c.x-x)>w+260||Math.abs(c.y-y)>h+260) continue; if(test(c.x,c.y)) return true; }
+  if(skipPeds) return false;
   for(const p of peds){ if(Math.abs(p.x-x)>w+260||Math.abs(p.y-y)>h+260) continue; if(test(p.x,p.y)) return true; }
   return false;
 }
@@ -428,6 +437,7 @@ function treeOccludesActor(t){
   else if(!car.dead){ if(Math.abs(car.x-x)<mx&&Math.abs(car.y-y)<mx&&covered(car.x, car.y)) return true; }
   for(const c of traffic){ if(Math.abs(c.x-x)>mx||Math.abs(c.y-y)>mx) continue; if(covered(c.x,c.y)) return true; }
   for(const c of cops){ if(Math.abs(c.x-x)>mx||Math.abs(c.y-y)>mx) continue; if(covered(c.x,c.y)) return true; }
+  if(typeof perfSkipPedOcclusion==="function" && perfSkipPedOcclusion()) return false;
   for(const p of peds){ if(Math.abs(p.x-x)>mx||Math.abs(p.y-y)>mx) continue; if(covered(p.x, p.y)) return true; }
   return false;
 }
@@ -1365,7 +1375,7 @@ function drawClump(x,y,s){
   }
 }
 function drawGrassDetail(L){
-  if(VW>2400) return;
+  if(perfEffectiveVw()>2400) return;
   const cl=cam.x-VW/2-20, cr=cam.x+VW/2+20, ct=cam.y-VH/2-20, cb=cam.y+VH/2+20;
   const usePng=FOREST_GRASS.ready;
   const lotVars=grassVariantsForDraw(L);
@@ -1379,7 +1389,7 @@ function drawGrassDetail(L){
   for(const f of L.flowers){ ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(f.x,f.y,1.7,0,7); ctx.fill(); ctx.fillStyle="rgba(255,255,255,.5)"; ctx.fillRect(f.x-0.4,f.y-0.4,0.9,0.9); }
 }
 function drawForestFloor(L){
-  if(!L.forestFloor||!L.forestFloor.length||VW>1700) return;
+  if(!L.forestFloor||!L.forestFloor.length||perfEffectiveVw()>1700) return;
   const cl=cam.x-VW/2-24, cr=cam.x+VW/2+24, ct=cam.y-VH/2-24, cb=cam.y+VH/2+24;
   for(const d of L.forestFloor){
     if(d.x<cl||d.x>cr||d.y<ct||d.y>cb) continue;
@@ -1453,7 +1463,7 @@ function drawDesertFloraItem(d){
   drawDesertFloraCanvas(d);
 }
 function drawDesertFloor(L){
-  if(!L.desertFloor||!L.desertFloor.length||VW>1700) return;
+  if(!L.desertFloor||!L.desertFloor.length||perfEffectiveVw()>1700) return;
   const cl=cam.x-VW/2-24, cr=cam.x+VW/2+24, ct=cam.y-VH/2-24, cb=cam.y+VH/2+24;
   for(const d of L.desertFloor){
     if(d.x<cl||d.x>cr||d.y<ct||d.y>cb) continue;
@@ -1780,7 +1790,7 @@ function drawTreeGhosted(p, fn){
   else fn(p);
 }
 function drawCanopies(ox,oy){
-  const lod=VW>1500;
+  const lod=perfEffectiveVw()>1500;
   forEachVisibleTree(ox,oy, p=>drawTreeGhosted(p, tp=>drawTreeCanopy(tp.x,tp.y,tp,lod)));
 }
 // ALTTP-style forest canopy shade: dark pool on the ground under the elevated crown mass.
@@ -2093,7 +2103,7 @@ function drawCityTreeFinish(t,ax,ay,R,pal){
   ctx.beginPath(); ctx.ellipse(ax-R*0.22,ay-R*0.28,R*0.22,R*0.14,0,0,7); ctx.fill();
 }
 function drawProps(L){
-  const cl=cam.x-VW/2-34, cr=cam.x+VW/2+34, ct=cam.y-VH/2-34, cb=cam.y+VH/2+34, lod=VW>1500;
+  const cl=cam.x-VW/2-34, cr=cam.x+VW/2+34, ct=cam.y-VH/2-34, cb=cam.y+VH/2+34, lod=perfEffectiveVw()>1500;
   for(const p of L.props){
     if(p.x<cl||p.x>cr||p.y<ct||p.y>cb) continue;                 // off-screen prop: skip
     if(p.t==="cactus"){ drawCactus(p);

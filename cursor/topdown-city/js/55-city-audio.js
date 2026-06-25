@@ -266,8 +266,19 @@ function updateCityAudio(dt){
   if(cityAmbSmooth < 0.02) return;
 
   const rainDuck = 1 - (typeof weatherI !== "undefined" ? weatherI : 0) * 0.45;
-  const pedNear = countNearbyPeds(px, py, 340);
-  const trafficNear = countNearbyTraffic(px, py, 400);
+  const audioHz=typeof perfCityAudioHz==="function"?perfCityAudioHz():0;
+  updateCityAudio._acc=(updateCityAudio._acc||0)+dt;
+  let pedNear, trafficNear;
+  if(audioHz>0 && updateCityAudio._acc<1/audioHz){
+    pedNear=updateCityAudio._pedNear||0;
+    trafficNear=updateCityAudio._trafficNear||0;
+  } else {
+    if(audioHz>0) updateCityAudio._acc=0;
+    pedNear=countNearbyPeds(px, py, 340);
+    trafficNear=countNearbyTraffic(px, py, 400);
+    updateCityAudio._pedNear=pedNear;
+    updateCityAudio._trafficNear=trafficNear;
+  }
 
   const bedVol = (0.014 + trafficNear * 0.0025) * cityAmbSmooth * rainDuck;
   cityBedGain.gain.value += (bedVol - cityBedGain.gain.value) * Math.min(1, 3 * dt);

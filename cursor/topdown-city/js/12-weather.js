@@ -172,7 +172,8 @@ function updateWeather(dt){
   updateRainPuddles(dt);
 }
 function updateRain(dt){
-  const n=Math.floor(weatherI*MAXRAIN);
+  const scale=typeof perfRainScale==="function"?perfRainScale():1;
+  const n=Math.floor(weatherI*MAXRAIN*scale);
   const wf=typeof windFieldAt==="function"?windFieldAt(typeof focusX!=="undefined"?focusX:VW*0.5, typeof focusY!=="undefined"?focusY:VH*0.5):null;
   const wind=120+weatherI*90+windGust*140+(wf?wf.power*80:0);
   const skew=wf?wf.fx*0.35+0.12:0.22+Math.sin(windT*0.9)*0.08;
@@ -236,7 +237,8 @@ function drawRain(){
   g.addColorStop(0.45,`rgba(58,72,90,${(veil*0.85).toFixed(3)})`);
   g.addColorStop(1,`rgba(48,58,72,${(veil*0.95).toFixed(3)})`);
   ctx.fillStyle=g; ctx.fillRect(0,0,VW,VH);
-  const n=Math.floor(intens*MAXRAIN*0.50), base=0.20+intens*0.34;
+  const rainScale=typeof perfRainScale==="function"?perfRainScale():1;
+  const n=Math.floor(intens*MAXRAIN*0.50*rainScale), base=0.20+intens*0.34;
   ctx.lineCap="round";
   for(let L=0;L<3;L++){
     ctx.beginPath();
@@ -329,7 +331,7 @@ function updateLeaves(dt){
     lf.rot+=lf.rotV*dt*(0.6+p*1.4);
     if(Math.hypot(lf.x-focusX,lf.y-focusY)>Math.max(VW,VH)*0.75+220) leaves.splice(i,1);
   }
-  if(!forest||VW>1700||p<0.05) return;
+  if(!forest||perfEffectiveVw()>1700||p<0.05) return;
   const target=Math.round(2+Math.pow(p,1.12)*36);
   leafSpawnT-=dt;
   if(leaves.length<target&&leafSpawnT<=0){
@@ -350,7 +352,7 @@ function drawLeafParticle(lf){
   ctx.restore();
 }
 function drawWindLeaves(ox,oy){
-  if(!leaves.length||VW>1700) return;
+  if(!leaves.length||perfEffectiveVw()>1700) return;
   for(const lf of leaves){
     if(lf.x<ox-30||lf.x>ox+VW+30||lf.y<oy-30||lf.y>oy+VH+30) continue;
     drawLeafParticle(lf);

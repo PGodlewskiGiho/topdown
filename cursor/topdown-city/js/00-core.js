@@ -7,7 +7,9 @@ let ZOOM = 2.0;                            // world magnification (Ctrl+scroll: 
 let DPR = Math.min(2, window.devicePixelRatio || 1);
 let VW = 0, VH = 0;
 function resize(){
-  DPR = Math.min(2, window.devicePixelRatio || 1);
+  let dpr = Math.min(2, window.devicePixelRatio || 1);
+  if(typeof perfMaxDpr==="function") dpr=Math.min(dpr, perfMaxDpr());
+  DPR = dpr;
   VW = window.innerWidth/ZOOM; VH = window.innerHeight/ZOOM;             // visible world size (smaller = zoomed in)
   cv.width = Math.ceil(window.innerWidth/PX); cv.height = Math.ceil(window.innerHeight/PX);   // backing buffer (screen / PX)
   cv.style.width = window.innerWidth+"px"; cv.style.height = window.innerHeight+"px";
