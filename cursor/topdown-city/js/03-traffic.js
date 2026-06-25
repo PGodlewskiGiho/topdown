@@ -233,6 +233,110 @@ function pickExit(ai,aj,bi,bj){                 // next node at B, no U-turn unl
   }
   return ns[(rng()*ns.length)|0];
 }
+
+/* ===== GPS navigation — same lane geometry as traffic AI ===== */
+function navEdgeDrivable(e){
+  return e.exists && e.klass!=="trail" && e.klass!=="dirt";
+}
+function navDriveLaneOffset(width){
+  return trafficLaneOffset(width, 0);
+}
+function navPosOnEdge(ai,aj,bi,bj,t, taper){
+  const g=edgeGeom(ai,aj,bi,bj);
+  const p=bez(g.p0,g.cp,g.p1,t);
+  const tn=bezTan(g.p0,g.cp,g.p1,t), tl=Math.hypot(tn[0],tn[1])||1;
+  const fx=tn[0]/tl, fy=tn[1]/tl;
+  const off=navDriveLaneOffset(g.e.width)*(taper==null?1:taper);
+  return [p[0]-fy*off, p[1]+fx*off];
+}
+function navRoundaboutEdgeT(ri,rj,bi,bj){
+  const g=edgeGeom(ri,rj,bi,bj);
+  const ctr=node(ri,rj), R=roundaboutR(ri,rj);
+  const RR=(R+9)*(R+9);
+  let lo=0, hi=0.55;
+  for(let s=0;s<22;s++){
+    const mt=(lo+hi)*0.5, pp=bez(g.p0,g.cp,g.p1,mt);
+    if((pp[0]-ctr[0])**2+(pp[1]-ctr[1])**2<RR) lo=mt; else hi=mt;
+  }
+  return Math.min(0.52, (lo+hi)*0.5);
+}
+function navRoundaboutArc(ri,rj, fromNode, toNode){
+  const ctr=node(ri,rj), R=roundaboutR(ri,rj)+9;
+  const angIn=Math.atan2(node(fromNode[0],fromNode[1])[1]-ctr[1], node(fromNode[0],fromNode[1])[0]-ctr[0]);
+  const angOut=Math.atan2(node(toNode[0],toNode[1])[1]-ctr[1], node(toNode[0],toNode[1])[0]-ctr[0]);
+  let da=angOut-angIn;
+  while(da<=-Math.PI) da+=Math.PI*2;
+  while(da>Math.PI) da-=Math.PI*2;
+  const steps=Math.max(5, Math.ceil(Math.abs(da)/(Math.PI/9)));
+  const pts=[];
+  for(let s=1;s<steps;s++){
+    const ang=angIn+da*s/steps;
+    pts.push([ctr[0]+Math.cos(ang)*R, ctr[1]+Math.sin(ang)*R]);
+  }
+  return pts;
+}
+function navAppendEdgeSamples(pts, ai,aj,bi,bj, t0, t1){
+  const g=edgeGeom(ai,aj,bi,bj);
+  const steps=Math.max(4, Math.ceil((t1-t0)*((g.e.len||GAP)/16)));
+  const skipFirst=pts.length>0;
+  for(let s=0;s<=steps;s++){
+    const t=t0+(t1-t0)*s/steps;
+    const taper=Math.min(t/0.12, (1-t)/0.12, 1);
+    if(skipFirst&&s===0) continue;
+    pts.push(navPosOnEdge(ai,aj,bi,bj,t,taper));
+  }
+}
+function pickNavExit(fromAi,fromAj,bi,bj, goalI, goalJ){
+  const ns=neighbors(bi,bj).filter(n=>!(n[0]===fromAi&&n[1]===fromAj));
+  if(!ns.length) return [fromAi,fromAj];
+  const eIn=getEdge(fromAi,fromAj,bi-fromAi,bj-fromAj);
+  if(eIn.hwy){
+    const ci=bi+(bi-fromAi), cj=bj+(bj-fromAj);
+    for(const n of ns) if(n[0]===ci&&n[1]===cj){
+      const e2=getEdge(bi,bj,n[0]-bi,n[1]-bj);
+      if(navEdgeDrivable(e2)&&e2.hwy) return n;
+    }
+  }
+  const inDi=bi-fromAi, inDj=bj-fromAj;
+  let best=null, bestScore=-1e18;
+  for(const n of ns){
+    const di=n[0]-bi, dj=n[1]-bj;
+    const e=getEdge(bi,bj,di,dj);
+    if(!navEdgeDrivable(e)) continue;
+    let score=-Math.hypot(nX(n[0],n[1])-nX(goalI,goalJ), nY(n[0],n[1])-nY(goalI,goalJ));
+    if(di===inDi&&dj===inDj) score+=50;
+    else if(di===-inDi&&dj===-inDj) score-=80;
+    if(e.hwy) score+=35;
+    else if(e.klass==="blvd"||e.klass==="art") score+=14;
+    else if(e.klass==="rural") score-=18;
+    if(score>bestScore){ bestScore=score; best=n; }
+  }
+  return best||ns.find(n=>navEdgeDrivable(getEdge(bi,bj,n[0]-bi,n[1]-bj)))||ns[0];
+}
+function navPathNodesToWorld(nodes){
+  if(!nodes||!nodes.length) return [];
+  if(nodes.length===1) return [[nX(nodes[0][0],nodes[0][1]), nY(nodes[0][0],nodes[0][1])]];
+  const pts=[];
+  for(let k=0;k<nodes.length-1;k++){
+    const a=nodes[k], b=nodes[k+1];
+    const di=b[0]-a[0], dj=b[1]-a[1];
+    if(Math.abs(di)+Math.abs(dj)!==1||!navEdgeDrivable(getEdge(a[0],a[1],di,dj))) continue;
+    if(k+2<nodes.length && isRoundabout(b[0],b[1])){
+      const c=nodes[k+2];
+      const di2=c[0]-b[0], dj2=c[1]-b[1];
+      if(Math.abs(di2)+Math.abs(dj2)===1&&navEdgeDrivable(getEdge(b[0],b[1],di2,dj2))){
+        navAppendEdgeSamples(pts, a[0],a[1],b[0],b[1], 0, 0.94);
+        for(const p of navRoundaboutArc(b[0],b[1],a,c)) pts.push(p);
+        const tOut=navRoundaboutEdgeT(b[0],b[1],c[0],c[1]);
+        navAppendEdgeSamples(pts, b[0],b[1],c[0],c[1], tOut, 0.98);
+        k++;
+        continue;
+      }
+    }
+    navAppendEdgeSamples(pts, a[0],a[1],b[0],b[1], 0, 1);
+  }
+  return pts;
+}
 function enterRoundabout(c, ri, rj, fromAi, fromAj, forceEx){
   ri=ri!=null?ri:c.bi; rj=rj!=null?rj:c.bj;
   fromAi=fromAi!=null?fromAi:c.ai; fromAj=fromAj!=null?fromAj:c.aj;

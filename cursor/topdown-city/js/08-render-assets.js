@@ -1312,39 +1312,67 @@ function forestGrassMeta(key){
   if(v) return v;
   return FOREST_GRASS.meta?.variants?.clump_med||{width:52,height:56,anchorX:26,anchorY:55};
 }
+// Lighter than treeWindAt: same wind field, ~4–6× smaller amplitude.
+function grassWindAt(x,y,s){
+  const ph=((x*0.031+y*0.019)%6.283), ph2=ph*1.618+s*0.07;
+  const local=typeof windFieldAt==="function"?windFieldAt(x,y):null;
+  const gust=(typeof windGust!=="undefined"?windGust:0)*0.4;
+  const strength=local?local.power*0.85:((typeof windAmp!=="undefined"?windAmp:0.12)*0.75+gust*0.18);
+  const h=s*3.2;
+  const amp=h*strength*0.24;
+  const wt=typeof windT!=="undefined"?windT:0;
+  const wa=local?local.angle:wt*0.72+ph*0.1;
+  const wx=Math.cos(wa+Math.sin(wt*1.55+ph)*0.3)*amp+Math.sin(wt*2.4+ph2)*amp*0.16;
+  const wy=Math.sin(wa+Math.sin(wt*1.08+ph)*0.18)*amp*0.22+Math.sin(wt*1.15+ph*0.65)*amp*0.05;
+  return [wx,wy];
+}
 function drawForestGrassClump(x,y,s,v){
   const m=forestGrassMeta(v), img=FOREST_GRASS.img[v]||FOREST_GRASS.img.clump_med;
   if(!img||!img.complete||!img.naturalWidth) return false;
   const sc=s*2.05/(m.height||56), W=(m.width||52)*sc, H=(m.height||56)*sc;
   const ax=(m.anchorX??((m.width||52)*0.5))*sc, ay=(m.anchorY??((m.height||56)-1))*sc;
+  const [gwx,gwy]=grassWindAt(x,y,s);
   const sm=ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled=true;
   try{ ctx.imageSmoothingQuality="high"; }catch(e){}
-  ctx.drawImage(img,x-ax,y-ay,W,H);
+  ctx.save();
+  ctx.translate(x+gwx, y+gwy*0.28);
+  ctx.rotate(gwx*0.014);
+  ctx.drawImage(img,-ax,-ay,W,H);
+  ctx.restore();
   ctx.imageSmoothingEnabled=sm;
   return true;
+}
+function drawGrassClumpSprite(x,y,s,v){ return drawForestGrassClump(x,y,s,v); }
+window.drawGrassClumpSprite=drawGrassClumpSprite;
+function grassVariantsForDraw(L){
+  if(L.biome==="forest") return FOREST_GRASS._forest||(FOREST_GRASS._forest=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"]);
+  if(L.cemetery) return FOREST_GRASS._park||(FOREST_GRASS._park=["clump_med","clump_large","clump_mossy","clump_wispy","patch_moss"]);
+  if(L.zone==="suburb") return FOREST_GRASS._lawn||(FOREST_GRASS._lawn=["clump_small","clump_med","clump_wispy","clump_dense"]);
+  return FOREST_GRASS._lawn||(FOREST_GRASS._lawn=["clump_small","clump_med","clump_wispy","clump_dense"]);
 }
 const GRASS_TONE=["rgba(26,56,20,.96)","rgba(46,92,36,.96)","rgba(80,146,58,.95)","rgba(120,184,86,.95)"];
 function drawClump(x,y,s){
   const h=(n)=>{ const v=Math.sin(x*12.9898+y*78.233+n*37.17)*43758.5453; return v-(v|0); };
-  const n=5+((h(0)*3)|0);                                            // 5-7 blades per clump
-  ctx.fillStyle="rgba(18,38,14,.38)"; ctx.fillRect(x-s*0.5, y-1.6, s, 2.6);   // grounded base
+  const [gwx,gwy]=grassWindAt(x,y,s);
+  const n=5+((h(0)*3)|0);
+  ctx.fillStyle="rgba(18,38,14,.38)"; ctx.fillRect(x-s*0.5+gwx*0.2, y-1.6+gwy*0.15, s, 2.6);
   for(let k=0;k<n;k++){
-    const dx=(h(k+1)-0.5)*s*1.15, bl=s*(0.72+h(k+9)*0.7), lean=(h(k+5)-0.5)*s*0.75;
-    const wd=0.9+h(k+3)*0.7, bx=x+dx;
+    const dx=(h(k+1)-0.5)*s*1.15, bl=s*(0.72+h(k+9)*0.7), lean=(h(k+5)-0.5)*s*0.75+gwx*(0.42+k*0.04);
+    const wd=0.9+h(k+3)*0.7, bx=x+dx+gwx*0.35;
     ctx.fillStyle=GRASS_TONE[Math.min(3,(h(k+7)*4)|0)];
-    ctx.beginPath(); ctx.moveTo(bx-wd,y); ctx.lineTo(bx+wd,y); ctx.lineTo(bx+lean,y-bl); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx-wd,y); ctx.lineTo(bx+wd,y); ctx.lineTo(bx+lean,y-bl+gwy*0.12); ctx.closePath(); ctx.fill();
   }
 }
 function drawGrassDetail(L){
-  if(VW>2200) return;                                            // grass invisible when far out: skip entirely
+  if(VW>2400) return;
   const cl=cam.x-VW/2-20, cr=cam.x+VW/2+20, ct=cam.y-VH/2-20, cb=cam.y+VH/2+20;
-  const useForest=L.biome==="forest"&&FOREST_GRASS.ready;
-  const fKeys=useForest?(FOREST_GRASS._keys||(FOREST_GRASS._keys=Object.keys(FOREST_GRASS.meta?.variants||{}))):null;
+  const usePng=FOREST_GRASS.ready;
+  const lotVars=grassVariantsForDraw(L);
   for(const t of L.tufts){
     if(t.x<cl||t.x>cr||t.y<ct||t.y>cb) continue;
-    if(useForest){
-      const vk=t.v||fKeys[(((t.x*73856093)^(t.y*19349663))>>>0)%fKeys.length];
+    if(usePng){
+      const vk=t.v||lotVars[(((t.x*73856093)^(t.y*19349663))>>>0)%lotVars.length];
       if(!drawForestGrassClump(t.x,t.y,t.s,vk)) drawClump(t.x,t.y,t.s);
     } else drawClump(t.x,t.y,t.s);
   }
@@ -1463,6 +1491,21 @@ function drawForestRock(x,y,s,v,moss){
 
 function drawForestFloraItem(d){
   const s=d.s, r=d.rot||0, x=d.x, y=d.y;
+  if(FOREST_GRASS.ready){
+    let vk=null, sc=s;
+    switch(d.kind){
+      case "needle": vk="clump_needle"; sc=s*1.2; break;
+      case "fern": vk="clump_fern"; sc=s*1.05; break;
+      case "moss": vk="patch_moss"; sc=s*0.9; break;
+      case "sprout": vk="clump_small"; sc=s*1.25; break;
+      case "blade":
+      case "clover":
+        vk=["clump_med","clump_shade","clump_wispy","clump_mossy","clump_dense","clump_pine"][((x*73856093)^(y*19349663))>>>0)%6];
+        sc=s*1.12;
+        break;
+    }
+    if(vk){ drawForestGrassClump(x,y,sc,vk); return; }
+  }
   ctx.save(); ctx.translate(x,y); ctx.rotate(r);
   switch(d.kind){
     case "leaf": {
@@ -1580,8 +1623,10 @@ function drawForestFloraItem(d){
       ctx.fillStyle="rgba(52,78,44,0.28)"; ctx.beginPath(); ctx.ellipse(-s*0.1,-s*0.08,s*0.35,s*0.18,r*0.2,0,7); ctx.fill();
       break;
     }
-    default: { // blade
-      ctx.strokeStyle="#2a5828"; ctx.lineWidth=1.1; for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(k*2,s*0.15); ctx.quadraticCurveTo(k*2.5,-s*0.35,k*1.2,-s*0.75); ctx.stroke(); }
+    default: { // blade — procedural fallback gdy PNG jeszcze się ładuje
+      const [gwx,gwy]=grassWindAt(x,y,s);
+      ctx.strokeStyle="#2a5828"; ctx.lineWidth=1.1;
+      for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(k*2+gwx*0.2,s*0.15); ctx.quadraticCurveTo(k*2.5+gwx*0.35,-s*0.35,k*1.2+gwx*0.5,-s*0.75+gwy*0.1); ctx.stroke(); }
     }
   }
   ctx.restore();
@@ -2107,11 +2152,16 @@ function drawGraves(L){
 function drawFences(L){
   if(!L.fences||!L.fences.length) return;
   for(const f of L.fences){
+    if(f.broken) continue;
+    ensureFence(f);
+    const wear=f.maxHp?clamp(1-f.hp/f.maxHp,0,1):0;
     const dx=f.x2-f.x1, dy=f.y2-f.y1, len=Math.hypot(dx,dy)||1, ux=dx/len, uy=dy/len;
-    ctx.strokeStyle="#8c8268"; ctx.lineWidth=1.3;
+    ctx.strokeStyle=wear>0.45?"#7a7060":"#8c8268"; ctx.lineWidth=1.3;
     ctx.beginPath(); ctx.moveTo(f.x1,f.y1-3); ctx.lineTo(f.x2,f.y2-3); ctx.stroke();
-    ctx.fillStyle="#a59a7e";
-    for(let d=0; d<=len; d+=6){ ctx.fillRect(f.x1+ux*d-0.7, f.y1+uy*d-6, 1.5, 6); }
+    ctx.fillStyle=wear>0.45?"#8f8570":"#a59a7e";
+    const step=wear>0.35?8:6;
+    for(let d=0; d<=len; d+=step){ if(wear>0.2&&hsh(Math.floor(f.x1+d),Math.floor(f.y1),601)<wear*0.55) continue;
+      ctx.fillRect(f.x1+ux*d-0.7, f.y1+uy*d-6, 1.5, 6); }
   }
 }
 function drawSignalHead(hx,hy,st,fallen){
