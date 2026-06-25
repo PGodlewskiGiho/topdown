@@ -30,10 +30,19 @@ Jeśli nie używasz Actions — branch `main`, folder `/` — wejdź przez:
 
 ```bash
 cd cursor/topdown-city
-python3 -m http.server 8080
+npm run dev
 ```
 
 → http://localhost:8080
+
+## Walidacja przed deployem
+
+```bash
+cd cursor/topdown-city
+npm run check
+```
+
+Smoke-check sprawdza referencje HTML, cache-busting `v=` i listę skryptów JS ładowanych przez `index.html`.
 
 ## Struktura w repo
 
@@ -41,6 +50,7 @@ python3 -m http.server 8080
 cursor/topdown-city/     ← gra (index.html, js/, assets/)
   assets/people/gta2/    ← sprite’y pieszych (PNG)
   js/lib/people-sprites.js
+  scripts/smoke-check.mjs
 .github/workflows/deploy-pages.yml
 ```
 

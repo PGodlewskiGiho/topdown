@@ -2,16 +2,17 @@
 
 ## Faza 0 — modularizacja ✅
 
-- [x] Podział `topdown.html` → `topdown-city/` (21 modułów JS)
+- [x] Podział `topdown.html` → `topdown-city/`
 - [x] Mapa modułów (`docs/MODULES.md`)
 - [x] Skill + reguły Cursor dla tanich zadań
+- [x] Prosty dev workflow (`npm run dev`)
+- [x] Smoke-check (`npm run check`)
 
 ## Faza 1 — stabilizacja (następna)
 
-1. **Dev workflow** — prosty `npm run dev` lub Makefile z `http.server`
-2. **clamp/utils w core** — przenieść pozostałe helpery używane przed definicją
-3. **Smoke test** — checklista: start, jazda, strzał, misja, zapis
-4. **Symlink / redirect** — `topdown.html` → wskazuje na modular build (opcjonalnie)
+1. **clamp/utils w core** — przenieść pozostałe helpery używane przed definicją
+2. **Manualna checklista smoke** — start, jazda, strzał, misja, zapis
+3. **Symlink / redirect** — `topdown.html` → wskazuje na modular build (opcjonalnie)
 
 ## Faza 2 — fizyka pojazdów
 

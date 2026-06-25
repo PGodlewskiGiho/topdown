@@ -4,12 +4,12 @@ Jeden plik = jeden system. Przed zmianą **czytaj tylko wskazany moduł** (+ ewe
 
 Szczegóły architektury plug-in: [`ARCHITECTURE.md`](ARCHITECTURE.md).
 
-## Struktura (35 plików JS)
+## Struktura (55 plików JS)
 
 ```
 topdown-city/
   index.html            — shell HTML + kolejność <script>
-  package.json          — npm run dev (serwer HTTP)
+  package.json          — npm run dev, npm run check
   styles/main.css       — HUD, menu, mapa, ekwipunek
   js/
     00-core.js          — canvas, zoom, RNG, clamp, rand
@@ -47,6 +47,22 @@ topdown-city/
     31-interior.js      — wnętrza budynków / supermarket
     35-map.js           — mapa, fog, GPS (Game: map)
     36-railways.js      — kolej, pociągi (Game: railways)
+    37-drift.js         — drift run, scoring, strefy
+    39-vehicle-system.js— spawn/stan pojazdów świata
+    40-race-events.js   — wyścigi i imprezy na mapie
+    42-pause-menu.js    — menu pauzy i panele
+    43-puddle-water.js  — integracja symulacji kałuż
+    44-sun-glare.js     — glare/soczewka słońca
+    46-oldtown-market.js— region starego miasta
+    47-canals.js        — kanały i woda w mieście
+    48-desert-sand.js   — pustynny piach
+    49-farm-fields.js   — pola i farmy
+    50-wind-field.js    — pole wiatru dla efektów
+    51-perf-profiler.js — profilowanie wydajności
+    52-driving-model.js — model prowadzenia pojazdów
+    53-ped-gore.js      — obrażenia pieszych
+    54-ragdoll.js       — ragdoll pieszych
+    lib/                — małe biblioteki ładowane przez index.html
 ```
 
 ## Zadanie → pliki (czytaj tylko te)
@@ -65,10 +81,16 @@ topdown-city/
 | HUD / UI DOM | `styles/main.css`, `09-gauge.js`, `11-minimap.js` |
 | Mapa / nawigacja GPS | `35-map.js`, `11-minimap.js` |
 | Kolej / pociągi | `36-railways.js` |
+| Drift / scoring | `37-drift.js`, `52-driving-model.js` |
+| Wyścigi / imprezy | `40-race-events.js`, `35-map.js` |
+| Pauza / panele menu | `42-pause-menu.js`, `styles/main.css` |
+| Kałuże / glare / efekty pogody | `43-puddle-water.js`, `44-sun-glare.js`, `12-weather.js` |
+| Regiony specjalne | `46-oldtown-market.js`, `47-canals.js`, `48-desert-sand.js`, `49-farm-fields.js` |
 | Zwierzęta leśne | `22-wildlife.js` |
 | Wnętrza / sklepy | `31-interior.js` |
 | Dźwięk | `18-audio.js` |
 | Zapis gry | `19-save.js` |
+| Smoke-check / porządek repo | `scripts/smoke-check.mjs`, `package.json` |
 | **Nowy system (szkielet)** | nowy plik + `Game.register()` — patrz `ARCHITECTURE.md` |
 
 ## Globalny stan (wspólny scope)
@@ -88,7 +110,7 @@ Nowe pliki ładuj **po** zależnościach (patrz `index.html`).
 ## Uruchomienie
 
 ```bash
-cd topdown-city && npm run dev
+cd cursor/topdown-city && npm run dev
 # http://localhost:8080
 ```
 

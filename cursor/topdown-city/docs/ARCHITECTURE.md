@@ -64,6 +64,8 @@ frame()
 | `map` | `35-map.js` | update (always), drawWorldOverlay, drawMap |
 | `railways` | `36-railways.js` | onLot, update, drawAfterRoads, drawActors (afterTraffic), drawMap |
 | `drift` | `37-drift.js` | update, drawAfterRoads — scoring, strefy, run (klawisz V) |
+| `race-events` | `40-race-events.js` | update, drawMap — imprezy i wyścigi |
+| `pause-menu` | `42-pause-menu.js` | update — panele pauzy |
 
 ## Dodawanie nowego modułu — checklist
 
@@ -84,7 +86,7 @@ Na razie pozostają monolityczne; rejestr `Game` pozwala dodawać **nowe** syste
 ## Uruchomienie
 
 ```bash
-cd topdown-city && npm run dev
+cd cursor/topdown-city && npm run dev
 # lub: python3 -m http.server 8080
 ```
 

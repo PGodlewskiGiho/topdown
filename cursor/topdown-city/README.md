@@ -5,11 +5,19 @@ Gra top-down (GTA2-style) w przeglądarce — wersja modularna.
 ## Uruchomienie
 
 ```bash
-cd topdown-city
-python3 -m http.server 8080
+cd cursor/topdown-city
+npm run dev
 ```
 
 Otwórz http://localhost:8080
+
+## Walidacja
+
+```bash
+npm run check
+```
+
+Smoke-check sprawdza, czy `index.html` ładuje istniejące pliki, czy każdy plik `js/**/*.js` jest podpięty oraz czy cache-busting `v=` zgadza się z `version.json`.
 
 ## Dokumentacja
 
@@ -18,6 +26,11 @@ Otwórz http://localhost:8080
 
 ## Struktura
 
-21 plików JS ładowanych sekwencyjnie z `index.html`. Wspólny global scope (bez bundlera).
+55 plików JS ładowanych sekwencyjnie z `index.html`. Wspólny global scope (bez bundlera).
 
-Oryginalny monolit: `../topdown.html` (archiwum / źródło do splitu).
+Najważniejsze katalogi:
+
+- `js/` — moduły gry i małe biblioteki bez bundlera
+- `styles/` — style HUD, menu, mapy i ekwipunku
+- `assets/` — metadane i wygenerowane assety
+- `scripts/` — generatory assetów i smoke-check

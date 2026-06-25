@@ -1,0 +1,17 @@
+.DS_Store
+Thumbs.db
+node_modules/
+.cache/
+.parcel-cache/
+dist/
+build/
+coverage/
+*.log
+*.tmp
+*.bak
+*.swp
+__pycache__/
+*.py[cod]
+.python-version
+.venv/
+venv/
