@@ -112,18 +112,20 @@ function init(){
 
 function pick(arr, seed){ return arr[Math.abs(seed)%arr.length]; }
 
-function prefetchAllDirections(o){
+function prefetchAllDirections(o, folder){
   const dirs=LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
   for(const d of dirs){
-    prefetchOutfit(o,"walk0",d);
-    prefetchOutfit(o,"walk1",d);
+    prefetchOutfit(o, folder, d);
   }
 }
 
 function warmDefault(){
   if(!meta) return;
   const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
-  prefetchAllDirections(sample);
+  const warmFolders=["idle0","walk0","walk1","run0","shoot0","down0"];
+  for(const f of warmFolders){
+    prefetchAllDirections(sample, f);
+  }
 }
 
 function resolveOutfit(p){
@@ -152,7 +154,8 @@ function resolveOutfit(p){
   if(p.hairId) o.hair=p.hairId;
   if(p.hairStyle==="bald"||p.hair==null) o.hair=null;
   p._gta2Outfit=o;
-  prefetchAllDirections(o);
+  prefetchAllDirections(o, "walk0");
+  prefetchAllDirections(o, "idle0");
   return o;
 }
 
@@ -175,6 +178,12 @@ function layerPaths(o, wf, direction){
     out.push(base+b+"/"+rel+"/"+wf+"/"+direction+".png");
   }
   return out;
+}
+
+function prefetchClip(o, clipId){
+  const spec=(meta&&meta.clips&&meta.clips[clipId])||(LS&&LS.DEFAULT_CLIPS&&LS.DEFAULT_CLIPS[clipId]);
+  const n=spec&&spec.count!=null?spec.count:8;
+  for(let i=0;i<n;i++) prefetchAllDirections(o, clipId+i);
 }
 
 function prefetchOutfit(o, wf, direction){
@@ -263,11 +272,13 @@ function drawComposite(c, p, down, forcedDir){
   const ay=(meta.anchor||[11,21])[1]*sc;
   c.imageSmoothingEnabled=false;
 
-  const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down):"walk0";
+  const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down,meta):"walk0";
   const dir=resolveSpriteDir(p, forcedDir);
   p._spriteDir=dir;
   p._faceDir=dir;
+  p._animClip=LS&&LS.animClip?LS.animClip(p,down,meta):null;
   prefetchOutfit(o, wf, dir);
+  if(p._animClip) prefetchClip(o, p._animClip);
 
   const ang=dirAngle(dir);
   c.save();
@@ -313,6 +324,8 @@ const PeopleSprites={
   get meta(){ return meta; },
   resolveOutfit,
   dirName(p){ return p._spriteDir||"S"; },
+  animClip(p, down){ return LS?LS.animClip(p, down, meta):null; },
+  animFrame(p, down){ return LS?LS.animFrameName(p, down, meta):"walk0"; },
   walkFrame(p){ return LS?LS.walkPhase(p):0; },
   facingAngle(p){ return LS?LS.facingAngle(p):0; },
 };

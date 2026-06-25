@@ -1,6 +1,6 @@
 {
-  "comment": "GTA2 pedestrian animation layout from gta2_re Char_B4::UpdateAnimState_546360. Sprite ID = baseId + offset + animation_frame. animation_frame 0-7 is an 8-step walk CYCLE (not 8 facings). Facing comes from field_40_rotation at draw time; we bake 8 rotations at export.",
-  "source": "CriminalRETeam/gta2_re Source/char.cpp UpdateAnimState_546360",
+  "comment": "GTA2 male (graphic_type 0, baseId 0) — spriteId = baseId + offset + frame. Facing via rotation (baked to 8 dirs). Source: gta2_re Char_B4::UpdateAnimState_546360",
+  "source": "CriminalRETeam/gta2_re Source/char.cpp",
   "directions": ["E", "SE", "S", "SW", "W", "NW", "N", "NE"],
   "sprite_facing": "N",
   "rotation_offset_rad": 1.5707963267948966,
@@ -9,18 +9,56 @@
     "female": { "graphic_type": 1, "base_id": 158 },
     "hardy": { "graphic_type": 2, "base_id": 316 }
   },
-  "anim_states": {
-    "walk_slow_moving": { "state": 0, "offset": 0, "frame_max": 7 },
-    "walk_fast_moving": { "state": 1, "offset": 8, "frame_max": 7 },
-    "walk_slow_idle": { "state": 0, "offset": 143, "frame_max": 5 },
-    "walk_fast_idle": { "state": 1, "offset": 135, "frame_max": 5 },
-    "walk_armed_slow": { "state": 0, "offset": 37, "frame_max": 7 },
-    "walk_armed_fast": { "state": 1, "offset": 45, "frame_max": 7 }
+  "clips": {
+    "walk": {
+      "offset": 0,
+      "count": 8,
+      "re_anim_state": 0,
+      "moving": true,
+      "step_sec": 0.11,
+      "speed_max": 55
+    },
+    "run": {
+      "offset": 8,
+      "count": 8,
+      "re_anim_state": 1,
+      "moving": true,
+      "step_sec": 0.08,
+      "speed_min": 55
+    },
+    "idle": {
+      "offset": 143,
+      "count": 6,
+      "re_anim_state": 0,
+      "moving": false,
+      "step_sec": 0.2
+    },
+    "shoot": {
+      "offset": 115,
+      "count": 8,
+      "re_anim_state": 4,
+      "step_sec": 0.09
+    },
+    "punch": {
+      "offset": 53,
+      "count": 4,
+      "re_anim_state": 2,
+      "step_sec": 0.1
+    },
+    "down": {
+      "offset": 81,
+      "count": 10,
+      "re_anim_state": 11,
+      "step_sec": 0.12,
+      "hold_last": true
+    },
+    "die": {
+      "offset": 151,
+      "count": 5,
+      "re_anim_state": 17,
+      "step_sec": 0.14,
+      "hold_last": true
+    }
   },
-  "walk_export": {
-    "slow": { "offset": 0, "frames": [0, 4] },
-    "fast": { "offset": 8, "frames": [0, 4] }
-  },
-  "walk_frames": ["walk0", "walk1"],
-  "total_export_frames": 16
+  "game_clip_priority": ["down", "shoot", "run", "walk", "idle"]
 }

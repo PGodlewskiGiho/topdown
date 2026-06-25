@@ -24,11 +24,12 @@ ANIM_MAP_PATH = os.path.join(SCRIPTS, "gta2_ped_anim_map.json")
 with open(ANIM_MAP_PATH, encoding="utf-8") as _am:
     _anim = json.load(_am)
 DIR_NAMES = _anim["directions"]
-WALK_FRAME_NAMES = _anim["walk_frames"]
-FRAME_DIR_WALK = []
-for _wf_i, _wf in enumerate(WALK_FRAME_NAMES):
-    for _d in DIR_NAMES:
-        FRAME_DIR_WALK.append((_d, _wf_i, _wf))
+CLIPS = _anim["clips"]
+EXPORT_SLOTS = []
+for _clip_id, _clip in CLIPS.items():
+    for _fi in range(_clip["count"]):
+        EXPORT_SLOTS.append({"clip": _clip_id, "frame": _fi, "folder": f"{_clip_id}{_fi}"})
+SLOT_COUNT = len(EXPORT_SLOTS)
 
 REMAP_META = {
     27: {"shirt": "blue", "pants": "jeans"},
@@ -91,12 +92,12 @@ def export_frames(remap_id: int, out_dir: str, body_type: str = "male"):
 
 
 def load_indices(frames_dir: str, idx: int) -> list[list[int]]:
-    with open(os.path.join(frames_dir, f"frame_{idx:02d}.idx.json"), encoding="utf-8") as f:
+    with open(os.path.join(frames_dir, f"frame_{idx:03d}.idx.json"), encoding="utf-8") as f:
         return json.load(f)["indices"]
 
 
 def load_rgba_frame(frames_dir: str, idx: int) -> Image.Image:
-    return Image.open(os.path.join(frames_dir, f"frame_{idx:02d}.png")).convert("RGBA")
+    return Image.open(os.path.join(frames_dir, f"frame_{idx:03d}.png")).convert("RGBA")
 
 
 def part_for_pixel(idx: int, x: int, y: int) -> str | None:
@@ -137,7 +138,7 @@ def mask_from_layer(layer: Image.Image) -> list[list[bool]]:
 
 def build_masks(frames_dir: str) -> dict[int, dict[str, list[list[bool]]]]:
     masks = {}
-    for i in range(2):
+    for i in range(SLOT_COUNT):
         layers = split_layers(load_indices(frames_dir, i), load_rgba_frame(frames_dir, i))
         masks[i] = {k: mask_from_layer(v) for k, v in layers.items()}
     return masks
@@ -213,28 +214,34 @@ def scale_layer(im: Image.Image, sx: float, sy: float, ax: int = ANCHOR[0], ay: 
 
 
 def extract_all(masks: dict, frame_cache: dict[int, dict[int, Image.Image]]):
-    for i in range(16):
-        direction, _walk_i, wf = FRAME_DIR_WALK[i]
-        base_i = i % 2
-        m = masks[base_i]
+    total = SLOT_COUNT * len(DIR_NAMES)
+    done = 0
+    for slot_i, slot in enumerate(EXPORT_SLOTS):
+        folder = slot["folder"]
+        m = masks[slot_i]
+        for direction in DIR_NAMES:
+            for shirt_id, rid in SHIRT_REMAP.items():
+                src = frame_cache[rid][slot_i]
+                torso = rotate_layer(apply_mask(src, m["torso"]), direction)
+                arms = rotate_layer(apply_mask(src, m["arms"]), direction)
+                save_part("male", "torsos", shirt_id, folder, direction, torso)
+                save_part("male", "arms", shirt_id, folder, direction, arms)
 
-        for shirt_id, rid in SHIRT_REMAP.items():
-            torso = rotate_layer(apply_mask(frame_cache[rid][base_i], m["torso"]), direction)
-            arms = rotate_layer(apply_mask(frame_cache[rid][base_i], m["arms"]), direction)
-            save_part("male", "torsos", shirt_id, wf, direction, torso)
-            save_part("male", "arms", shirt_id, wf, direction, arms)
+            for pants_id, rid in PANTS_REMAP.items():
+                src = frame_cache[rid][slot_i]
+                pants = rotate_layer(apply_mask(src, m["pants"]), direction)
+                shoes = rotate_layer(apply_mask(src, m["shoes"]), direction)
+                save_part("male", "pants", pants_id, folder, direction, pants)
+                save_part("male", "shoes", pants_id, folder, direction, shoes)
 
-        for pants_id, rid in PANTS_REMAP.items():
-            pants = rotate_layer(apply_mask(frame_cache[rid][base_i], m["pants"]), direction)
-            shoes = rotate_layer(apply_mask(frame_cache[rid][base_i], m["shoes"]), direction)
-            save_part("male", "pants", pants_id, wf, direction, pants)
-            save_part("male", "shoes", pants_id, wf, direction, shoes)
-
-        src27 = frame_cache[BASE_REMAP][base_i]
-        skin = rotate_layer(apply_mask(src27, m["skin"]), direction)
-        hair = rotate_layer(apply_mask(src27, m["hair"]), direction)
-        save_part("male", "skins", "medium", wf, direction, skin)
-        save_part("male", "hairs", "brown", wf, direction, hair)
+            src27 = frame_cache[BASE_REMAP][slot_i]
+            skin = rotate_layer(apply_mask(src27, m["skin"]), direction)
+            hair = rotate_layer(apply_mask(src27, m["hair"]), direction)
+            save_part("male", "skins", "medium", folder, direction, skin)
+            save_part("male", "hairs", "brown", folder, direction, hair)
+            done += 1
+            if done % 500 == 0:
+                print(f"extract {done}/{total}")
 
 
 def recolor_layer(im: Image.Image, src_rgb, dst_rgb, tol=48) -> Image.Image:
@@ -344,9 +351,9 @@ def build_skirts(body: str = "female"):
                 recolor_layer(shoes, (35, 43, 59), rgb, tol=80).save(shoes_dst)
 
 
-def composite_frame(outfit, frame_i: int, scale: int = 6) -> Image.Image:
+def composite_frame(outfit, slot_i: int, direction: str, scale: int = 6) -> Image.Image:
     body = outfit.get("body", "male")
-    direction, _walk_i, wf = FRAME_DIR_WALK[frame_i]
+    folder = EXPORT_SLOTS[slot_i]["folder"]
     canvas = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
     for part, key in [
         ("shoes", outfit["pants"]),
@@ -356,7 +363,7 @@ def composite_frame(outfit, frame_i: int, scale: int = 6) -> Image.Image:
         ("skins", outfit["skin"]),
         ("hairs", outfit["hair"]),
     ]:
-        fp = part_path(body, part, key, wf, direction)
+        fp = part_path(body, part, key, folder, direction)
         if os.path.isfile(fp):
             canvas = Image.alpha_composite(canvas, Image.open(fp).convert("RGBA"))
     if scale != 1:
@@ -378,8 +385,9 @@ def write_meta():
         "size": list(CANVAS),
         "anchor": list(ANCHOR),
         "directions": DIR_NAMES,
-        "walk_frames": 2,
-        "total_frames": 16,
+        "clips": CLIPS,
+        "clip_folders": [s["folder"] for s in EXPORT_SLOTS],
+        "export_slots": SLOT_COUNT,
         "animation_source": "gta2_ped_anim_map.json",
         "facing_mode": "baked_rotation",
         "body_types": [{"id": b} for b in BODY_TYPES],
@@ -415,22 +423,18 @@ def write_previews():
     scale = 6
     fw, fh = CANVAS[0] * scale, CANVAS[1] * scale
     pad = 4
-    cols = 8
-    sheet_h = len(BODY_PREVIEW) * (2 * (fh + pad) + pad) + pad
-    sheet = Image.new("RGBA", (cols * (fw + pad) + pad, sheet_h), (18, 16, 22, 255))
-    for combo_i, combo in enumerate(BODY_PREVIEW):
-        row_img = Image.new("RGBA", (cols * (fw + pad) + pad, 2 * (fh + pad) + pad), (0, 0, 0, 0))
-        for fi in range(16):
-            col, row = fi % cols, fi // cols
-            im = composite_frame(combo, fi, scale)
-            row_img.paste(im, (pad + col * (fw + pad), pad + row * (fh + pad)), im)
+    preview_slots = [i for i, s in enumerate(EXPORT_SLOTS) if s["clip"] in ("walk", "idle", "shoot") and s["frame"] < 8]
+    cols = min(8, len(preview_slots))
+    for combo in BODY_PREVIEW:
+        row_img = Image.new("RGBA", (cols * (fw + pad) + pad, fh + pad * 2), (0, 0, 0, 0))
+        for ci, slot_i in enumerate(preview_slots[:cols]):
+            im = composite_frame(combo, slot_i, "S", scale)
+            row_img.paste(im, (pad + ci * (fw + pad), pad), im)
         row_img.save(os.path.join(PREVIEWS, f"{combo['id']}.png"))
-        sheet.paste(row_img, (pad, pad + combo_i * (2 * (fh + pad) + pad)), row_img)
-    sheet.save(os.path.join(PREVIEWS, "combinations_sheet.png"))
 
 
 def verify_masks(frames_dir: str, masks: dict):
-    for i in range(2):
+    for i in range(min(3, SLOT_COUNT)):
         orig = load_rgba_frame(frames_dir, i)
         m = masks[i]
         rebuilt = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
@@ -450,7 +454,7 @@ def main():
     for remap_id in set(REMAP_META) | {BASE_REMAP}:
         fd = os.path.join(tmp, str(remap_id))
         export_frames(remap_id, fd)
-        frame_cache[remap_id] = {i: load_rgba_frame(fd, i) for i in range(2)}
+        frame_cache[remap_id] = {i: load_rgba_frame(fd, i) for i in range(SLOT_COUNT)}
 
     base_dir = os.path.join(tmp, str(BASE_REMAP))
     masks = build_masks(base_dir)
