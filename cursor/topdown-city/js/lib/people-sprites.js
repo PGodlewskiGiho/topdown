@@ -200,88 +200,13 @@ function allLayersReady(o, wf, dir){
   return true;
 }
 
-const W=22, H=22;
-const HEAL_PARTS=new Set(["arms","torso","skin"]);
-const NEIGH8=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
-const NEIGH4=[[1,0],[-1,0],[0,1],[0,-1]];
-
-function partFromPath(path){
-  if(path.includes("/arms/")) return "arms";
-  if(path.includes("/torsos/")) return "torso";
-  if(path.includes("/skins/")) return "skin";
-  if(path.includes("/pants/")) return "pants";
-  if(path.includes("/shoes/")) return "shoes";
-  if(path.includes("/hairs/")) return "hair";
-  return null;
-}
-
-function bridgeLimbLayers(layerBufs, fullBuf, w, h){
-  const fd=fullBuf.data;
-  for(const part of HEAL_PARTS){
-    const buf=layerBufs[part];
-    if(!buf) continue;
-    const d=buf.data;
-    for(let y=0;y<h;y++){
-      for(let x=0;x<w;x++){
-        const i=(y*w+x)*4;
-        if(d[i+3]||!fd[i+3]) continue;
-        for(const [dx,dy] of NEIGH8){
-          const nx=x+dx, ny=y+dy;
-          if(nx<0||ny<0||nx>=w||ny>=h) continue;
-          const ni=(ny*w+nx)*4;
-          if(d[ni+3]){
-            d[i]=fd[i]; d[i+1]=fd[i+1]; d[i+2]=fd[i+2]; d[i+3]=fd[i+3];
-            fd[i]=d[i]; fd[i+1]=d[i+1]; fd[i+2]=d[i+2]; fd[i+3]=d[i+3];
-            break;
-          }
-        }
-      }
-    }
+function drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm){
+  for(const path of layerPaths(o, wf, dir)){
+    const im=getImg(path);
+    if(!im) return false;
+    c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
   }
-}
-
-function healFullComposite(buf, w, h, passes){
-  for(let p=0;p<passes;p++){
-    const d=buf.data, copy=new Uint8ClampedArray(d);
-    for(let y=1;y<h-1;y++){
-      for(let x=1;x<w-1;x++){
-        const i=(y*w+x)*4;
-        if(copy[i+3]) continue;
-        let n=0, r=0, g=0, b=0;
-        const neigh=p===0?NEIGH4:NEIGH8;
-        for(const [dx,dy] of neigh){
-          const ni=((y+dy)*w+(x+dx))*4;
-          if(copy[ni+3]){ n++; r+=copy[ni]; g+=copy[ni+1]; b+=copy[ni+2]; }
-        }
-        if(n>=2){ d[i]=r/n|0; d[i+1]=g/n|0; d[i+2]=b/n|0; d[i+3]=255; }
-      }
-    }
-  }
-}
-
-function healComposite(ctx, paths, layers){
-  const w=W, h=H;
-  const full=ctx.createImageData(w, h);
-  const layerBufs={};
-  for(let li=0;li<layers.length;li++){
-    const im=layers[li];
-    const part=partFromPath(paths[li]);
-    const tmp=document.createElement("canvas");
-    tmp.width=w; tmp.height=h;
-    const tc=tmp.getContext("2d");
-    tc.imageSmoothingEnabled=false;
-    tc.drawImage(im,0,0);
-    const buf=tc.getImageData(0,0,w,h);
-    if(part) layerBufs[part]=buf;
-    const sd=buf.data, fd=full.data;
-    for(let i=0;i<sd.length;i+=4){
-      if(!sd[i+3]) continue;
-      fd[i]=sd[i]; fd[i+1]=sd[i+1]; fd[i+2]=sd[i+2]; fd[i+3]=sd[i+3];
-    }
-  }
-  for(let pass=0;pass<2;pass++) bridgeLimbLayers(layerBufs, full, w, h);
-  healFullComposite(full, w, h, 3);
-  ctx.putImageData(full,0,0);
+  return true;
 }
 
 function resolveSpriteDir(p, forcedDir){
@@ -301,10 +226,10 @@ function tryBake(o, wf, dir){
     layers.push(im);
   }
   const c=document.createElement("canvas");
-  c.width=W; c.height=H;
+  c.width=22; c.height=22;
   const cx=c.getContext("2d");
   cx.imageSmoothingEnabled=false;
-  healComposite(cx, paths, layers);
+  for(const im of layers) cx.drawImage(im,0,0);
   baked[key]=c;
   return c;
 }
@@ -362,9 +287,13 @@ function drawComposite(c, p, down, forcedDir){
   c.fillRect(-8*sc, 3*sc, 16*sc, 4*sc);
   c.restore();
 
-  let bakedIm=allLayersReady(o, wf, dir)?getBaked(o, wf, dir):null;
-  if(bakedIm) c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, W*sx, H*sy);
-  else return;
+  let drew=drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm);
+  if(!drew){
+    let bakedIm=getBaked(o, wf, dir);
+    if(!bakedIm&&allLayersReady(o, wf, dir)) bakedIm=tryBake(o, wf, dir);
+    if(bakedIm) c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
+    else return;
+  }
 
   if(down){
     c.save();
