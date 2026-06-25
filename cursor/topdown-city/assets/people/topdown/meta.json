@@ -1,0 +1,231 @@
+{
+  "version": 2,
+  "style": "topdown-14hertz",
+  "source": {
+    "name": "8-Directional Character Template (14Hertz)",
+    "license": "CC-BY 3.0 / credit appreciated",
+    "url": "https://opengameart.org/content/8-directional-character-template",
+    "sheet_layout": {
+      "rows": [
+        "S",
+        "SW",
+        "W",
+        "NW",
+        "N",
+        "NE",
+        "E",
+        "SE"
+      ],
+      "cols": "walk animation frames 0-7",
+      "walk_frames_used": [
+        0,
+        4
+      ]
+    }
+  },
+  "size": [
+    32,
+    32
+  ],
+  "anchor": [
+    16,
+    28
+  ],
+  "directions": [
+    "E",
+    "SE",
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE"
+  ],
+  "walk_frames": 2,
+  "body_types": [
+    {
+      "id": "male"
+    },
+    {
+      "id": "female"
+    },
+    {
+      "id": "hardy"
+    }
+  ],
+  "builds": [
+    {
+      "id": "slim",
+      "sx": 0.88,
+      "sy": 1.02
+    },
+    {
+      "id": "average",
+      "sx": 1.0,
+      "sy": 1.0
+    },
+    {
+      "id": "athletic",
+      "sx": 0.94,
+      "sy": 1.04
+    },
+    {
+      "id": "stocky",
+      "sx": 1.08,
+      "sy": 1.06
+    },
+    {
+      "id": "hardy",
+      "sx": 1.12,
+      "sy": 1.08
+    }
+  ],
+  "shirts": [
+    {
+      "id": "blue",
+      "gender": "unisex"
+    },
+    {
+      "id": "brown",
+      "gender": "unisex"
+    },
+    {
+      "id": "grey",
+      "gender": "unisex"
+    },
+    {
+      "id": "pink",
+      "gender": "unisex"
+    },
+    {
+      "id": "red",
+      "gender": "unisex"
+    },
+    {
+      "id": "white",
+      "gender": "unisex"
+    },
+    {
+      "id": "yellow",
+      "gender": "unisex"
+    }
+  ],
+  "pants": [
+    {
+      "id": "jeans",
+      "gender": "unisex"
+    },
+    {
+      "id": "jeans_dark",
+      "gender": "male"
+    },
+    {
+      "id": "shorts_blue",
+      "gender": "unisex"
+    },
+    {
+      "id": "skirt_red",
+      "gender": "female"
+    },
+    {
+      "id": "skirt_navy",
+      "gender": "female"
+    }
+  ],
+  "skins": [
+    {
+      "id": "light",
+      "gender": "unisex"
+    },
+    {
+      "id": "medium",
+      "gender": "unisex"
+    },
+    {
+      "id": "tan",
+      "gender": "unisex"
+    }
+  ],
+  "hairs": [
+    {
+      "id": "brown",
+      "gender": "unisex"
+    },
+    {
+      "id": "blonde",
+      "gender": "unisex"
+    },
+    {
+      "id": "black",
+      "gender": "unisex"
+    },
+    {
+      "id": "red",
+      "gender": "unisex"
+    }
+  ],
+  "combos_preview": [
+    {
+      "id": "male_blue_jeans",
+      "body": "male",
+      "shirt": "blue",
+      "pants": "jeans",
+      "hair": "brown",
+      "skin": "medium"
+    },
+    {
+      "id": "female_skirt_red",
+      "body": "female",
+      "shirt": "white",
+      "pants": "skirt_red",
+      "hair": "blonde",
+      "skin": "light"
+    },
+    {
+      "id": "hardy_brown_jeans",
+      "body": "hardy",
+      "shirt": "brown",
+      "pants": "jeans",
+      "hair": "black",
+      "skin": "tan"
+    },
+    {
+      "id": "female_yellow_shorts",
+      "body": "female",
+      "shirt": "yellow",
+      "pants": "shorts_blue",
+      "hair": "red",
+      "skin": "medium"
+    },
+    {
+      "id": "male_grey_jeans",
+      "body": "male",
+      "shirt": "grey",
+      "pants": "jeans_dark",
+      "hair": "brown",
+      "skin": "tan"
+    },
+    {
+      "id": "hardy_red_jeans",
+      "body": "hardy",
+      "shirt": "red",
+      "pants": "jeans",
+      "hair": "brown",
+      "skin": "medium"
+    }
+  ],
+  "rules": {
+    "female_only_pants": [
+      "skirt_red",
+      "skirt_navy"
+    ],
+    "male_only_pants": [
+      "jeans_dark"
+    ],
+    "body_build_default": {
+      "male": "average",
+      "female": "slim",
+      "hardy": "hardy"
+    }
+  }
+}

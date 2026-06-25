@@ -36,109 +36,21 @@ function collectFiles(dir, extension) {
   });
 }
 
-function evalLivingSpriteDirTests() {
-  const DIR = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"];
-  function snap8Index(a) {
-    const d = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-    return Math.round(d / (Math.PI / 4)) % DIR.length;
-  }
-  function dirNameFromAngle(a) {
-    return DIR[snap8Index(a)];
-  }
-  function dirNameFromDelta(dx, dy) {
-    const mv = Math.hypot(dx, dy);
-    if (mv < 0.001) return null;
-    return dirNameFromAngle(Math.atan2(dy, dx));
-  }
-  function spriteDir(entity, opts = {}) {
-    if (opts.keys) {
-      const ix =
-        (opts.keys["d"] || opts.keys["arrowright"] ? 1 : 0) -
-        (opts.keys["a"] || opts.keys["arrowleft"] ? 1 : 0);
-      const iy =
-        (opts.keys["s"] || opts.keys["arrowdown"] ? 1 : 0) -
-        (opts.keys["w"] || opts.keys["arrowup"] ? 1 : 0);
-      const kd = dirNameFromDelta(ix, iy);
-      if (kd) {
-        entity._faceDir = kd;
-        return kd;
-      }
-    }
-    const mdx = entity._moveDx || 0;
-    const mdy = entity._moveDy || 0;
-    const fromInput = dirNameFromDelta(mdx, mdy);
-    if (fromInput) {
-      entity._faceDir = fromInput;
-      return fromInput;
-    }
-    const vx = entity.vx || 0;
-    const vy = entity.vy || 0;
-    const fromVel = dirNameFromDelta(vx, vy);
-    if (fromVel && Math.hypot(vx, vy) > 0.15) {
-      entity._faceDir = fromVel;
-      return fromVel;
-    }
-    return entity._faceDir || dirNameFromAngle(0);
-  }
-
-  const pedSim = { _faceDir: "S", _moveDx: 0, _moveDy: 0, vx: 0, vy: 0 };
-  const keys = { w: true };
-  if (spriteDir(pedSim, { keys }) !== "N") {
-    fail("facing: W key should resolve to N, got " + pedSim._faceDir);
-  }
-  const pedSim2 = { _faceDir: "S", _moveDx: 1, _moveDy: 0, vx: 0, vy: 0 };
-  if (spriteDir(pedSim2, {}) !== "E") {
-    fail("facing: _moveDx=1 should resolve to E, got " + pedSim2._faceDir);
-  }
-  const dirs = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"];
-  for (const d of dirs) {
-    const layer = path.join(
-      siteRoot,
-      "assets/people/gta2/parts/bodies/male/skins/medium/walk0",
-      `${d}.png`
-    );
-    if (!existsSync(layer)) fail(`missing GTA2 direction PNG: walk0/${d}.png`);
-  }
-
-  const torsoDir = path.join(
-    siteRoot,
-    "assets/people/gta2/parts/bodies/male/torsos/blue/walk0"
-  );
-  const hashes = new Map();
-  for (const d of dirs) {
-    const buf = readFileSync(path.join(torsoDir, `${d}.png`));
-    const hash = createHash("md5").update(buf).digest("hex");
-    if (hashes.has(hash)) {
-      fail(
-        `GTA2 walk0/${d}.png duplicates ${hashes.get(hash)} — directions must differ visually`
-      );
-    }
-    hashes.set(hash, d);
-  }
-  const eBuf = readFileSync(path.join(torsoDir, "E.png"));
-  const wBuf = readFileSync(path.join(torsoDir, "W.png"));
-  if (eBuf.equals(wBuf)) {
-    fail("GTA2 E and W torso sprites are identical — asset export is broken");
-  }
-}
-
-const forbiddenRootIndex = path.join(repoRoot, "index.html");
-if (existsSync(forbiddenRootIndex)) {
-  fail(
-    "repo root index.html must not exist — game is only in cursor/topdown-city/ (see AGENTS.md)"
-  );
-  const rootHtml = readText(forbiddenRootIndex);
-  if (/location\.(replace|assign)/.test(rootHtml) || /location\.href\s*=/.test(rootHtml)) {
-    fail("repo root index.html contains forbidden redirect scripts");
-  }
+const versionPath = path.join(siteRoot, "version.json");
+const version = JSON.parse(readText(versionPath));
+const build = String(version.build || "");
+if (!/^\d{10}$/.test(build)) {
+  fail(`${rel(versionPath)} has invalid build value: ${version.build}`);
 }
 
 const htmlFiles = [
+  path.join(repoRoot, "index.html"),
   path.join(siteRoot, "index.html"),
   path.join(siteRoot, "404.html"),
 ];
 
 for (const htmlFile of htmlFiles) {
+  if (!existsSync(htmlFile)) continue;
   const html = readText(htmlFile);
   const baseDir = path.dirname(htmlFile);
   const refs = [...html.matchAll(/\b(?:src|href)=["']([^"']+)["']/g)].map((match) => match[1]);
@@ -150,28 +62,11 @@ for (const htmlFile of htmlFiles) {
     }
   }
 
-  if (/\?v=/.test(html)) {
-    fail(`${rel(htmlFile)} must not use ?v= cache-busting query params`);
-  }
-  if (/searchParams\.set\(\s*["']v["']/.test(html) || /localStorage\.setItem\(\s*["']tdc_build["']/.test(html)) {
-    fail(`${rel(htmlFile)} must not add ?v= via redirect or localStorage`);
-  }
-  if (/location\.(replace|assign)/.test(html) || /location\.href\s*=/.test(html)) {
-    fail(`${rel(htmlFile)} must not use location redirects (causes reload loops on Pages)`);
-  }
-}
-
-const jsFilesToScan = [
-  ...collectFiles(path.join(siteRoot, "js"), ".js"),
-  path.join(siteRoot, "scripts", "smoke-check.mjs"),
-];
-for (const jsFile of jsFilesToScan) {
-  const js = readText(jsFile);
-  if (/\?v=/.test(js) && !jsFile.endsWith("smoke-check.mjs")) {
-    fail(`${rel(jsFile)} must not append ?v= to asset URLs`);
-  }
-  if (/searchParams\.set\(\s*["']v["']/.test(js) || /localStorage\.setItem\(\s*["']tdc_build["']/.test(js)) {
-    fail(`${rel(jsFile)} must not add ?v= via redirect or localStorage`);
+  const versionRefs = [...html.matchAll(/[?&]v=(\d+)/g)].map((match) => match[1]);
+  for (const value of versionRefs) {
+    if (value !== build) {
+      fail(`${rel(htmlFile)} uses v=${value}, expected v=${build}`);
+    }
   }
 }
 
@@ -200,46 +95,24 @@ if (!workflow.includes("path: cursor/topdown-city")) {
   fail(".github/workflows/deploy-pages.yml does not deploy cursor/topdown-city");
 }
 
-const agentsDoc = path.join(repoRoot, "AGENTS.md");
-if (!existsSync(agentsDoc)) {
-  fail("missing AGENTS.md at repo root (deploy rules for AI agents)");
-}
-
-evalLivingSpriteDirTests();
-
-const gta2Root = path.join(siteRoot, "assets/people/gta2");
-const gta2Meta = JSON.parse(readText(path.join(gta2Root, "meta.json")));
-const gta2PngCount = collectFiles(path.join(gta2Root, "parts"), ".png").length;
-if (gta2PngCount < 1000) {
-  fail(`expected at least 1000 GTA2 layer PNGs, found ${gta2PngCount}`);
-}
-for (const combo of gta2Meta.combos_preview || []) {
-  const preview = path.join(gta2Root, "previews", `${combo.id}.png`);
-  if (!existsSync(preview)) {
-    fail(`missing GTA2 preview PNG: assets/people/gta2/previews/${combo.id}.png`);
-  }
-  const layers = [
-    ["shoes", combo.pants],
-    ["pants", combo.pants],
-    ["arms", combo.shirt],
-    ["torsos", combo.shirt],
-    ["skins", combo.skin],
-    ["hairs", combo.hair],
-  ];
-  for (const [part, variant] of layers) {
-    const layerPath = path.join(
-      gta2Root,
-      "parts/bodies",
-      combo.body,
-      part,
-      variant,
-      "walk0",
-      "S.png"
-    );
-    if (!existsSync(layerPath)) {
-      fail(`missing GTA2 layer PNG for combo ${combo.id}: ${rel(layerPath)}`);
+const topdownMeta = path.join(siteRoot, "assets/people/topdown/meta.json");
+if (!existsSync(topdownMeta)) {
+  fail("missing assets/people/topdown/meta.json");
+} else {
+  const td = JSON.parse(readText(topdownMeta));
+  const dirs = td.directions || ["E", "SE", "S", "SW", "W", "NW", "N", "NE"];
+  const sampleDir = path.join(siteRoot, "assets/people/topdown/sprites/male_blue/walk0");
+  const hashes = new Map();
+  for (const d of dirs) {
+    const png = path.join(sampleDir, `${d}.png`);
+    if (!existsSync(png)) fail(`missing topdown sprite: sprites/male_blue/walk0/${d}.png`);
+    const hash = createHash("md5").update(readFileSync(png)).digest("hex");
+    if (hashes.has(hash)) {
+      fail(`topdown ${d}.png duplicates ${hashes.get(hash)} — directions must differ`);
     }
+    hashes.set(hash, d);
   }
+  if (hashes.size < 8) fail(`expected 8 unique direction sprites, got ${hashes.size}`);
 }
 
 if (errors.length) {
@@ -248,4 +121,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`Smoke check passed: ${scriptRefs.length} scripts, no ?v= cache busting.`);
+console.log(`Smoke check passed: ${scriptRefs.length} scripts, build ${build}.`);

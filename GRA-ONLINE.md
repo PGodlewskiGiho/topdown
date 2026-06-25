@@ -4,7 +4,8 @@
 
 **https://pgodlewskigiho.github.io/topdown/**
 
-Po wejściu zrób twarde odświeżenie (`Ctrl+Shift+R`) jeśli widzisz 404 lub stare pliki.
+Po wejściu dodaj `?v=2026062702` jeśli widzisz 404 lub stare pliki:  
+**https://pgodlewskigiho.github.io/topdown/?v=2026062702**
 
 ## GitHub Pages — konfiguracja (jednorazowo)
 
@@ -18,16 +19,12 @@ Użyj **tylko jednej** metody (nie obu naraz):
 4. Gra: `https://pgodlewskigiho.github.io/topdown/`
 5. Assety: `https://pgodlewskigiho.github.io/topdown/assets/...` (ścieżki względne)
 
-### Tylko Actions — bez branch deploy
+### Alternatywa: branch main (root)
 
-**Nie używaj** „Deploy from branch” (folder `/` ani `/cursor/topdown-city`).  
-Mieszanie z Actions powoduje zły `index.html`, redirecty i 404.
+Jeśli nie używasz Actions — branch `main`, folder `/` — wejdź przez:  
+`https://pgodlewskigiho.github.io/topdown/cursor/topdown-city/`
 
-W repo **nie ma** root `index.html` — gra jest wyłącznie w `cursor/topdown-city/`, a Actions publikuje ten folder jako root strony.
-
-Po przełączeniu na Actions zrób push na `main` (albo uruchom workflow ręcznie) — pierwszy deploy **po** zmianie ustawień jest wymagany.
-
-**Nie mieszaj** Actions + „Deploy from branch”.
+**Nie mieszaj** Actions + „Deploy from branch” — wtedy są 404 i stare pliki.
 
 ## Lokalnie
 
@@ -45,13 +42,13 @@ cd cursor/topdown-city
 npm run check
 ```
 
-Smoke-check sprawdza referencje HTML i listę skryptów JS ładowanych przez `index.html`.
+Smoke-check sprawdza referencje HTML, cache-busting `v=` i listę skryptów JS ładowanych przez `index.html`.
 
 ## Struktura w repo
 
 ```
 cursor/topdown-city/     ← gra (index.html, js/, assets/)
-  assets/people/gta2/    ← sprite’y pieszych (PNG)
+  assets/people/topdown/  ← sprite’y pieszych (PNG, 8 kierunków)
   js/lib/people-sprites.js
   scripts/smoke-check.mjs
 .github/workflows/deploy-pages.yml
@@ -61,7 +58,6 @@ cursor/topdown-city/     ← gra (index.html, js/, assets/)
 
 | Objaw | Rozwiązanie |
 |--------|-------------|
-| 404 na `/topdown/` po przełączeniu na Actions | Push na `main` i odczekaj ~1 min; sprawdź że Source = GitHub Actions |
-| 404 na `assets/people/gta2/...` | Pages → **GitHub Actions**, nie branch deploy |
-| Stare pliki w cache | Ctrl+Shift+R (twarde odświeżenie) |
+| 404 na `assets/people/gta2/...` | Pages → **GitHub Actions**, nie branch root |
+| Stare sprite’y / brak obrotu | Ctrl+Shift+R lub `?v=2026062702` |
 | URL z `/cursor/topdown-city/` przy Actions | Użyj **https://pgodlewskigiho.github.io/topdown/** |
