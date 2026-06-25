@@ -1,9 +1,10 @@
-/* people-2d.js — articulated top-down humans (MIT, no deps) */
+/* people-2d.js — GTA2-style top-down pedestrians (MIT, no deps) */
 (function(global){
 "use strict";
 
+const BUILD=20260707;
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
-const BUILD=20260706;
+const OUT="#141218";
 
 function normHex(col, fb){
   fb=fb||"#808080";
@@ -15,275 +16,224 @@ function normHex(col, fb){
   if(/^#[0-9a-fA-F]{6}$/.test(h)) return h.toLowerCase();
   return fb;
 }
-function shade(hex, amt){
+function shade(hex, n){
   hex=normHex(hex);
-  const n=parseInt(hex.slice(1),16);
-  let r=(n>>16)&255, g=(n>>8)&255, b=n&255;
-  if(Math.abs(amt)>1){
-    const d=clamp(amt|0,-48,48);
-    r=clamp(r+d,0,255); g=clamp(g+d,0,255); b=clamp(b+d,0,255);
-  } else {
-    const t=clamp(Math.abs(amt),0,1), f=amt>=0?255:0;
-    r=clamp((r+(f-r)*t)|0,0,255);
-    g=clamp((g+(f-g)*t)|0,0,255);
-    b=clamp((b+(f-b)*t)|0,0,255);
-  }
+  const v=parseInt(hex.slice(1),16);
+  let r=(v>>16)&255, g=(v>>8)&255, b=v&255;
+  r=clamp(r+n,0,255); g=clamp(g+n,0,255); b=clamp(b+n,0,255);
   return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
 }
 
-const BUILD_MOD={
-  slim:{sw:0.84,hip:0.88,torso:0.96,leg:0.94,arm:0.92,head:0.94,swing:1.06},
-  average:{sw:1.00,hip:1.00,torso:1.00,leg:1.00,arm:1.00,head:1.00,swing:1.00},
-  athletic:{sw:1.04,hip:0.96,torso:1.02,leg:1.04,arm:1.06,head:0.98,swing:1.10},
-  stocky:{sw:1.10,hip:1.12,torso:1.08,leg:1.02,arm:1.04,head:1.02,swing:0.94},
-  hardy:{sw:1.14,hip:1.16,torso:1.12,leg:1.06,arm:1.08,head:1.04,swing:0.90},
-};
-const AGE_MOD={
-  teen:{torso:0.94,leg:0.96,head:0.90,swing:1.16,hunch:0},
-  young:{torso:0.98,leg:0.98,head:0.96,swing:1.08,hunch:0},
-  adult:{torso:1.00,leg:1.00,head:1.00,swing:1.00,hunch:0},
-  middle:{torso:0.98,leg:0.98,head:0.96,swing:0.92,hunch:0.04},
-  senior:{torso:0.94,leg:0.94,head:0.92,swing:0.78,hunch:0.10},
-};
+/* GTA2 remap table — silhouette + default palette slots */
+const GTA2_PED=[
+  {id:0,  w:1.00,h:1.00, hair:true, cap:false},
+  {id:1,  w:0.92,h:0.98, hair:true, cap:false, fem:true},
+  {id:2,  w:1.08,h:1.04, hair:true, cap:false, tough:true},
+  {id:3,  w:0.96,h:1.02, hair:true, cap:true},
+  {id:4,  w:0.88,h:0.92, hair:false,cap:false, elder:true},
+  {id:5,  w:0.84,h:0.88, hair:true, cap:false, teen:true},
+  {id:6,  w:1.00,h:1.00, hair:false,cap:true, cop:true},
+  {id:7,  w:1.02,h:1.06, hair:true, cap:false, pack:true},
+  {id:8,  w:0.94,h:1.00, hair:true, cap:false, jacket:true},
+  {id:9,  w:1.06,h:1.02, hair:false,cap:false, tough:true, bald:true},
+  {id:10, w:0.90,h:0.96, hair:true, cap:true, fem:true},
+  {id:11, w:1.04,h:1.08, hair:true, cap:false, vest:true},
+  {id:12, w:0.86,h:0.90, hair:true, cap:false, shorts:true},
+  {id:13, w:0.98,h:1.00, hair:true, cap:false, mohawk:true},
+  {id:14, w:1.00,h:0.94, hair:true, cap:false, runner:true},
+  {id:15, w:1.10,h:1.10, hair:false,cap:false, tough:true, bald:true},
+];
 
-function resolveDNA(p){
-  const base=(p.r||9)/9;
-  const hm=p.height||1;
-  const bm=BUILD_MOD[p.build]||BUILD_MOD.average;
-  const am=AGE_MOD[p.age]||AGE_MOD.adult;
-  const fem=p.body==="female", hardy=p.body==="hardy";
-  const vs=p._visSeed!=null?((p._visSeed%997)/997-0.5)*0.12:0;
-  const s=base*hm*(1+vs);
-  return {
-    s,
-    sw:s*(fem?8.8:hardy?11.2:9.8)*bm.sw,
-    hip:s*(fem?7.6:hardy?10.4:8.8)*bm.hip,
-    torso:s*10.2*bm.torso*am.torso,
-    thigh:s*5.2*bm.leg*am.leg,
-    calf:s*4.8*bm.leg*am.leg,
-    foot:s*2.6,
-    ua:s*4.2*bm.arm,
-    fa:s*3.8*bm.arm,
-    hand:s*1.8,
-    headW:s*(fem?6.6:7.2)*bm.head*am.head,
-    headH:s*(fem?7.8:8.4)*bm.head*am.head,
-    swing:(bm.swing||1)*(am.swing||1),
-    hunch:(am.hunch||0)+(p.archetypeId==="city_elder"?0.06:0),
-    fem, hardy, shorts:!!p.shorts,
-    skin:normHex(p.skin,"#e8b888"),
-    shirt:normHex(p.shirt||p.color,"#3a6ea5"),
-    pants:normHex(p.pants,"#2a3444"),
-    shoe:normHex(p.shoes,shade(p.pants||"#2a3444",-40)),
-    hair:p.hair!=null?normHex(p.hair,"#3a2a18"):null,
-    hairStyle:p.hairStyle||(p.hair==null?"bald":"short"),
-    beard:p.beard||"none",
-    hat:p.hat, hatC:normHex(p.hatColor,"#444"),
-    shirtStyle:p.shirtStyle||"tee",
-    accessory:p.accessory,
-    scarfC:p.scarfColor,
-    prop:p.prop, propC:p.propColor,
-  };
+function pickPedType(p){
+  const seed=p._visSeed!=null?p._visSeed:((p.x|0)*928371+(p.y|0)*689287)|0;
+  if(p.archetypeId){
+    const map={
+      city_teen:5, city_punk:13, city_jogger:14, city_elder:4, city_worker:11,
+      city_business:8, city_delivery:3, forest_hiker:7, sea_fisher:9,
+      armed_thug:15, city_sporty:12, desert_nomad:2, sea_tourist:1,
+    };
+    if(map[p.archetypeId]!=null) return GTA2_PED[map[p.archetypeId]];
+  }
+  if(p.body==="female") return GTA2_PED[1];
+  if(p.body==="hardy") return GTA2_PED[2];
+  if(p.hat==="cap"||p.hat==="helmet") return GTA2_PED[3];
+  return GTA2_PED[Math.abs(seed)%GTA2_PED.length];
 }
 
-function limb(c,x,y,len,ang,w,col){
-  c.save(); c.translate(x,y); c.rotate(ang);
-  c.fillStyle=col;
-  c.beginPath(); c.roundRect(0,-w*0.5,len,w,w*0.38); c.fill();
-  c.restore();
-  return {x:x+Math.cos(ang)*len, y:y+Math.sin(ang)*len};
+function resolveStyle(p,color){
+  const type=pickPedType(p);
+  const z=2.35*clamp((p.r||9)/9,0.78,1.22)*clamp(p.height||1,0.86,1.12);
+  const shirt=normHex(color||p.shirt||p.color,"#3a6ea5");
+  const pants=normHex(p.pants,"#2a3444");
+  const skin=normHex(p.skin,"#e8b888");
+  const shoe=normHex(p.shoes,shade(pants,-35));
+  const hair=p.hair!=null?normHex(p.hair,"#3a2a18"):type.bald?null:"#3a2a18";
+  const hatC=normHex(p.hatColor,"#444");
+  const sleeve=shade(shirt,-28);
+  const swing=type.runner?1.35:type.teen?1.2:type.elder?0.72:1;
+  return {type,z,shirt,sleeve,pants,skin,shoe,hair,hatC,swing,
+    shorts:!!(type.shorts||p.shorts), hat:p.hat, prop:p.prop, propC:p.propColor,
+    armed:!!p.armed, hostile:!!p.hostile};
 }
 
-function block(c,x,y,w,h,ang,col,rad){
-  c.save(); c.translate(x,y); c.rotate(ang);
-  c.fillStyle=col;
-  c.beginPath(); c.roundRect(-w*0.5,-h*0.5,w,h,rad||h*0.22); c.fill();
-  c.restore();
-}
-
-function walkPhase(p,dna){
+function walkFrame(p,st){
   const mv=Math.hypot(p.vx||0,p.vy||0);
   const t=p.previewT!=null?p.previewT:performance.now()*0.001;
-  const ph=mv>5?t*14*dna.swing:t*2.8;
-  const s=Math.sin(ph), c=Math.cos(ph);
-  return {
-    ph, s, c,
-    lTh:0.55*s+0.15, lKn:0.45*s+0.55, lAn:0.25*s+0.1,
-    rTh:-0.55*s+0.15, rKn:-0.45*s+0.55, rAn:-0.25*s+0.1,
-    lUa:-0.35*s-0.45, lEl:-0.2*s-0.25,
-    rUa:0.35*s-0.45, rEl:0.2*s-0.25,
-  };
+  const ph=mv>4?t*13*st.swing:t*2.2;
+  const f=(Math.sin(ph)>0)?1:0;
+  const s=Math.sin(ph);
+  return {f,s, mv};
 }
 
-function paintBlood(c,p,down,dna){
-  const stain=clamp(p.bloodStain||0,0,1), pulse=clamp(p.bloodPulse||0,0,1);
-  if(stain<0.02&&pulse<0.02) return;
-  c.save(); c.globalCompositeOperation="multiply"; c.globalAlpha=0.16+stain*0.4+pulse*0.2;
-  c.fillStyle="#8a1018";
-  if(down) block(c,dna.torso*0.15,0,dna.torso*1.1,dna.sw*1.1,0.08,"#8a1018",3);
-  else block(c,dna.torso*0.2,0,dna.torso*0.7,dna.sw*0.9,0.1,"#8a1018",3);
-  c.restore();
+function pxRect(c,x,y,w,h,col,ol){
+  c.fillStyle=col;
+  c.fillRect(x|0,y|0,w|0,h|0);
+  if(ol!==false){
+    c.strokeStyle=OUT; c.lineWidth=1;
+    c.strokeRect((x|0)+0.5,(y|0)+0.5,(w|0)-1,(h|0)-1);
+  }
 }
 
-function drawHair(c,hx,hy,dna){
-  const h=dna.hair, st=dna.hairStyle;
-  if(!h||st==="bald") return;
-  c.fillStyle=h;
-  if(st==="mohawk"){
-    c.beginPath(); c.moveTo(hx-1,hy-dna.headH*0.45); c.lineTo(hx,hy-dna.headH*0.75); c.lineTo(hx+1,hy-dna.headH*0.45); c.closePath(); c.fill();
+/* Draw one GTA2-style ped facing +X (game forward). Origin = body center. */
+function drawGta2Ped(c,st,frame,down){
+  const z=st.z, t=st.type;
+  const W=t.w, H=t.h;
+  const u=z; /* 1 sprite pixel */
+  c.imageSmoothingEnabled=false;
+
+  /* shadow */
+  pxRect(c,-5*u*W, 5*u*H, 10*u*W, 2*u, "rgba(0,0,0,.30)", false);
+
+  if(down){
+    pxRect(c,-5*u*W, -1*u, 11*u*W, 4*u, st.pants);
+    pxRect(c,-4*u*W, 2*u, 9*u*W, 3*u, st.shirt);
+    pxRect(c, 2*u*W, 1*u, 4*u, 3*u, st.skin);
+    if(st.hair) pxRect(c, 2*u*W, 0, 4*u, 1*u, st.hair);
     return;
   }
-  if(st==="ponytail"){
-    block(c,hx-dna.headW*0.55,hy,dna.headW*0.42,dna.headH*0.55,-0.5,h,2);
-  }
-  if(st==="long"){
-    block(c,hx,hy+dna.headH*0.08,dna.headW*0.9,dna.headH*0.75,0,h,3);
-  }
-  block(c,hx,hy,dna.headW*1.05,dna.headH*0.92,0,h,3);
-  if(st==="curly"){
-    c.fillStyle=shade(h,-12);
-    for(let i=0;i<5;i++){
-      const a=i/5*6.28;
-      c.beginPath(); c.arc(hx+Math.cos(a)*dna.headW*0.35, hy+Math.sin(a)*dna.headH*0.2, dna.s*1.5, 0, 7); c.fill();
-    }
-  }
-  if(st==="bun"){
-    c.fillStyle=h; c.beginPath(); c.arc(hx-dna.headW*0.38, hy-dna.headH*0.12, dna.s*1.8, 0, 7); c.fill();
-  }
-}
 
-function drawHead(c,hx,hy,ang,dna){
-  drawHair(c,hx,hy,dna);
-  block(c,hx,hy,dna.headW,dna.headH,ang,dna.skin,2.5);
-  c.save(); c.translate(hx,hy); c.rotate(ang);
+  const wf=frame.f;
+  const legF=wf?1:-1;
+  const armF=-legF;
+
+  /* legs — GTA2 two-frame stride */
+  const ly=4*u*H;
+  const l1x=-2*u*W+legF*1*u, l2x=1*u*W-legF*1*u;
+  const legH=(st.shorts?5:7)*u;
+  const legCol=st.shorts?st.skin:st.pants;
+  pxRect(c,l1x, ly, 3*u, legH, legCol);
+  pxRect(c,l2x, ly, 3*u, legH, legCol);
+  if(st.shorts) pxRect(c,l1x, ly, 3*u, 2*u, st.pants), pxRect(c,l2x, ly, 3*u, 2*u, st.pants);
+  pxRect(c,l1x, ly+legH, 3*u, 2*u, st.shoe);
+  pxRect(c,l2x, ly+legH, 3*u, 2*u, st.shoe);
+
+  /* torso / shirt */
+  const tx=-4*u*W, ty=0;
+  pxRect(c,tx, ty, 8*u*W, 5*u, st.shirt);
+  if(t.jacket){
+    pxRect(c,tx-1*u, ty, 2*u, 5*u, shade(st.shirt,-32));
+    pxRect(c,tx+7*u*W-1*u, ty, 2*u, 5*u, shade(st.shirt,-32));
+  }
+  if(t.vest){
+    pxRect(c,tx+1*u, ty+1*u, 6*u*W, 3*u, "#d8a820");
+    pxRect(c,tx+1*u, ty+2*u, 2*u, 1*u, "#f0e040");
+    pxRect(c,tx+5*u*W-2*u, ty+2*u, 2*u, 1*u, "#f0e040");
+  }
+
+  /* arms */
+  const ax=tx+(armF>0?7*u*W: -2*u);
+  pxRect(c,ax, ty+1*u, 2*u, 4*u, st.sleeve);
+  pxRect(c,ax+(armF>0?1*u:-1*u), ty+4*u, 2*u, 2*u, st.skin);
+
+  /* head */
+  const hx=3*u*W, hy=-2*u;
+  pxRect(c,hx, hy, 4*u, 4*u, st.skin);
+  if(st.hair){
+    if(t.mohawk) pxRect(c,hx+1*u, hy-2*u, 2*u, 2*u, st.hair);
+    else pxRect(c,hx, hy-1*u, 4*u, 2*u, st.hair);
+  }
+  if(t.elder&&st.hair) pxRect(c,hx, hy-1*u, 4*u, 1*u, shade(st.hair,20));
+
+  /* hat / cop cap */
+  if(t.cop||st.hat==="cap"||st.hat==="helmet"){
+    pxRect(c,hx-1*u, hy-2*u, 6*u, 2*u, st.hatC||"#2a3040");
+    pxRect(c,hx+3*u, hy-1*u, 3*u, 1*u, shade(st.hatC||"#2a3040",-18));
+  } else if(st.hat==="beanie"||st.hat==="hood"){
+    pxRect(c,hx, hy-2*u, 4*u, 2*u, st.hatC);
+  }
+
+  /* backpack / props */
+  if(t.pack||st.prop==="backpack"){
+    pxRect(c,tx-2*u, ty, 2*u, 5*u, normHex(st.propC,"#5a5048"));
+  }
+  if(st.prop==="briefcase") pxRect(c,tx+2*u, ty+4*u, 3*u, 2*u, normHex(st.propC,"#3a3028"));
+  if(st.prop==="bag") pxRect(c,tx+5*u, ty+3*u, 2*u, 3*u, normHex(st.propC,"#8a6838"));
+
+  /* face dot — GTA2 style */
   c.fillStyle="#1a1410";
-  c.fillRect(dna.headW*0.18,-dna.headH*0.14,dna.s*1.1,dna.s*1.1);
-  c.fillRect(dna.headW*0.18,dna.headH*0.04,dna.s*1.1,dna.s*1.1);
-  if(dna.beard!=="none"&&dna.hair){
-    c.fillStyle=dna.hair;
-    c.beginPath(); c.roundRect(dna.headW*0.02,dna.headH*0.08,dna.headW*0.62,dna.headH*0.34,dna.s*0.8); c.fill();
-  }
-  if(dna.accessory==="glasses"){
-    c.strokeStyle="rgba(28,32,40,.9)"; c.lineWidth=1;
-    c.strokeRect(dna.headW*0.08,-dna.headH*0.2,dna.headW*0.28,dna.headH*0.22);
-    c.strokeRect(dna.headW*0.08,dna.headH*0.02,dna.headW*0.28,dna.headH*0.22);
-  }
-  c.restore();
-  if(dna.hat==="cap"){
-    block(c,hx,hy-dna.headH*0.18,dna.headW*1.1,dna.headH*0.35,ang,dna.hatC,2);
-    block(c,hx+dna.headW*0.35,hy,dna.headW*0.55,dna.headH*0.14,ang,shade(dna.hatC,-18),1);
-  } else if(dna.hat==="beanie"||dna.hat==="hood"){
-    block(c,hx,hy,dna.headW*1.12,dna.headH*0.95,ang,dna.hatC,3);
-  } else if(dna.hat==="helmet"){
-    block(c,hx,hy,dna.headW*1.15,dna.headH*1.0,ang,dna.hatC,4);
-    c.fillStyle="rgba(255,255,255,.14)"; block(c,hx-dna.headW*0.15,hy-dna.headH*0.15,dna.headW*0.35,dna.headH*0.28,ang,"rgba(255,255,255,.14)",2);
+  c.fillRect(hx+2*u, hy+1*u, u, u);
+  c.fillRect(hx+2*u, hy+2*u, u, u);
+
+  if(st.armed&&!st.hostile) pxRect(c,tx+6*u, ty+2*u, 3*u, 1*u, "#2a3038", false);
+  if(st.hostile){
+    c.strokeStyle="rgba(255,60,40,.85)"; c.lineWidth=1;
+    c.strokeRect(tx-2*u, hy-3*u, 12*u*W, 14*u);
   }
 }
 
-function drawTorso(c,dna,shirt,md){
-  const col=shirt||dna.shirt;
-  block(c,0,0,dna.torso,dna.sw,0,col,3);
-  if(dna.shirtStyle==="jacket"||dna.shirtStyle==="coat"){
-    c.fillStyle=shade(col,-22);
-    block(c,-dna.torso*0.12,dna.sw*0.38,dna.torso*0.35,dna.sw*0.72,0,shade(col,-22),2);
-    block(c,-dna.torso*0.12,-dna.sw*0.38,dna.torso*0.35,dna.sw*0.72,0,shade(col,-22),2);
-  }
-  if(dna.shirtStyle==="hoodie"){
-    c.fillStyle=shade(col,10); block(c,dna.torso*0.08,0,dna.torso*0.38,dna.sw*0.55,0,shade(col,10),2);
-  }
-  if(dna.shirtStyle==="vest"||md){
-    c.fillStyle="#d8a820"; block(c,0,0,dna.torso*0.92,dna.sw*0.88,0,"#d8a820",2);
-    c.fillStyle="#e8e040"; c.fillRect(-dna.torso*0.35,-dna.sw*0.1,dna.torso*0.18,dna.sw*0.2);
-    c.fillRect(dna.torso*0.12,-dna.sw*0.1,dna.torso*0.18,dna.sw*0.2);
-  }
-  if(dna.accessory==="scarf"||dna.scarfC){
-    c.fillStyle=dna.scarfC||shade(col,28);
-    block(c,dna.torso*0.32,0,dna.torso*0.22,dna.sw*0.42,0,dna.scarfC||shade(col,28),2);
-  }
-}
-
-function drawLegChain(c,hx,hy,th,kn,an,dna,side){
-  const sg=side;
-  const hipY=hy+sg*dna.hip*0.42;
-  const p1=limb(c,hx,hipY,dna.thigh,Math.PI*0.5+th*sg,dna.s*2.1,dna.pants);
-  const p2=limb(c,p1.x,p1.y,dna.calf,Math.PI*0.5+kn*sg,dna.s*1.8,dna.shorts?dna.skin:dna.pants);
-  limb(c,p2.x,p2.y,dna.foot,Math.PI*0.5+an*sg,dna.foot,dna.shoe);
-}
-
-function drawArmChain(c,sx,sy,ua,el,dna,side){
-  const sg=side;
-  const p1=limb(c,sx,sy,dna.ua,ua*sg,dna.s*1.7,shade(dna.shirt,-12));
-  const p2=limb(c,p1.x,p1.y,dna.fa,el*sg,dna.s*1.5,dna.skin);
-  limb(c,p2.x,p2.y,dna.hand*0.9,el*sg*0.6,dna.hand,dna.skin);
-}
-
-function drawWalk(c,p,dna){
-  const w=walkPhase(p,dna);
-  c.fillStyle="rgba(0,0,0,.32)";
-  c.beginPath(); c.ellipse(dna.torso*0.05,dna.sw*0.55,dna.torso*0.72,dna.sw*0.95,0,0,7); c.fill();
-
-  drawLegChain(c,-dna.torso*0.18,0,w.lTh,w.lKn,w.lAn,dna,1);
-  drawLegChain(c,-dna.torso*0.18,0,w.rTh,w.rKn,w.rAn,dna,-1);
-
-  if(p.prop==="backpack"){
-    block(c,-dna.torso*0.38,0,dna.torso*0.42,dna.sw*0.85,0,normHex(p.propColor,"#5a5048"),3);
-  }
-  drawTorso(c,dna,null,dna.shirtStyle==="vest");
-  drawArmChain(c,dna.torso*0.22,dna.sw*0.38,w.lUa,w.lEl,dna,1);
-  drawArmChain(c,dna.torso*0.22,-dna.sw*0.38,w.rUa,w.rEl,dna,-1);
-
-  if(p.prop==="bag") block(c,dna.torso*0.1,dna.sw*0.55,dna.s*2.4,dna.s*3.2,0.2,normHex(p.propColor,"#8a6838"),2);
-  if(p.prop==="briefcase") block(c,dna.torso*0.05,dna.sw*0.42,dna.s*3.6,dna.s*2.2,0,normHex(p.propColor,"#3a3028"),1.5);
-  if(p.prop==="stick"){ c.strokeStyle=normHex(p.propColor,"#6a5038"); c.lineWidth=2.2; c.beginPath(); c.moveTo(dna.torso*0.1,dna.sw*0.5); c.lineTo(dna.torso*0.1,dna.sw*1.1); c.stroke(); }
-
-  drawHead(c,dna.torso*0.42,0,0,dna);
-
-  if(p.armed&&!p.hostile) block(c,dna.torso*0.05,dna.sw*0.5,dna.s*3,dna.s*1.4,0.2,"#2a3038",1);
-  if(p.hostile){ c.strokeStyle="rgba(255,70,46,.9)"; c.lineWidth=1.6; c.beginPath(); c.arc(0,0,dna.torso*0.95,0,7); c.stroke(); }
-}
-
-function drawRagdoll(c,p,dna){
-  const rd=p.ragdoll;
-  c.fillStyle="rgba(0,0,0,.28)";
-  c.beginPath(); c.ellipse(0,1,dna.torso*1.1,dna.sw*0.9,0,0,7); c.fill();
+function drawRagdollGta2(c,st,p){
+  const rd=p.ragdoll, u=st.z;
+  c.imageSmoothingEnabled=false;
+  pxRect(c,-6*u,5*u,12*u,2*u,"rgba(0,0,0,.28)",false);
   if(!rd){
-    block(c,0,0,dna.torso*1.5,dna.sw,0,dna.shirt,3);
-    drawHead(c,dna.torso*0.55,0,0,dna);
+    drawGta2Ped(c,st,{f:0,s:0,mv:0},true);
     return;
   }
-  const hipX=-dna.torso*0.35, shX=dna.torso*0.1;
-  limb(c,hipX,0,dna.thigh+dna.calf,rd.legL,dna.s*2.1,dna.pants);
-  limb(c,hipX,0,dna.thigh+dna.calf,rd.legR,dna.s*2.1,dna.pants);
-  block(c,0,0,dna.torso*1.35,dna.sw*0.92,0,dna.shirt,3);
-  limb(c,shX,dna.sw*0.3,dna.ua+dna.fa,rd.armL,dna.s*1.6,dna.skin);
-  limb(c,shX,-dna.sw*0.3,dna.ua+dna.fa,rd.armR,dna.s*1.6,dna.skin);
-  const nx=shX+dna.torso*0.25, ny=0;
-  drawHead(c,nx+Math.cos(rd.head)*dna.headW*0.7, ny+Math.sin(rd.head)*dna.headW*0.7, rd.head,dna);
+  pxRect(c,-5*u,0,4*u,8*u,st.pants);
+  pxRect(c,1*u,0,4*u,8*u,st.pants);
+  pxRect(c,-4*u,-1*u,9*u,4*u,st.shirt);
+  pxRect(c,3*u,-1*u,4*u,3*u,st.skin);
+  const hx=5*u+Math.cos(rd.head||0)*2*u, hy=Math.sin(rd.head||0)*2*u;
+  pxRect(c,hx,hy,3*u,3*u,st.skin);
 }
 
-function drawSwim(c,p,dna){
-  const bob=Math.sin(performance.now()/250)*1.2;
-  c.fillStyle="rgba(255,255,255,.12)"; c.beginPath(); c.ellipse(0,bob,dna.torso*0.9,dna.sw*0.8,0,0,7); c.fill();
-  block(c,0,bob,dna.torso*0.65,dna.sw*0.7,0,dna.shirt,2);
-  drawHead(c,dna.torso*0.28,bob,0,dna);
+function paintBlood(c,p,down,u){
+  const stain=clamp(p.bloodStain||0,0,1), pulse=clamp(p.bloodPulse||0,0,1);
+  if(stain<0.03&&pulse<0.03) return;
+  c.save(); c.globalCompositeOperation="multiply"; c.globalAlpha=0.2+stain*0.45+pulse*0.25;
+  pxRect(c,down?-2*u:0, down?0:-1*u, down?10*u:7*u, down?4*u:6*u, "#8a1018", false);
+  c.restore();
+}
+
+function snap8(a){
+  const d=((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
+  return Math.round(d/(Math.PI/4))*(Math.PI/4);
 }
 
 function draw(c,p,color,down){
-  const dna=resolveDNA(p);
-  if(color) dna.shirt=normHex(color,dna.shirt);
-  c.save(); c.translate(p.x,p.y); c.rotate(p.a||0);
-  if(dna.hunch) c.translate(-dna.torso*dna.hunch,0);
-  if(down) drawRagdoll(c,p,dna);
-  else if(p.swimming) drawSwim(c,p,dna);
-  else drawWalk(c,p,dna);
-  paintBlood(c,p,!!down,dna);
+  const st=resolveStyle(p,color);
+  const frame=walkFrame(p,st);
+  c.save();
+  c.translate(p.x,p.y);
+  c.rotate(snap8(p.a||0));
+  if(down) drawRagdollGta2(c,st,p);
+  else if(p.swimming){
+    const bob=Math.sin(performance.now()/220)*st.z;
+    c.translate(0,bob);
+    pxRect(c,-3*st.z,0,7*st.z,4*st.z,st.shirt);
+    pxRect(c,2*st.z,-2*st.z,4*st.z,3*st.z,st.skin);
+  } else {
+    drawGta2Ped(c,st,frame,false);
+  }
+  paintBlood(c,p,!!down,st.z);
   c.restore();
 }
 
 const People2D={
-  draw, BUILD, BUILD_MOD, AGE_MOD,
-  modelForArchetype(id){ return id||"civilian"; },
-  modelForCop(type){ return type==="swat"?"swat":type==="soldier"?"soldier":"officer"; },
-  resolveModel(p){ return resolveDNA(p); },
+  draw, BUILD, GTA2_PED,
+  modelForArchetype(id){ return id||"gta2"; },
+  modelForCop(){ return "cop"; },
+  resolveModel(p){ return resolveStyle(p); },
 };
 
 global.People2D=People2D;
