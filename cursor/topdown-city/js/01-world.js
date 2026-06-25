@@ -700,7 +700,7 @@ function drawRoads(ox,oy){
     if(!e.exists||e.bridge||e.klass==="dirt"||e.klass==="rural"||e.klass==="trail") continue;
     ctx.strokeStyle=_at; ctx.lineWidth=e.width;
     const A=node(i,j), B=node(i+di,j+dj), C=e.cp;
-    ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.quadraticCurveTo(C[0],C[1],B[0],B[1]); ctx.stroke(); } } } }
+    ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.quadraticCurveTo(C[0],C[1],B[0],B[1]); ctx.stroke(); } } }
   if(typeof drawFieldRoads==="function") drawFieldRoads(ox,oy);
   else if(typeof drawForestTrails==="function") drawForestTrails(ox,oy);
   if(typeof drawForestBridges==="function") drawForestBridges(ox,oy);

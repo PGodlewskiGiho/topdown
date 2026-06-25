@@ -1500,7 +1500,7 @@ function drawForestFloraItem(d){
       case "sprout": vk="clump_small"; sc=s*1.25; break;
       case "blade":
       case "clover":
-        vk=["clump_med","clump_shade","clump_wispy","clump_mossy","clump_dense","clump_pine"][((x*73856093)^(y*19349663))>>>0)%6];
+        vk=["clump_med","clump_shade","clump_wispy","clump_mossy","clump_dense","clump_pine"][(((x*73856093)^(y*19349663))>>>0)%6];
         sc=s*1.12;
         break;
     }
