@@ -1,12 +1,13 @@
-/* people-sprites.js — GTA2 modular PNG pedestrians (body × 8 dirs × 2 walk) */
+/* people-sprites.js — GTA2 modular PNG pedestrians (lazy-loaded layers) */
 (function(global){
 "use strict";
 
-const BUILD=20260627;
+const BUILD=20260628;
 const BASE="assets/people/gta2/parts/bodies/";
 const META_URL="assets/people/gta2/meta.json";
 const GO=global.Gta2Outfit;
 const imgs={};
+const pending=new Set();
 let meta=null, loadP=null, ready=false;
 
 const DIR=["E","SE","S","SW","W","NW","N","NE"];
@@ -18,40 +19,37 @@ const BUILD_SCALE={
   hardy:{sx:1.12,sy:1.08},
 };
 
-function loadImg(path){
-  return new Promise((res,rej)=>{
-    if(imgs[path]&&imgs[path].complete){ res(imgs[path]); return; }
-    const im=new Image();
-    im.onload=()=>{ imgs[path]=im; res(im); };
-    im.onerror=()=>rej(new Error("sprite:"+path));
-    im.src=path+"?v="+BUILD;
-  });
+function queueImg(path){
+  if(!path||pending.has(path)||(imgs[path]&&imgs[path].complete)) return;
+  pending.add(path);
+  const im=new Image();
+  im.onload=im.onerror=()=>{ pending.delete(path); };
+  im.src=path+"?v="+BUILD;
+  imgs[path]=im;
 }
 
-function partPaths(m){
-  const s=new Set();
-  const walk=["walk0","walk1"];
-  const bodies=(m.body_types||[{id:"male"}]).map(b=>b.id);
-  for(const body of bodies)
-    for(const d of m.directions||DIR)
-      for(const wf of walk){
-        for(const x of m.shirts||[]) s.add(BASE+body+"/torsos/"+x.id+"/"+wf+"/"+d+".png");
-        for(const x of m.pants||[]) s.add(BASE+body+"/pants/"+x.id+"/"+wf+"/"+d+".png");
-        for(const x of m.shoes||[]) s.add(BASE+body+"/shoes/"+x.id+"/"+wf+"/"+d+".png");
-        for(const x of m.arms||[]) s.add(BASE+body+"/arms/"+x.id+"/"+wf+"/"+d+".png");
-        for(const x of m.skins||[]) s.add(BASE+body+"/skins/"+x.id+"/"+wf+"/"+d+".png");
-        for(const x of m.hairs||[]) s.add(BASE+body+"/hairs/"+x.id+"/"+wf+"/"+d+".png");
-      }
-  return [...s];
+function getImg(path){
+  const im=imgs[path];
+  if(im&&im.complete&&im.naturalWidth>0) return im;
+  queueImg(path);
+  return null;
 }
 
 function init(){
   if(loadP) return loadP;
   loadP=fetch(META_URL+"?v="+BUILD)
-    .then(r=>r.json())
-    .then(m=>{ meta=m; return Promise.all(partPaths(m).map(loadImg)); })
-    .then(()=>{ ready=true; })
-    .catch(e=>{ console.warn("PeopleSprites load failed",e); ready=false; });
+    .then(r=>{
+      if(!r.ok) throw new Error("meta:"+r.status);
+      return r.json();
+    })
+    .then(m=>{
+      meta=m;
+      ready=true;
+    })
+    .catch(e=>{
+      console.warn("PeopleSprites meta load failed",e);
+      ready=false;
+    });
   return loadP;
 }
 
@@ -59,6 +57,7 @@ function pick(arr, seed){ return arr[Math.abs(seed)%arr.length]; }
 
 function resolveOutfit(p){
   if(p._gta2Outfit) return p._gta2Outfit;
+  if(!meta) return null;
   if(GO) GO.applyGta2Ids(p);
   const seed=p._visSeed!=null?p._visSeed:((p.x|0)*7919+(p.y|0)*6151)|0;
   const body=GO?GO.bodyType(p):(p.body||"male");
@@ -71,10 +70,10 @@ function resolveOutfit(p){
   const o={
     body,
     build:p.build||(defs[body]||"average"),
-    shirt: p.shirtId||pick(shirts, seed+31).id,
-    pants: p.pantsId||(body==="female"&&GO.pickFemalePants?GO.pickFemalePants(pants, seed):pick(pants, seed+17).id),
-    skin: p.skinId||pick(skins, seed+5).id,
-    hair: p.hairId!=null?p.hairId:pick(hairs, seed+59).id,
+    shirt:p.shirtId||pick(shirts, seed+31).id,
+    pants:p.pantsId||(body==="female"&&GO&&GO.pickFemalePants?GO.pickFemalePants(pants, seed):pick(pants, seed+17).id),
+    skin:p.skinId||pick(skins, seed+5).id,
+    hair:p.hairId!=null?p.hairId:pick(hairs, seed+59).id,
   };
   if(p.shirtId) o.shirt=p.shirtId;
   if(p.pantsId) o.pants=p.pantsId;
@@ -118,17 +117,23 @@ function layerPaths(o, wf, direction){
   return out;
 }
 
+function prefetchOutfit(o, wf, direction){
+  for(const path of layerPaths(o, wf, direction)) queueImg(path);
+  const alt=wf==="walk0"?"walk1":"walk0";
+  for(const path of layerPaths(o, alt, direction)) queueImg(path);
+}
+
 function buildMul(o, p){
   const b=BUILD_SCALE[o.build]||BUILD_SCALE.average;
-  const h=clamp(pHeight(p), 0.86, 1.14);
+  const h=clamp(p.height!=null?p.height:1, 0.86, 1.14);
   return {sx:b.sx*h, sy:b.sy*h};
 }
 
-function pHeight(p){ return p.height!=null?p.height:1; }
 function clamp(v,a,b){ return v<a?a:v>b?b:v; }
 
 function drawComposite(c, p, down){
   const o=resolveOutfit(p);
+  if(!o) return;
   const rad=((p.r||9)/9);
   const bm=buildMul(o, p);
   const sc=rad*2.05;
@@ -142,12 +147,16 @@ function drawComposite(c, p, down){
 
   const wf=down?"walk0":("walk"+walkFrame(p));
   const dir=dirName(p);
+  prefetchOutfit(o, wf, dir);
+  let drew=false;
   for(const path of layerPaths(o, wf, dir)){
-    const im=imgs[path];
-    if(!im||!im.complete) continue;
-    const w=im.width*sx, h=im.height*sy;
-    c.drawImage(im, -ax*bm.sx, -ay*bm.sy, w, h);
+    const im=getImg(path);
+    if(!im) continue;
+    drew=true;
+    c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
   }
+
+  if(!drew) return;
 
   if(down){
     c.save();
@@ -164,7 +173,10 @@ function drawComposite(c, p, down){
 }
 
 function draw(c,p,color,down){
-  if(!ready||!meta){ if(global.People2D) global.People2D.draw(c,p,color,down); return; }
+  if(!meta){
+    if(global.People2D) global.People2D.draw(c,p,color,down);
+    return;
+  }
   c.save();
   c.translate(p.x,p.y);
   drawComposite(c,p,down);
