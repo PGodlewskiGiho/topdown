@@ -3,10 +3,17 @@
 <head>
 <meta charset="utf-8">
 <title>TOPDOWN CITY</title>
-<meta http-equiv="refresh" content="0;url=cursor/topdown-city/index.html">
-<script>location.replace("cursor/topdown-city/index.html?v=2026062630"+location.hash);</script>
+<script>
+(function(){
+  var target="/topdown/?v=2026062701";
+  if(location.pathname.indexOf("cursor/topdown-city")>=0){
+    target="index.html?v=2026062701";
+  }
+  location.replace(target);
+})();
+</script>
 </head>
 <body>
-<p><a href="cursor/topdown-city/index.html">TOPDOWN CITY</a></p>
+<p><a href="https://pgodlewskigiho.github.io/topdown/?v=2026062701">TOPDOWN CITY</a></p>
 </body>
 </html>
