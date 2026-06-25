@@ -95,13 +95,37 @@ function clipDefs(meta){
   return DEFAULT_CLIPS;
 }
 
+function clipSpec(clipId, meta){
+  const c=clipDefs(meta)[clipId];
+  if(c) return c;
+  return DEFAULT_CLIPS[clipId]||{count:2,step_sec:0.11};
+}
+
+function clipDuration(clipId, meta){
+  const spec=clipSpec(clipId, meta);
+  return (spec.count||1)*(spec.step_sec||0.1);
+}
+
+function startAttackClip(entity, clipId, meta){
+  entity._attackClip=clipId;
+  entity._attackT=clipDuration(clipId, meta);
+}
+
+function tickAttackClip(entity, dt){
+  if(!entity._attackT||entity._attackT<=0) return;
+  entity._attackT=Math.max(0, entity._attackT-dt);
+  if(entity._attackT<=0) entity._attackClip=null;
+}
+
 /** Pick GTA2 animation clip from entity state (matches gta2_re anim groups). */
 function animClip(entity, down, meta){
+  if(entity.state==="dying") return "die";
   if(down||entity.state==="down") return "down";
+  if(entity._attackT>0&&entity._attackClip) return entity._attackClip;
   const clips=clipDefs(meta);
   const spd=moveSpeed(entity);
   if(entity.hostile){
-    if(spd<28) return "shoot";
+    if(spd<36) return "shoot";
     return clips.run?"run":"walk";
   }
   if((entity.panic||0)>0) return clips.run?"run":"walk";
@@ -111,16 +135,18 @@ function animClip(entity, down, meta){
   return "walk";
 }
 
-function clipSpec(clipId, meta){
-  const c=clipDefs(meta)[clipId];
-  if(c) return c;
-  return DEFAULT_CLIPS[clipId]||{count:2,step_sec:0.11};
-}
-
 function animFrameIndex(entity, clipId, meta, down){
   const spec=clipSpec(clipId, meta);
   const n=spec.count||2;
   const step=spec.step_sec||0.11;
+  if(clipId==="die"&&entity.state==="dying"&&entity._dieT!=null){
+    return Math.min(n-1, Math.floor(entity._dieT/step));
+  }
+  if(entity._attackT>0&&clipId===entity._attackClip){
+    const total=clipDuration(clipId, meta);
+    const elapsed=total-entity._attackT;
+    return Math.min(n-1, Math.floor(elapsed/step));
+  }
   if((clipId==="down"||down)&&entity.downT!=null){
     const i=Math.floor(entity.downT/step);
     return spec.hold_last?Math.min(n-1,i):i%n;
@@ -170,6 +196,7 @@ const LivingSprite={
   facingAngle, dirName, resolveDir, spriteDir,
   moveSpeed, animClip, animFrameIndex, animFrameName,
   walkPhase, walkFrameName,
+  clipSpec, clipDuration, startAttackClip, tickAttackClip,
   isMoving, syncFacing,
 };
 global.LivingSprite=LivingSprite;

@@ -459,6 +459,20 @@ function updateLeaving(dt){
 function drawLeaving(ox,oy){ for(const cpc of leaving){ if(cpc.x<ox-50||cpc.x>ox+VW+50||cpc.y<oy-50||cpc.y>oy+VH+50) continue; drawVehicle(cpc,cpc.color); } }
 function updateNpcPed(p,dt){
   const _wx=p.x, _wy=p.y; try{
+  if(typeof LivingSprite!=="undefined") LivingSprite.tickAttackClip(p, dt);
+  if(p.state==="dying"){
+    p._dieT=(p._dieT||0)+dt;
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    const f=1-Math.min(0.9,2.0*dt); p.vx*=f; p.vy*=f;
+    const dieDur=typeof LivingSprite!=="undefined"
+      ?LivingSprite.clipDuration("die", typeof PeopleSprites!=="undefined"?PeopleSprites.meta:null)
+      :0.7;
+    if(p._dieT>=dieDur){
+      p.state="down"; p.downT=0;
+      if(typeof enterPedRagdoll==="function") enterPedRagdoll(p, p.vx*2, p.vy*2);
+    }
+    return;
+  }
   if(p.state==="down"){
     if(typeof updatePedRagdoll==="function") updatePedRagdoll(p,dt);
     else { p.x+=p.vx*dt; p.y+=p.vy*dt; const f=1-Math.min(0.9,2.2*dt); p.vx*=f; p.vy*=f; }
@@ -474,7 +488,15 @@ function updateNpcPed(p,dt){
     const mv = dd>170?1 : (dd<95?-0.7:0);
     p.x += dxp/dd*p.speed*1.5*mv*dt; p.y += dyp/dd*p.speed*1.5*mv*dt;
     p.fireCd-=dt;
-    if(p.fireCd<=0 && dd<360 && p.weapon!=null){ const w=WEAPONS[p.weapon], ang=p.a+(Math.random()-0.5)*0.2; fireWeapon(w,p.x,p.y,ang,"enemy"); p.fireCd=w.cd*rand(2.4,3.8); }
+    if(p.fireCd<=0 && dd<360 && p.weapon!=null){
+      const w=WEAPONS[p.weapon], ang=p.a+(Math.random()-0.5)*0.2;
+      fireWeapon(w,p.x,p.y,ang,"enemy");
+      p.fireCd=w.cd*rand(2.4,3.8);
+      if(typeof LivingSprite!=="undefined"){
+        const pmeta=typeof PeopleSprites!=="undefined"?PeopleSprites.meta:null;
+        LivingSprite.startAttackClip(p, "shoot", pmeta);
+      }
+    }
     { const ci=Math.floor((p.x-ROAD)/GAP), cj=Math.floor((p.y-ROAD)/GAP);
       for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){ const L=getLot(i,j); for(const b of L.buildings){
         const cx=clamp(p.x,b.x,b.x+b.w), cy=clamp(p.y,b.y,b.y+b.h), ex=p.x-cx, ey=p.y-cy, dd2=Math.hypot(ex,ey);

@@ -122,7 +122,7 @@ function prefetchAllDirections(o, folder){
 function warmDefault(){
   if(!meta) return;
   const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
-  const warmFolders=["idle0","walk0","walk1","run0","shoot0","down0"];
+  const warmFolders=["idle0","walk0","walk1","run0","shoot0","shoot1","punch0","punch1","down0","down1","die0","die1"];
   for(const f of warmFolders){
     prefetchAllDirections(sample, f);
   }

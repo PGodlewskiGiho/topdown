@@ -33,14 +33,13 @@ const owned = WEAPONS.map((w,i)=> i===0);
 const ammo  = WEAPONS.map(w=> w.kind==="melee" ? Infinity : 0);
 function ownedIndices(){ const o=[]; for(let i=0;i<WEAPONS.length;i++) if(owned[i]) o.push(i); return o; }
 function pedHit(p,dmg,kx,ky,bloodAmt,noHeat){
-  if(p.state==="down") return;
+  if(p.state==="down"||p.state==="dying") return;
   if(p.armed) p.hostile=true;
   p._hp-=dmg;
   const ang=Math.atan2(ky,kx);
   stainCharacter(p,bloodAmt);
   if(p._hp>0){ spawnBlood(p.x,p.y,kx,ky,0.35,ang); return; }
-  p.state="down"; p.vx=kx*0.5; p.vy=ky*0.5; p.downT=0;
-  if(typeof enterPedRagdoll==="function") enterPedRagdoll(p, kx, ky);
+  p.state="dying"; p._dieT=0; p.vx=kx*0.35; p.vy=ky*0.35;
   if(!noHeat) addHeat(p.armed?0.5:0.8);
   const sev=clamp((bloodAmt||0.5)*1.1+(dmg||10)/40, 0.35, 1.5);
   spawnBlood(p.x,p.y,kx,ky,bloodAmt,ang);
@@ -364,6 +363,7 @@ function updateBullets(dt){
 function updateCombat(dt){
   tickVehicleImpactCd(dt);
   if(typeof invOpen!=="undefined"&&invOpen) return;
+  if(typeof LivingSprite!=="undefined") LivingSprite.tickAttackClip(ped, dt);
   playerFireCd-=dt;
   if(mode==="foot" && (firing||keys[" "]) && playerFireCd<=0){
     const w=WEAPONS[curWeapon];
@@ -371,6 +371,10 @@ function updateCombat(dt){
     if(canFire){
       const ang=playerAim(); ped.a=ang;
       fireWeapon(w, ped.x, ped.y, ang, "player");
+      if(typeof LivingSprite!=="undefined"){
+        const pmeta=typeof PeopleSprites!=="undefined"?PeopleSprites.meta:null;
+        LivingSprite.startAttackClip(ped, w.kind==="melee"?"punch":"shoot", pmeta);
+      }
       if(w.kind!=="melee"){
         if(typeof playerConsumeAmmo==="function") playerConsumeAmmo();
         else if(ammo[curWeapon]!==Infinity){ ammo[curWeapon]--; if(ammo[curWeapon]<=0) curWeapon=0; }
