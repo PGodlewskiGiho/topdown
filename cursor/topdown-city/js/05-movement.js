@@ -53,7 +53,8 @@ function updateCar(dt){
       const dec=Math.min(Math.abs(fwd),(BRAKE*(h.brake||1)+speed*0.42)*dt);
       car.vx-=c*dec; car.vy-=s*dec;
     } else {
-      car.vx-=c*REVERSE*throttle*dt; car.vy-=s*REVERSE*throttle*dt;
+      const rev=REVERSE*dt;
+      car.vx-=c*rev; car.vy-=s*rev;
     }
   }
 
