@@ -209,10 +209,21 @@ function drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm){
   return true;
 }
 
-function resolveSpriteDir(p, forcedDir){
+/** Baked GTA2 dirs are 180° off screen movement (base sprite faces N). */
+function gta2SpriteDir(moveDir){
+  const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
+  const i=dirs.indexOf(moveDir);
+  return i>=0?dirs[(i+4)%dirs.length]:(moveDir||"N");
+}
+
+function moveFacingDir(p, forcedDir){
   if(typeof forcedDir==="string"&&forcedDir) return forcedDir;
   if(LS) return LS.spriteDir(p);
   return p._faceDir||p._spriteDir||"S";
+}
+
+function resolveSpriteDir(p, forcedDir){
+  return gta2SpriteDir(moveFacingDir(p, forcedDir));
 }
 
 function tryBake(o, wf, dir){
@@ -273,9 +284,10 @@ function drawComposite(c, p, down, forcedDir){
   c.imageSmoothingEnabled=false;
 
   const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down,meta):"walk0";
-  const dir=resolveSpriteDir(p, forcedDir);
+  const moveDir=moveFacingDir(p, forcedDir);
+  const dir=gta2SpriteDir(moveDir);
+  p._faceDir=moveDir;
   p._spriteDir=dir;
-  p._faceDir=dir;
   p._animClip=LS&&LS.animClip?LS.animClip(p,down,meta):null;
   prefetchOutfit(o, wf, dir);
   if(p._animClip) prefetchClip(o, p._animClip);
