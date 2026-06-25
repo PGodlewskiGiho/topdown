@@ -1,0 +1,30 @@
+name: CI smoke check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Block forbidden root index.html
+        run: |
+          if [ -f index.html ]; then
+            echo "::error::Root index.html must not exist. Game lives in cursor/topdown-city/ only."
+            echo "See AGENTS.md"
+            cat index.html
+            exit 1
+          fi
+
+      - name: npm run check
+        working-directory: cursor/topdown-city
+        run: npm run check

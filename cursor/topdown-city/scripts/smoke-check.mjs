@@ -35,8 +35,18 @@ function collectFiles(dir, extension) {
   });
 }
 
+const forbiddenRootIndex = path.join(repoRoot, "index.html");
+if (existsSync(forbiddenRootIndex)) {
+  fail(
+    "repo root index.html must not exist — game is only in cursor/topdown-city/ (see AGENTS.md)"
+  );
+  const rootHtml = readText(forbiddenRootIndex);
+  if (/location\.(replace|assign)/.test(rootHtml) || /location\.href\s*=/.test(rootHtml)) {
+    fail("repo root index.html contains forbidden redirect scripts");
+  }
+}
+
 const htmlFiles = [
-  path.join(repoRoot, "index.html"),
   path.join(siteRoot, "index.html"),
   path.join(siteRoot, "404.html"),
 ];
@@ -58,6 +68,9 @@ for (const htmlFile of htmlFiles) {
   }
   if (/searchParams\.set\(\s*["']v["']/.test(html) || /localStorage\.setItem\(\s*["']tdc_build["']/.test(html)) {
     fail(`${rel(htmlFile)} must not add ?v= via redirect or localStorage`);
+  }
+  if (/location\.(replace|assign)/.test(html) || /location\.href\s*=/.test(html)) {
+    fail(`${rel(htmlFile)} must not use location redirects (causes reload loops on Pages)`);
   }
 }
 
@@ -98,6 +111,11 @@ for (const ref of missingOnDisk) {
 const workflow = readText(path.join(repoRoot, ".github/workflows/deploy-pages.yml"));
 if (!workflow.includes("path: cursor/topdown-city")) {
   fail(".github/workflows/deploy-pages.yml does not deploy cursor/topdown-city");
+}
+
+const agentsDoc = path.join(repoRoot, "AGENTS.md");
+if (!existsSync(agentsDoc)) {
+  fail("missing AGENTS.md at repo root (deploy rules for AI agents)");
 }
 
 const gta2Root = path.join(siteRoot, "assets/people/gta2");

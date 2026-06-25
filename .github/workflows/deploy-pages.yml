@@ -26,6 +26,21 @@ jobs:
         with:
           ref: main
 
+      - name: Block forbidden root index.html
+        run: |
+          if [ -f index.html ]; then
+            echo "::error::Root index.html must not exist. See AGENTS.md"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Smoke check before deploy
+        working-directory: cursor/topdown-city
+        run: npm run check
+
       - name: Prepare site artifact
         run: |
           SITE=cursor/topdown-city

@@ -24,13 +24,18 @@ Smoke-check waliduje lokalne referencje HTML i listę skryptów ładowanych prze
 
 ```text
 .github/workflows/deploy-pages.yml  GitHub Pages deploy
+.github/workflows/ci.yml            smoke-check na każdym pushu
+AGENTS.md                           reguły dla agentów AI (czytaj przed edycją)
 cursor/topdown-city/                gra: HTML, CSS, JS, assety
 cursor/topdown-city/docs/           mapa modułów i architektura
 cursor/topdown-city/scripts/        generatory assetów i smoke-check
 GRA-ONLINE.md                       instrukcja publikacji dla GitHub Pages
-index.html                          redirect do opublikowanej gry
 ```
 
 ## Deploy
 
-Workflow `Deploy TOPDOWN CITY to GitHub Pages` publikuje katalog `cursor/topdown-city` jako root strony.
+1. W ustawieniach repo: **Pages → Source: GitHub Actions** (nie „Deploy from branch”).
+2. Workflow `Deploy TOPDOWN CITY to GitHub Pages` publikuje `cursor/topdown-city` jako root strony.
+3. Gra: https://pgodlewskigiho.github.io/topdown/
+
+**Nie twórz `index.html` w rootcie repo** — psuje to live URL. Szczegóły: [AGENTS.md](AGENTS.md).

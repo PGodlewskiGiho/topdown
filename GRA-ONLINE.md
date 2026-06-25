@@ -18,12 +18,14 @@ Użyj **tylko jednej** metody (nie obu naraz):
 4. Gra: `https://pgodlewskigiho.github.io/topdown/`
 5. Assety: `https://pgodlewskigiho.github.io/topdown/assets/...` (ścieżki względne)
 
-### Alternatywa: branch main (root)
+### Tylko Actions — bez branch deploy
 
-Jeśli nie używasz Actions — branch `main`, folder `/` — wejdź przez:  
-`https://pgodlewskigiho.github.io/topdown/cursor/topdown-city/`
+**Nie używaj** „Deploy from branch” (folder `/` ani `/cursor/topdown-city`).  
+Mieszanie z Actions powoduje zły `index.html`, redirecty i 404.
 
-**Nie mieszaj** Actions + „Deploy from branch” — wtedy są 404 i stare pliki.
+W repo **nie ma** root `index.html` — gra jest wyłącznie w `cursor/topdown-city/`.
+
+**Nie mieszaj** Actions + „Deploy from branch”.
 
 ## Lokalnie
 
