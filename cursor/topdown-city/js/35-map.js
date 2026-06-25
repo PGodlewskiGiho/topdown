@@ -74,24 +74,44 @@ function nearestNavNode(x,y, gx, gy){
   const ci=Math.round(x/GAP), cj=Math.round(y/GAP);
   let best=null, bd=1e18;
   const toGoal=gx!=null?Math.atan2(gy-y,gx-x):null;
-  for(let di=-6;di<=6;di++) for(let dj=-6;dj<=6;dj++){
+  for(let di=-7;di<=7;di++) for(let dj=-7;dj<=7;dj++){
     const i=ci+di, j=cj+dj;
     if(nodeDegree(i,j)<1) continue;
-    const nx=nX(i,j), ny=nY(i,j);
-    let d=(nx-x)**2+(ny-y)**2;
-    if(toGoal!=null){
-      const na=Math.atan2(ny-y,nx-x);
-      let ad=Math.abs(Math.atan2(Math.sin(na-toGoal),Math.cos(na-toGoal)));
-      d*=1+ad*1.6;
+    for(const[edi,edj] of [[1,0],[0,1]]){
+      const e=getEdge(i,j,edi,edj);
+      if(typeof navEdgeDrivable==="function"?!navEdgeDrivable(e):!e.exists) continue;
+      const g=edgeGeom(i,j,i+edi,j+edj);
+      const steps=Math.max(4, Math.ceil((e.len||GAP)/22));
+      for(let s=0;s<=steps;s++){
+        const t=s/steps;
+        let wx, wy;
+        if(typeof navPosOnEdge==="function"){
+          [wx,wy]=navPosOnEdge(i,j,i+edi,j+edj,t,1);
+        } else {
+          const p=bez(g.p0,g.cp,g.p1,t);
+          wx=p[0]; wy=p[1];
+        }
+        let d=(wx-x)**2+(wy-y)**2;
+        if(toGoal!=null){
+          const na=Math.atan2(wy-y,wx-x);
+          let ad=Math.abs(Math.atan2(Math.sin(na-toGoal),Math.cos(na-toGoal)));
+          d*=1+ad*1.4;
+        }
+        if(d<bd){
+          bd=d;
+          best=s<0.5?[i,j]:[i+edi,j+edj];
+        }
+      }
     }
-    if(d<bd){ bd=d; best=[i,j]; }
   }
   return best;
 }
 
 function navNodesAdjacent(a,b){
   const di=b[0]-a[0], dj=b[1]-a[1];
-  return Math.abs(di)+Math.abs(dj)===1 && getEdge(a[0],a[1],di,dj).exists;
+  if(Math.abs(di)+Math.abs(dj)!==1) return false;
+  const e=getEdge(a[0],a[1],di,dj);
+  return typeof navEdgeDrivable==="function"?navEdgeDrivable(e):e.exists;
 }
 
 function navEdgeLen(ai,aj,bi,bj){
@@ -112,6 +132,25 @@ function navEdgeLen(ai,aj,bi,bj){
 
 function navHeuristicToGoal(i,j,gi,gj){
   return Math.hypot(nX(i,j)-nX(gi,gj), nY(i,j)-nY(gj,gj));
+}
+
+function navEdgeDriveCost(ai,aj,bi,bj, fromDir){
+  const di=bi-ai, dj=bj-aj;
+  if(Math.abs(di)+Math.abs(dj)!==1) return 1e18;
+  const e=getEdge(ai,aj,di,dj);
+  if(typeof navEdgeDrivable==="function"?!navEdgeDrivable(e):!e.exists) return 1e18;
+  let len=navEdgeLen(ai,aj,bi,bj);
+  if(len>=1e17) return 1e18;
+  let cost=len;
+  if(e.hwy) cost*=0.7;
+  else if(e.klass==="blvd"||e.klass==="art") cost*=0.86;
+  else if(e.klass==="st") cost*=0.96;
+  else if(e.klass==="rural") cost*=1.75;
+  if(fromDir){
+    if(di===-fromDir[0]&&dj===-fromDir[1]) cost+=len*2.8;
+    else if(di!==fromDir[0]||dj!==fromDir[1]) cost+=len*0.22;
+  }
+  return cost;
 }
 
 function navHeuristic(a,b){
@@ -199,7 +238,7 @@ function findNavRoadPath(sx,sy,tx,ty){
     for(const nb of nbs){
       const nk=navNodeKey(nb[0],nb[1]);
       if(closed.has(nk)) continue;
-      const edge=navEdgeLen(cur.n[0],cur.n[1],nb[0],nb[1]);
+      const edge=navEdgeDriveCost(cur.n[0],cur.n[1],nb[0],nb[1], fromDir);
       if(edge>=1e17) continue;
       const tg=cur.g+edge;
       if(tg>=(gScore.get(nk)||1e18)) continue;
@@ -212,6 +251,7 @@ function findNavRoadPath(sx,sy,tx,ty){
 }
 
 function navPathToWorld(nodes){
+  if(typeof navPathNodesToWorld==="function") return navPathNodesToWorld(nodes);
   if(!nodes||!nodes.length) return [];
   if(nodes.length===1) return [[nX(nodes[0][0],nodes[0][1]), nY(nodes[0][0],nodes[0][1])]];
   const pts=[];
@@ -234,7 +274,7 @@ function recomputeNavPath(force){
   if(!navTarget) { navPath=[]; return; }
   navRecalcT-=0.016;
   if(!force && navRecalcT>0) return;
-  navRecalcT=1.8;
+  navRecalcT=2.2;
   const p=playerWorldPos();
   const nodes=findNavRoadPath(p.x,p.y,navTarget.x,navTarget.y);
   navPath=navPathToWorld(nodes);
@@ -243,9 +283,9 @@ function recomputeNavPath(force){
     return;
   }
   const first=navPath[0];
-  if(Math.hypot(first[0]-p.x,first[1]-p.y)>20) navPath.unshift([p.x,p.y]);
+  if(Math.hypot(first[0]-p.x,first[1]-p.y)>28) navPath.unshift([p.x,p.y]);
   const last=navPath[navPath.length-1];
-  if(Math.hypot(last[0]-navTarget.x,last[1]-navTarget.y)>12) navPath.push([navTarget.x,navTarget.y]);
+  if(Math.hypot(last[0]-navTarget.x,last[1]-navTarget.y)>16) navPath.push([navTarget.x,navTarget.y]);
 }
 
 function setNavTarget(x,y, silent){
@@ -394,20 +434,23 @@ function mapDrawFogOverlay(mctx, i0,i1,j0,j1, tx,ty){
 function navRouteStartIndex(){
   if(!navPath||navPath.length<2) return 0;
   const p=playerWorldPos();
-  const hd=Math.cos(p.a), hs=Math.sin(p.a);
-  let best=0, bestScore=-1e18;
+  let best=0, bestD=1e18;
   for(let k=0;k<navPath.length;k++){
-    const dx=navPath[k][0]-p.x, dy=navPath[k][1]-p.y;
-    const ahead=dx*hd+dy*hs;
-    const d=Math.hypot(dx,dy);
-    const score=ahead*2.2-d*0.04;
-    if(score>bestScore){ bestScore=score; best=k; }
+    const d=Math.hypot(navPath[k][0]-p.x, navPath[k][1]-p.y);
+    if(d<bestD){ bestD=d; best=k; }
   }
+  const hd=Math.cos(p.a), hs=Math.sin(p.a);
   if(best<navPath.length-1){
-    const nx=navPath[best+1][0]-p.x, ny=navPath[best+1][1]-p.y;
-    if(Math.hypot(nx,ny)<34) best++;
+    const wp=navPath[best];
+    const ahead=(wp[0]-p.x)*hd+(wp[1]-p.y)*hs;
+    if(bestD<32||ahead<6) best++;
   }
-  return best;
+  if(best>0){
+    const wp=navPath[best];
+    const ahead=(wp[0]-p.x)*hd+(wp[1]-p.y)*hs;
+    if(ahead<-12) best--;
+  }
+  return Math.max(0, Math.min(best, navPath.length-1));
 }
 
 function drawNavMiniArrow(bctx,W,H){
