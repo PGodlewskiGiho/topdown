@@ -19,7 +19,7 @@ jobs:
       - name: Copy game from main (before switching branches)
         run: |
           cp -a cursor/topdown-city/. /tmp/topdown-game/
-          echo "{\"build\":\"$(date -u +%Y%m%d)\",\"people\":7}" > /tmp/topdown-game/version.json
+          echo "{\"build\":\"$(date -u +%Y%m%d%H%M)\",\"people\":9,\"gta2\":true,\"sprites\":\"lazy\",\"assets\":\"2026062315\"}" > /tmp/topdown-game/version.json
           touch /tmp/topdown-game/.nojekyll
 
       - name: Push to gh-pages

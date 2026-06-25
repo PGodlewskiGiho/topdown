@@ -2,7 +2,7 @@
 (function(global){
 "use strict";
 
-const BUILD=2026062811;
+const BUILD=2026062315;
 const BASE="assets/people/gta2/parts/bodies/";
 const META_URL="assets/people/gta2/meta.json";
 const GO=global.Gta2Outfit;

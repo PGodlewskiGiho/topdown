@@ -8,7 +8,7 @@ trap 'rm -rf "$STAGE"' EXIT
 
 cp -a "$GAME/." "$STAGE/"
 find "$STAGE" -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-echo "{\"build\":\"$(date -u +%Y%m%d%H%M)\",\"people\":9,\"gta2\":true,\"sprites\":\"lazy\"}" > "$STAGE/version.json"
+echo "{\"build\":\"$(date -u +%Y%m%d%H%M)\",\"people\":9,\"gta2\":true,\"sprites\":\"lazy\",\"assets\":\"2026062315\"}" > "$STAGE/version.json"
 touch "$STAGE/.nojekyll"
 
 cd "$ROOT"
