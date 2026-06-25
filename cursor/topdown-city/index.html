@@ -11,6 +11,18 @@
 <link rel="stylesheet" href="styles/main.css">
 </head>
 <body>
+<script>
+(function(){
+  if(location.protocol==="file:") return;
+  try{ localStorage.removeItem("tdc_build"); }catch(e){}
+  try{
+    var u=new URL(location.href);
+    if(!u.searchParams.has("v")) return;
+    u.searchParams.delete("v");
+    history.replaceState(null,"",u.pathname+(u.search||"")+u.hash);
+  }catch(e){}
+})();
+</script>
 <canvas id="cv"></canvas>
 <div id="hud">
   <div class="tag">TOPDOWN CITY · <span class="v">modular</span></div>

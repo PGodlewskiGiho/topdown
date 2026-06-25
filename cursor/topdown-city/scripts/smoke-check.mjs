@@ -56,6 +56,9 @@ for (const htmlFile of htmlFiles) {
   if (/\?v=/.test(html)) {
     fail(`${rel(htmlFile)} must not use ?v= cache-busting query params`);
   }
+  if (/searchParams\.set\(\s*["']v["']/.test(html) || /localStorage\.setItem\(\s*["']tdc_build["']/.test(html)) {
+    fail(`${rel(htmlFile)} must not add ?v= via redirect or localStorage`);
+  }
 }
 
 const jsFilesToScan = [
@@ -66,6 +69,9 @@ for (const jsFile of jsFilesToScan) {
   const js = readText(jsFile);
   if (/\?v=/.test(js) && !jsFile.endsWith("smoke-check.mjs")) {
     fail(`${rel(jsFile)} must not append ?v= to asset URLs`);
+  }
+  if (/searchParams\.set\(\s*["']v["']/.test(js) || /localStorage\.setItem\(\s*["']tdc_build["']/.test(js)) {
+    fail(`${rel(jsFile)} must not add ?v= via redirect or localStorage`);
   }
 }
 
