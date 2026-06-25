@@ -25,6 +25,15 @@ jobs:
             exit 1
           fi
 
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: npm run check
         working-directory: cursor/topdown-city
-        run: npm run check
+        run: |
+          pip install pillow
+          npm ci
+          npm run gen:trees
+          npm run check

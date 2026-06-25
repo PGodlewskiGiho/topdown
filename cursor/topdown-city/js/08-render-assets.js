@@ -1776,21 +1776,28 @@ function treeScreenBox(t){
 }
 function treeVisible(p,cl,cr,ct,cb){ const b=treeScreenBox(p); return b.maxX>=cl&&b.minX<=cr&&b.maxY>=ct&&b.minY<=cb; }
 // ── PNG tree sprites (Pillow-generated, assets/trees/*.png) ──────────────
-const TREE_SPRITE={ready:false,meta:null,img:{}};
+const TREE_SPRITE={ready:false,meta:null,img:{},loaded:{}};
 window.TREE_SPRITE=TREE_SPRITE;
 (function loadTreeSprites(){
   fetch("assets/trees/meta.json").then(r=>r.json()).then(meta=>{
     TREE_SPRITE.meta=meta;
     const kinds=Object.keys(meta.kinds); let left=kinds.length||0;
     if(!left){ TREE_SPRITE.ready=true; return; }
+    const done=(k,ok)=>{ if(ok) TREE_SPRITE.loaded[k]=true; if(--left<=0) TREE_SPRITE.ready=true; };
     for(const k of kinds){
       const im=new Image();
-      im.onload=im.onerror=()=>{ if(--left<=0) TREE_SPRITE.ready=true; };
+      im.onload=()=>done(k,true);
+      im.onerror=()=>done(k,false);
       im.src="assets/trees/"+meta.kinds[k].file;
       TREE_SPRITE.img[k]=im;
     }
   }).catch(()=>{});
 })();
+function treeSpriteImg(kind){
+  const k=kind||"deciduous";
+  const img=TREE_SPRITE.img[k]||TREE_SPRITE.img.deciduous;
+  return img&&img.complete&&img.naturalWidth?img:null;
+}
 function treeKindMeta(kind){
   const g=TREE_SPRITE.meta||{};
   const k=g.kinds&&g.kinds[kind];
@@ -1816,8 +1823,8 @@ const TREE_SPRITE_PAD=4;                                       // bleed so split
 const TREE_SOFT=1.10;                                          // slight upscale + smoothing = softer pixels
 const TREE_SOFT_HD=1.02;                                       // hi-res PNG needs less upscale blur
 function drawLeaningTreeStrip(p,sy0,sy1){
-  const m=treeKindMeta(p.kind||"deciduous"), img=TREE_SPRITE.img[p.kind]||TREE_SPRITE.img.deciduous;
-  if(!img||!img.complete||!img.naturalWidth) return false;
+  const m=treeKindMeta(p.kind||"deciduous"), img=treeSpriteImg(p.kind);
+  if(!img) return false;
   const sc=treeSpriteScale(p), [vx,vy]=treeLean(p);
   const pad=Math.max(TREE_SPRITE_PAD, Math.round(m.height/128));
   const sy0p=Math.max(0, sy0-pad), sy1p=Math.min(m.height, sy1+pad);
@@ -1841,7 +1848,6 @@ function drawLeaningTreeStrip(p,sy0,sy1){
   return true;
 }
 function drawTreeTrunkSprite(p){
-  if(p.city) return false;
   const tr=p.trunk||{tw:p.s*0.1,frac:0.5};
   if(tr.frac<0.18) return true;
   const hw=tr.tw*0.72, bx=p.x, by=p.y;
@@ -1850,7 +1856,6 @@ function drawTreeTrunkSprite(p){
   return drawLeaningTreeStrip(p, Math.max(0, m.splitY-Math.max(2, Math.round(m.height/64))), m.height);
 }
 function drawTreeCanopySprite(p){
-  if(p.city) return false;
   const m=treeKindMeta(p.kind||"deciduous"), split=Math.min(m.height-1, m.splitY+Math.max(14, Math.round(m.height/36)));
   return drawLeaningTreeStrip(p, 0, split);
 }
@@ -1933,7 +1938,7 @@ function drawBark(bx,by,tx,ty,hw,thw,tp,rnd){
 // Ground layer (drawn under the player): contact shadow + a chunky, textured trunk with a root
 // flare at the base and carved bark — reads as solid wood instead of a flat 3-band strip.
 function drawTreeTrunk(p){
-  if(TREE_SPRITE.ready&&drawTreeTrunkSprite(p)) return;
+  if(drawTreeTrunkSprite(p)) return;
   const tr=p.trunk||{tw:p.s*0.1,frac:0.5}, [vx,vy]=treeLean(p), [ww,wh]=treeWindAt(p,tr.frac);
   const hw=tr.tw*0.72, thw=hw*0.78, bx=p.x, by=p.y, tx=p.x+vx*tr.frac+ww, ty=p.y+vy*tr.frac+wh;  // chunkier visual trunk
   ctx.fillStyle="rgba(0,0,0,.24)"; ctx.beginPath(); ctx.ellipse(bx+2,by+3,Math.max(hw*1.8,(p.crownR||hw)*0.34),Math.max(hw*0.62,(p.crownR||hw)*0.12),0,0,7); ctx.fill();
@@ -1962,7 +1967,7 @@ function drawTreeTrunk(p){
 // Crown: Chrono Trigger cel-shading — overlapping sphere-clumps + hard-edged silhouette bands.
 function drawTreeCanopy(cx,cy,t,lod){
   if(!t||!t.outline) return;
-  if(TREE_SPRITE.ready&&drawTreeCanopySprite(t)) return;
+  if(drawTreeCanopySprite(t)) return;
   const pal=TREE_PAL[t.kind]||TREE_PAL.deciduous, out=t.outline, R=t.crownR;
   const [vx,vy]=treeLean(t);
   let map;
@@ -1999,7 +2004,7 @@ function drawTreeCanopy(cx,cy,t,lod){
   ctx.fillStyle=pal.d; path(1.05,R*0.02,R*0.10); ctx.fill();          // shaded underside (expanded, sits behind = soft edge, no hard outline)
   ctx.fillStyle=pal.m; path(1.0,0,0); ctx.fill();                     // mid body
   if(t.lobes){ const lb=t.lobes.slice().sort((a,b)=>b.oy-a.oy); const round=t.kind==="bush"; for(const L of lb) drawCTLobe(map,R,pal,L.ox,L.oy,L.lr,round); }
-  if(!lod) drawFoliageStipple(map,R,pal,t);
+  if(!lod||t.city) drawFoliageStipple(map,R,pal,t);
   if(t.city&&!lod) drawCityTreeFinish(t,ax,ay,R,pal);
 }
 function drawCityTreeFinish(t,ax,ay,R,pal){

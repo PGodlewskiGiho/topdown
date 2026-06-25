@@ -45,11 +45,12 @@ jobs:
           npm ci
           pip install pillow
           npm run gen:gta2
+          npm run gen:trees
 
       - name: Prepare site artifact
         run: |
           SITE=cursor/topdown-city
-          echo "{\"build\":\"2026062712\",\"people\":10,\"style\":\"gta2\",\"sprites\":\"relative\",\"source\":\"main\"}" > "$SITE/version.json"
+          echo "{\"build\":\"2026062714\",\"people\":10,\"style\":\"gta2\",\"sprites\":\"relative\",\"source\":\"main\"}" > "$SITE/version.json"
           touch "$SITE/.nojekyll"
 
       - name: Upload site artifact

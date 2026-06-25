@@ -110,6 +110,18 @@ if (!existsSync(agentsDoc)) {
   fail("missing AGENTS.md at repo root (deploy rules for AI agents)");
 }
 
+const treeMetaPath = path.join(siteRoot, "assets/trees/meta.json");
+if (existsSync(treeMetaPath)) {
+  const treeMeta = JSON.parse(readText(treeMetaPath));
+  for (const kind of Object.keys(treeMeta.kinds || {})) {
+    const file = treeMeta.kinds[kind].file;
+    const pngPath = path.join(siteRoot, "assets/trees", file);
+    if (!existsSync(pngPath)) {
+      fail(`missing tree sprite PNG (run npm run gen:trees): assets/trees/${file}`);
+    }
+  }
+}
+
 if (errors.length) {
   console.error("Smoke check failed:");
   for (const error of errors) console.error(`- ${error}`);
