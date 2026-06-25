@@ -214,7 +214,7 @@ function rollNpcAppearance(x,y,opts){
   const arch=npcArchDef(archId);
   const age=npcPickAge(arch);
   const build=pick(arch.build||["average","average","slim","athletic"]);
-  const model=typeof Humanoid2D!=="undefined"?Humanoid2D.modelForArchetype(archId, age, build):"civilian";
+  const model=typeof People2D!=="undefined"?People2D.modelForArchetype(archId):typeof Humanoid2D!=="undefined"?Humanoid2D.modelForArchetype(archId, age, build):"civilian";
   const body=pick(arch.body);
   const hairStyle=npcPickHairStyle(arch, age);
   const hairCol=arch.hair?pick(arch.hair):pick(NPC_HAIR);
@@ -230,8 +230,8 @@ function rollNpcAppearance(x,y,opts){
     stick:"#6a5038", bucket:"#586878",
   };
   let beard=body==="female"?"none":pick(arch.beard);
-  const height=rand(0.94, 1.06)*(age==="teen"?0.94:age==="senior"?0.96:1);
-  const r=(body==="hardy"?11:(body==="female"?8.5:9))*height;
+  const height=rand(0.88,1.12)*(age==="teen"?0.92:age==="senior"?0.94:1);
+  const r=(body==="hardy"?11.5:(body==="female"?8.2:9.2))*height;
   const sp=arch.speed;
   const accessory=pick(arch.accessory);
   const shorts=(archId==="city_teen"||archId==="city_jogger"||archId==="city_sporty")&&rng()<0.42;
@@ -250,7 +250,7 @@ function rollNpcAppearance(x,y,opts){
     shorts,
     r, speed:rand(sp[0],sp[1]),
     color:shirt,
-    lostParts:null,
+    _visSeed:(rng()*1e9)|0,
   };
   look.parts=npcBuildParts(look);
   return look;
@@ -258,7 +258,7 @@ function rollNpcAppearance(x,y,opts){
 
 function applyNpcLook(p, look){
   if(!look) return p;
-  for(const k of ["skin","shirt","pants","shoes","body","hair","hairStyle","shirtStyle","beard","hat","hatColor","accessory","scarfColor","prop","propColor","r","speed","color","archetype","archetypeId","model","age","build","height","shorts","parts","lostParts"]){
+  for(const k of ["skin","shirt","pants","shoes","body","hair","hairStyle","shirtStyle","beard","hat","hatColor","accessory","scarfColor","prop","propColor","r","speed","color","archetype","archetypeId","model","age","build","height","shorts","parts","_visSeed"]){
     if(look[k]!==undefined) p[k]=look[k];
   }
   return p;

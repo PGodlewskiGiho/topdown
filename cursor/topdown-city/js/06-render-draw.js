@@ -123,7 +123,6 @@ function draw(){
   drawSalon();
   drawGunShop();
   drawBlood(ox,oy);
-  drawPedGore(ox,oy);
   drawDrops(ox,oy);
 
   if(typeof perfBegin==="function") perfBegin("actors");
