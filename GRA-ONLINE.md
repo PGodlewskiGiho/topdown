@@ -4,8 +4,9 @@
 
 **https://pgodlewskigiho.github.io/topdown/**
 
-Po wejściu dodaj `?v=2026062702` jeśli widzisz 404 lub stare pliki:  
-**https://pgodlewskigiho.github.io/topdown/?v=2026062702**
+**https://pgodlewskigiho.github.io/topdown/**
+
+Po aktualizacji: twardy refresh `Ctrl+Shift+R` (bez `?v=` w URL).
 
 ## GitHub Pages — konfiguracja (jednorazowo)
 
@@ -59,5 +60,5 @@ cursor/topdown-city/     ← gra (index.html, js/, assets/)
 | Objaw | Rozwiązanie |
 |--------|-------------|
 | 404 na `assets/people/gta2/...` | Pages → **GitHub Actions**, nie branch root |
-| Stare sprite’y / brak obrotu | Ctrl+Shift+R lub `?v=2026062702` |
+| Stare pliki w cache | Ctrl+Shift+R (bez `?v=` w URL) |
 | URL z `/cursor/topdown-city/` przy Actions | Użyj **https://pgodlewskigiho.github.io/topdown/** |

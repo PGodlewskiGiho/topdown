@@ -1,12 +1,10 @@
-GTA2 direction picker — male ped, remap 27 (blue shirt / jeans)
+GTA2 direction picker — user mapping (2026-06-25)
 
-Open ../direction-picker.png
+Verified from direction-picker.png (ped 18-25):
+  ped 18, 19, 20, 21, 22, 23  →  S (South, w dół ekranu)
+  ped 24, 25                   →  W (West, w lewo)
 
-8 sprites left→right = slot 0…7 (ped 18, 19, 20, 21, 22, 23, 24, 25)
+Still needed: E, SE, SW, NW, N, NE
+See direction-picker-2.png (ped 0-17, 26-45)
 
-Reply with mapping, e.g.:
-  ped 23 = E
-  ped 21 = S
-  …
-
-Game uses screen coords: +X = East, +Y = South (W key = North).
+Game coords: +X = East, +Y = South, W key = North.

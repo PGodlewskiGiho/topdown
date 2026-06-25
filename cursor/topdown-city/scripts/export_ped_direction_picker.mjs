@@ -8,7 +8,12 @@ import { createCanvas, ImageData } from 'canvas';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const siteRoot = path.join(here, '..');
 const outDir = path.join(siteRoot, 'assets', 'people', 'gta2', 'direction-picker');
-const outSheet = path.join(siteRoot, 'assets', 'people', 'gta2', 'direction-picker.png');
+const outSheet = process.env.OUT_SHEET
+  ? path.join(siteRoot, process.env.OUT_SHEET)
+  : path.join(siteRoot, 'assets', 'people', 'gta2', 'direction-picker.png');
+const outSubdir = process.env.OUT_SUBDIR
+  ? path.join(siteRoot, process.env.OUT_SUBDIR)
+  : outDir;
 
 const styPath = process.env.GTA2_STY || '/tmp/bil.sty';
 const styViewer = process.env.GTA2_STY_VIEWER || '/tmp/gta2-sty-viewer-js';
@@ -76,7 +81,7 @@ function exportPed(pedIdx) {
   return c;
 }
 
-fs.mkdirSync(outDir, { recursive: true });
+fs.mkdirSync(outSubdir, { recursive: true });
 
 const cellW = CANVAS_W * SCALE;
 const cellH = CANVAS_H * SCALE + LABEL_H;
@@ -116,7 +121,7 @@ for (let i = 0; i < PED_INDICES.length; i++) {
   sctx.fillText(`slot ${i}`, x0 + cellW / 2, y0 + cellH - LABEL_H - 6);
   sctx.font = 'bold 18px monospace';
 
-  const singlePath = path.join(outDir, `ped_${pedIdx}.png`);
+  const singlePath = path.join(outSubdir, `ped_${pedIdx}.png`);
   const big = createCanvas(cellW, cellH - LABEL_H);
   const bctx = big.getContext('2d');
   bctx.imageSmoothingEnabled = false;
@@ -127,9 +132,9 @@ for (let i = 0; i < PED_INDICES.length; i++) {
 }
 
 fs.writeFileSync(outSheet, sheet.toBuffer('image/png'));
-fs.writeFileSync(path.join(outDir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n');
+fs.writeFileSync(path.join(outSubdir, 'meta.json'), JSON.stringify(meta, null, 2) + '\n');
 fs.writeFileSync(
-  path.join(outDir, 'README.txt'),
+  path.join(outSubdir, 'README.txt'),
   `GTA2 direction picker — male ped, remap ${remapId} (blue shirt / jeans)\n\n` +
     `Open ../direction-picker.png\n\n` +
     `8 sprites left→right = slot 0…7 (ped ${PED_INDICES.join(', ')})\n\n` +

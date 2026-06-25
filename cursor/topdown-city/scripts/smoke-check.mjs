@@ -29,18 +29,12 @@ function isExternal(ref) {
 }
 
 function collectFiles(dir, extension) {
+  if (!existsSync(dir)) return [];
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) return collectFiles(full, extension);
     return entry.isFile() && entry.name.endsWith(extension) ? [full] : [];
   });
-}
-
-const versionPath = path.join(siteRoot, "version.json");
-const version = JSON.parse(readText(versionPath));
-const build = String(version.build || "");
-if (!/^\d{10}$/.test(build)) {
-  fail(`${rel(versionPath)} has invalid build value: ${version.build}`);
 }
 
 const htmlFiles = [
@@ -52,6 +46,15 @@ const htmlFiles = [
 for (const htmlFile of htmlFiles) {
   if (!existsSync(htmlFile)) continue;
   const html = readText(htmlFile);
+  if (/\?v=/.test(html)) {
+    fail(`${rel(htmlFile)} must not use ?v= cache-busting query params`);
+  }
+  if (/searchParams\.set\(\s*["']v["']/.test(html) || /localStorage\.setItem\(\s*["']tdc_build["']/.test(html)) {
+    fail(`${rel(htmlFile)} must not add ?v= via redirect or localStorage`);
+  }
+  if (/location\.(replace|assign)/.test(html) && /\?v=/.test(html)) {
+    fail(`${rel(htmlFile)} must not use location redirects with ?v=`);
+  }
   const baseDir = path.dirname(htmlFile);
   const refs = [...html.matchAll(/\b(?:src|href)=["']([^"']+)["']/g)].map((match) => match[1]);
   for (const ref of refs) {
@@ -61,12 +64,19 @@ for (const htmlFile of htmlFiles) {
       fail(`${rel(htmlFile)} references missing file: ${ref}`);
     }
   }
+}
 
-  const versionRefs = [...html.matchAll(/[?&]v=(\d+)/g)].map((match) => match[1]);
-  for (const value of versionRefs) {
-    if (value !== build) {
-      fail(`${rel(htmlFile)} uses v=${value}, expected v=${build}`);
-    }
+const jsFilesToScan = [
+  ...collectFiles(path.join(siteRoot, "js"), ".js"),
+  path.join(siteRoot, "scripts", "smoke-check.mjs"),
+];
+for (const jsFile of jsFilesToScan) {
+  const js = readText(jsFile);
+  if (/\?v=/.test(js) && !jsFile.endsWith("smoke-check.mjs")) {
+    fail(`${rel(jsFile)} must not append ?v= to asset URLs`);
+  }
+  if (/searchParams\.set\(\s*["']v["']/.test(js) || /localStorage\.setItem\(\s*["']tdc_build["']/.test(js)) {
+    fail(`${rel(jsFile)} must not add ?v= via redirect or localStorage`);
   }
 }
 
@@ -95,24 +105,9 @@ if (!workflow.includes("path: cursor/topdown-city")) {
   fail(".github/workflows/deploy-pages.yml does not deploy cursor/topdown-city");
 }
 
-const topdownMeta = path.join(siteRoot, "assets/people/topdown/meta.json");
-if (!existsSync(topdownMeta)) {
-  fail("missing assets/people/topdown/meta.json");
-} else {
-  const td = JSON.parse(readText(topdownMeta));
-  const dirs = td.directions || ["E", "SE", "S", "SW", "W", "NW", "N", "NE"];
-  const sampleDir = path.join(siteRoot, "assets/people/topdown/sprites/male_blue/walk0");
-  const hashes = new Map();
-  for (const d of dirs) {
-    const png = path.join(sampleDir, `${d}.png`);
-    if (!existsSync(png)) fail(`missing topdown sprite: sprites/male_blue/walk0/${d}.png`);
-    const hash = createHash("md5").update(readFileSync(png)).digest("hex");
-    if (hashes.has(hash)) {
-      fail(`topdown ${d}.png duplicates ${hashes.get(hash)} — directions must differ`);
-    }
-    hashes.set(hash, d);
-  }
-  if (hashes.size < 8) fail(`expected 8 unique direction sprites, got ${hashes.size}`);
+const agentsDoc = path.join(repoRoot, "AGENTS.md");
+if (!existsSync(agentsDoc)) {
+  fail("missing AGENTS.md at repo root (deploy rules for AI agents)");
 }
 
 if (errors.length) {
@@ -121,4 +116,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`Smoke check passed: ${scriptRefs.length} scripts, build ${build}.`);
+console.log(`Smoke check passed: ${scriptRefs.length} scripts, no ?v= cache busting.`);

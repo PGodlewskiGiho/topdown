@@ -2,8 +2,6 @@
 (function(global){
 "use strict";
 
-const BUILD=2026062702;
-
 const META_URL="assets/people/topdown/meta.json";
 const ASSETS_BASE="assets/people/topdown/sprites/";
 
@@ -45,7 +43,7 @@ function queueImg(path, onload){
   const im=new Image();
   im.onload=()=>{ pending.delete(path); if(onload) onload(); };
   im.onerror=()=>{ pending.delete(path); };
-  im.src=path+"?v="+BUILD;
+  im.src=path;
   imgs[path]=im;
 }
 
@@ -58,7 +56,7 @@ function getImg(path){
 
 function init(){
   if(loadP) return loadP;
-  loadP=fetch(META_URL+"?v="+BUILD)
+  loadP=fetch(META_URL)
     .then(r=>{
       if(!r.ok) throw new Error("meta:"+r.status+" "+META_URL);
       return r.json();
@@ -207,7 +205,7 @@ function draw(c,p,color,down,forcedDir){
 }
 
 const PeopleSprites={
-  draw, init, BUILD, warmDefault,
+  draw, init, warmDefault,
   get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
   get meta(){ return meta; },

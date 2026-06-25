@@ -1,14 +1,13 @@
 {
-  "comment": "bil.sty male ped (graphic_type 0). Walk0 = ped 18-25 (8 distinct facings). Walk1 = shape-matched pairs with same facing.",
+  "comment": "bil.sty male ped — user-verified facings (2026-06-25). ped 18-23 = S, ped 24-25 = W. Other dirs TBD.",
+  "user_verified": {
+    "S": [18, 19, 20, 21, 22, 23],
+    "W": [24, 25]
+  },
   "directions": ["E", "SE", "S", "SW", "W", "NW", "N", "NE"],
   "walk_sprites": {
-    "NW": [18, 27],
-    "W": [19, 117],
-    "SW": [20, 73],
-    "S": [21, 186],
-    "SE": [22, 344],
-    "E": [23, 129],
-    "NE": [24, 91],
-    "N": [25, 135]
-  }
+    "S": [22, 23],
+    "W": [24, 25]
+  },
+  "pending_directions": ["E", "SE", "SW", "NW", "N", "NE"]
 }
