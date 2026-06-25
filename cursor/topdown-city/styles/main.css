@@ -154,6 +154,10 @@
   .menu-choice.on{background:rgba(127,224,168,.14);border-color:rgba(127,224,168,.45);color:#dfffe8}
   .menu-preview{margin:14px 0 16px;padding:10px 12px;border-radius:10px;background:rgba(0,0,0,.28);
     font-size:12px;color:#b8c0cc;line-height:1.5;min-height:44px}
+  .menu-world-toggle{display:flex;align-items:center;gap:10px;font-size:13px;color:#c8d0dc;cursor:pointer;margin-bottom:8px}
+  .menu-world-toggle input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+  .menu-world-seed{min-height:36px;margin:8px 0 10px}
+  #btn-reroll-world{width:100%;font-size:12px}
   .menu-hint{margin-top:14px;font-size:11px;color:#6f7784;letter-spacing:.04em}
   .menu-panel.menu-panel-wide{width:min(920px,96vw)}
   .char-layout{display:grid;grid-template-columns:min(200px,34%) 1fr;gap:18px;align-items:start;margin:8px 0 16px}
