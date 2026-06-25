@@ -1695,7 +1695,84 @@ function inPlaza(x,y){
     const A=node(i,j), R=plazaR(i,j); if((x-A[0])**2+(y-A[1])**2<R*R) return true; }
   return false;
 }
-/* ===== fences (block pedestrians) ===== */
+/* ===== fences (block pedestrians, destructible) ===== */
+function ensureFence(f){
+  if(f.maxHp) return f;
+  const len=Math.hypot(f.x2-f.x1,f.y2-f.y1)||1;
+  f.maxHp=f.hp=Math.max(26, Math.min(68, len*0.82));
+  return f;
+}
+function closestFencePoint(f,x,y){
+  const dx=f.x2-f.x1, dy=f.y2-f.y1, L2=dx*dx+dy*dy||1;
+  let t=((x-f.x1)*dx+(y-f.y1)*dy)/L2; t=t<0?0:t>1?1:t;
+  const px=f.x1+dx*t, py=f.y1+dy*t;
+  return {x:px,y:py,t,d:Math.hypot(x-px,y-py)};
+}
+function spawnFenceBreak(x,y,f){
+  if(typeof spawnSparks==="function") spawnSparks(x,y,5+(Math.random()*4|0),0,0);
+  if(typeof debris==="undefined") return;
+  const dx=f.x2-f.x1, dy=f.y2-f.y1, len=Math.hypot(dx,dy)||1, ux=dx/len, uy=dy/len;
+  const n=2+(Math.random()*3|0);
+  for(let k=0;k<n;k++){
+    const t=0.12+Math.random()*0.76;
+    const px=f.x1+ux*len*t, py=f.y1+uy*len*t;
+    const a=Math.atan2(uy,ux)+(Math.random()-0.5)*1.4, sp=rand(36,118);
+    debris.push({x:px,y:py,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-rand(18,48),a:rng()*6.283,va:(rng()-0.5)*14,t:0,life:rand(1.6,3.1),kind:"fence",w:2+Math.random()*2.2,h:6+Math.random()*5,col:"#a59a7e"});
+  }
+}
+function damageFenceAt(L,f,amt,hx,hy){
+  if(!f||f.broken) return false;
+  ensureFence(f);
+  f.hp-=amt;
+  if(f.hp<=0){
+    f.broken=true; f.hp=0;
+    const cp=closestFencePoint(f,hx,hy);
+    spawnFenceBreak(cp.x,cp.y,f);
+    if(typeof playThud==="function") playThud(0.28+Math.min(0.35,amt*0.004));
+    return true;
+  }
+  return false;
+}
+function damageFencesInRadius(x,y,R,dmg){
+  const ci=Math.floor((x-ROAD)/GAP), cj=Math.floor((y-ROAD)/GAP);
+  for(let i=ci-2;i<=ci+2;i++) for(let j=cj-2;j<=cj+2;j++){
+    const L=getLot(i,j); if(!L.fences||!L.fences.length) continue;
+    for(const f of L.fences){
+      if(f.broken) continue;
+      const cp=closestFencePoint(f,x,y);
+      if(!cp||cp.d>R) continue;
+      damageFenceAt(L,f,dmg*(1-cp.d/R),cp.x,cp.y);
+    }
+  }
+}
+function bulletHitsFence(x,y,dmg){
+  const ci=Math.floor((x-ROAD)/GAP), cj=Math.floor((y-ROAD)/GAP);
+  for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){
+    const L=getLot(i,j); if(!L.fences||!L.fences.length) continue;
+    for(const f of L.fences){
+      if(f.broken) continue;
+      const cp=closestFencePoint(f,x,y);
+      if(cp&&cp.d<5.5){ damageFenceAt(L,f,dmg,cp.x,cp.y); return true; }
+    }
+  }
+  return false;
+}
+function meleeHitsFences(x,y,ang,range,dmg){
+  const ca=Math.cos(ang), sa=Math.sin(ang);
+  const ci=Math.floor((x-ROAD)/GAP), cj=Math.floor((y-ROAD)/GAP);
+  let hit=false;
+  for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){
+    const L=getLot(i,j); if(!L.fences||!L.fences.length) continue;
+    for(const f of L.fences){
+      if(f.broken) continue;
+      const cp=closestFencePoint(f,x,y);
+      if(!cp||cp.d>range+5) continue;
+      const dx=cp.x-x, dy=cp.y-y;
+      if(dx*ca+dy*sa>0 && Math.hypot(dx,dy)<range){ damageFenceAt(L,f,dmg*1.15,cp.x,cp.y); hit=true; }
+    }
+  }
+  return hit;
+}
 function segPush(e,eR,x1,y1,x2,y2){
   const dx=x2-x1, dy=y2-y1, L2=dx*dx+dy*dy||1;
   let t=((e.x-x1)*dx+(e.y-y1)*dy)/L2; t=t<0?0:t>1?1:t;
@@ -1706,7 +1783,19 @@ function segPush(e,eR,x1,y1,x2,y2){
 function collideFences(e){
   const eR=(e.R!==undefined?e.R:e.r)+1, ci=Math.floor((e.x-ROAD)/GAP), cj=Math.floor((e.y-ROAD)/GAP);
   for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){ const L=getLot(i,j); if(!L.fences||!L.fences.length) continue;
-    for(const f of L.fences) segPush(e,eR,f.x1,f.y1,f.x2,f.y2); }
+    for(const f of L.fences){
+      if(f.broken) continue;
+      const dx=f.x2-f.x1, dy=f.y2-f.y1, L2=dx*dx+dy*dy||1;
+      let t=((e.x-f.x1)*dx+(e.y-f.y1)*dy)/L2; t=t<0?0:t>1?1:t;
+      const px=f.x1+dx*t, py=f.y1+dy*t, ox=e.x-px, oy=e.y-py, d=Math.hypot(ox,oy)||0.001;
+      if(d>=eR) continue;
+      const nx=ox/d, ny=oy/d, push=eR-d; e.x+=nx*push; e.y+=ny*push;
+      if(e.vx!==undefined){
+        const into=collideDampenNormal(e, nx, ny, 0.08);
+        if(into<-38) damageFenceAt(L,f,(-into-38)*0.24,px,py);
+      }
+    }
+  }
 }
 function collideGraves(e){
   const eR=e.R!==undefined?e.R:e.r, ci=Math.floor((e.x-ROAD)/GAP), cj=Math.floor((e.y-ROAD)/GAP);

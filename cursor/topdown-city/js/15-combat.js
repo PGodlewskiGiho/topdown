@@ -282,6 +282,7 @@ function meleeHit(x,y,ang,w){
   for(const c of footcops){ const dx=c.x-x,dy=c.y-y,d=Math.hypot(dx,dy); if(d<w.range+6 && dx*ca+dy*sa>d*0.3){ c.hp-=w.dmg; spawnBlood(c.x,c.y,ca,sa,0.3); if(c.hp<=0) killFootCop(c); } }
   for(const h of helis){ const dx=h.x-x,dy=h.y-y,d=Math.hypot(dx,dy); if(d<w.range+14 && dx*ca+dy*sa>d*0.2){ h.hp-=w.dmg*0.85; spawnBlood(h.x,h.y,ca,sa,0.25); if(h.hp<=0) killHeli(h); } }
   for(const m of allForestMammals()){ const dx=m.x-x,dy=m.y-y,d=Math.hypot(dx,dy); if(d<w.range+m.r && dx*ca+dy*sa>d*0.2){ forestMammalHit(m,w.dmg*1.35,ca*130,sa*130,0.55); } }
+  if(typeof meleeHitsFences==="function") meleeHitsFences(x,y,ang,w.range,w.dmg);
 }
 function explode(x,y){
   explosions.push({x,y,r:6,life:0.5}); const R=78; alertPeds(x,y,300);
@@ -292,6 +293,7 @@ function explode(x,y){
   for(const m of allForestMammals().slice()){ if(Math.hypot(m.x-x,m.y-y)<R){ const a=Math.atan2(m.y-y,m.x-x); forestMammalHit(m,95,Math.cos(a)*160,Math.sin(a)*160,1); } }
   for(const c of traffic.slice()){ const d=Math.hypot(c.x-x,c.y-y); if(d<R){ const a=Math.atan2(c.y-y,c.x-x); if(c.state==="drive"){ c.state="loose"; c.vx=Math.cos(a)*260; c.vy=Math.sin(a)*260; c.spin=(rng()-0.5)*8; c.downT=0; } damageCar(c, 130*(1-d/R), x, y, "explosion"); } }
   damageParkedNear(x,y,R,130);
+  if(typeof damageFencesInRadius==="function") damageFencesInRadius(x,y,R,95);
   { const ci=Math.floor((x-ROAD)/GAP), cj=Math.floor((y-ROAD)/GAP); for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){ const L=getLot(i,j); if(!L.lamps) continue; for(const lm of L.lamps){ if(!lm.fall && Math.hypot(lm.x-x,lm.y-y)<R){ const a=Math.atan2(lm.y-y,lm.x-x); topple(lm,Math.cos(a)*200,Math.sin(a)*200,40); } }
       for(let i2=ci-1;i2<=ci+1;i2++)for(let j2=cj-1;j2<=cj+1;j2++){ const L2=getLot(i2,j2); if(L2.signals) for(const s of L2.signals){ if(!s.fall && Math.hypot(s.x-x,s.y-y)<R){ const a=Math.atan2(s.y-y,s.x-x); topple(s,Math.cos(a)*200,Math.sin(a)*200,26); } } } } }
   if(!car.dead && car.hp!==undefined){ const d=Math.hypot(car.x-x,car.y-y); if(d<R) damageCar(car, (mode==="car"?120:80)*(1-d/R), x, y, "explosion"); }
@@ -329,6 +331,7 @@ function updateBullets(dt){
     if(b.type==="flame"){ b.vx*=0.94; b.vy*=0.94; }
     let dead = b.life<=0;
     if(!dead && b.type!=="flame" && inBuilding(b.x,b.y,1)){ if(b.type==="rocket") explode(b.x,b.y); dead=true; }
+    if(!dead && typeof bulletHitsFence==="function" && bulletHitsFence(b.x,b.y,b.dmg*(b.type==="flame"?0.55:1))) dead=true;
     if(!dead && b.owner==="player"){
       if(b.type==="rocket"){
         let hit=false;

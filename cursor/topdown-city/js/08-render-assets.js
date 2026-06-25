@@ -2118,11 +2118,16 @@ function drawGraves(L){
 function drawFences(L){
   if(!L.fences||!L.fences.length) return;
   for(const f of L.fences){
+    if(f.broken) continue;
+    ensureFence(f);
+    const wear=f.maxHp?clamp(1-f.hp/f.maxHp,0,1):0;
     const dx=f.x2-f.x1, dy=f.y2-f.y1, len=Math.hypot(dx,dy)||1, ux=dx/len, uy=dy/len;
-    ctx.strokeStyle="#8c8268"; ctx.lineWidth=1.3;
+    ctx.strokeStyle=wear>0.45?"#7a7060":"#8c8268"; ctx.lineWidth=1.3;
     ctx.beginPath(); ctx.moveTo(f.x1,f.y1-3); ctx.lineTo(f.x2,f.y2-3); ctx.stroke();
-    ctx.fillStyle="#a59a7e";
-    for(let d=0; d<=len; d+=6){ ctx.fillRect(f.x1+ux*d-0.7, f.y1+uy*d-6, 1.5, 6); }
+    ctx.fillStyle=wear>0.45?"#8f8570":"#a59a7e";
+    const step=wear>0.35?8:6;
+    for(let d=0; d<=len; d+=step){ if(wear>0.2&&hsh(Math.floor(f.x1+d),Math.floor(f.y1),601)<wear*0.55) continue;
+      ctx.fillRect(f.x1+ux*d-0.7, f.y1+uy*d-6, 1.5, 6); }
   }
 }
 function drawSignalHead(hx,hy,st,fallen){
