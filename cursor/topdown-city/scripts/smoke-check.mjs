@@ -35,6 +35,71 @@ function collectFiles(dir, extension) {
   });
 }
 
+function evalLivingSpriteDirTests() {
+  const DIR = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"];
+  function snap8Index(a) {
+    const d = ((a % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+    return Math.round(d / (Math.PI / 4)) % DIR.length;
+  }
+  function dirNameFromAngle(a) {
+    return DIR[snap8Index(a)];
+  }
+  function dirNameFromDelta(dx, dy) {
+    const mv = Math.hypot(dx, dy);
+    if (mv < 0.001) return null;
+    return dirNameFromAngle(Math.atan2(dy, dx));
+  }
+  function spriteDir(entity, opts = {}) {
+    if (opts.keys) {
+      const ix =
+        (opts.keys["d"] || opts.keys["arrowright"] ? 1 : 0) -
+        (opts.keys["a"] || opts.keys["arrowleft"] ? 1 : 0);
+      const iy =
+        (opts.keys["s"] || opts.keys["arrowdown"] ? 1 : 0) -
+        (opts.keys["w"] || opts.keys["arrowup"] ? 1 : 0);
+      const kd = dirNameFromDelta(ix, iy);
+      if (kd) {
+        entity._faceDir = kd;
+        return kd;
+      }
+    }
+    const mdx = entity._moveDx || 0;
+    const mdy = entity._moveDy || 0;
+    const fromInput = dirNameFromDelta(mdx, mdy);
+    if (fromInput) {
+      entity._faceDir = fromInput;
+      return fromInput;
+    }
+    const vx = entity.vx || 0;
+    const vy = entity.vy || 0;
+    const fromVel = dirNameFromDelta(vx, vy);
+    if (fromVel && Math.hypot(vx, vy) > 0.15) {
+      entity._faceDir = fromVel;
+      return fromVel;
+    }
+    return entity._faceDir || dirNameFromAngle(0);
+  }
+
+  const pedSim = { _faceDir: "S", _moveDx: 0, _moveDy: 0, vx: 0, vy: 0 };
+  const keys = { w: true };
+  if (spriteDir(pedSim, { keys }) !== "N") {
+    fail("facing: W key should resolve to N, got " + pedSim._faceDir);
+  }
+  const pedSim2 = { _faceDir: "S", _moveDx: 1, _moveDy: 0, vx: 0, vy: 0 };
+  if (spriteDir(pedSim2, {}) !== "E") {
+    fail("facing: _moveDx=1 should resolve to E, got " + pedSim2._faceDir);
+  }
+  const dirs = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"];
+  for (const d of dirs) {
+    const layer = path.join(
+      siteRoot,
+      "assets/people/gta2/parts/bodies/male/skins/medium/walk0",
+      `${d}.png`
+    );
+    if (!existsSync(layer)) fail(`missing GTA2 direction PNG: walk0/${d}.png`);
+  }
+}
+
 const forbiddenRootIndex = path.join(repoRoot, "index.html");
 if (existsSync(forbiddenRootIndex)) {
   fail(
@@ -117,6 +182,8 @@ const agentsDoc = path.join(repoRoot, "AGENTS.md");
 if (!existsSync(agentsDoc)) {
   fail("missing AGENTS.md at repo root (deploy rules for AI agents)");
 }
+
+evalLivingSpriteDirTests();
 
 const gta2Root = path.join(siteRoot, "assets/people/gta2");
 const gta2Meta = JSON.parse(readText(path.join(gta2Root, "meta.json")));

@@ -302,12 +302,10 @@ function drawSpeech(p){
 }
 function entitySpriteDir(p){
   if(typeof LivingSprite==="undefined") return "S";
+  const opts={};
   const isPlayer=typeof ped!=="undefined"&&p===ped&&typeof mode!=="undefined"&&mode==="foot";
-  if(isPlayer&&typeof keys!=="undefined"){
-    return LivingSprite.spriteDir(p,{keys});
-  }
-  if(p._faceDir) return p._faceDir;
-  return LivingSprite.resolveDir(p);
+  if(isPlayer&&typeof keys!=="undefined") opts.keys=keys;
+  return LivingSprite.spriteDir(p, opts);
 }
 
 function drawPerson(p,color,down,targetCtx){

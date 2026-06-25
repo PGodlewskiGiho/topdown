@@ -112,13 +112,18 @@ function init(){
 
 function pick(arr, seed){ return arr[Math.abs(seed)%arr.length]; }
 
+function prefetchAllDirections(o){
+  const dirs=LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
+  for(const d of dirs){
+    prefetchOutfit(o,"walk0",d);
+    prefetchOutfit(o,"walk1",d);
+  }
+}
+
 function warmDefault(){
   if(!meta) return;
   const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
-  for(const d of ["S","E","W","N"]){
-    prefetchOutfit(sample,"walk0",d);
-    prefetchOutfit(sample,"walk1",d);
-  }
+  prefetchAllDirections(sample);
 }
 
 function resolveOutfit(p){
@@ -147,9 +152,7 @@ function resolveOutfit(p){
   if(p.hairId) o.hair=p.hairId;
   if(p.hairStyle==="bald"||p.hair==null) o.hair=null;
   p._gta2Outfit=o;
-  const seedDir=p._faceDir||"S";
-  prefetchOutfit(o,"walk0",seedDir);
-  prefetchOutfit(o,"walk1",seedDir);
+  prefetchAllDirections(o);
   return o;
 }
 
@@ -198,11 +201,9 @@ function drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm){
 }
 
 function resolveSpriteDir(p, forcedDir){
-  if(forcedDir&&typeof forcedDir==="string") return forcedDir;
-  if(p._faceDir) return p._faceDir;
-  if(p._spriteDir) return p._spriteDir;
-  if(LS) return LS.resolveDir(p);
-  return "S";
+  if(typeof forcedDir==="string"&&forcedDir) return forcedDir;
+  if(LS) return LS.spriteDir(p);
+  return p._faceDir||p._spriteDir||"S";
 }
 
 function tryBake(o, wf, dir){
@@ -265,10 +266,8 @@ function drawComposite(c, p, down, forcedDir){
   const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down):"walk0";
   const dir=resolveSpriteDir(p, forcedDir);
   p._spriteDir=dir;
+  p._faceDir=dir;
   prefetchOutfit(o, wf, dir);
-
-  let bakedIm=getBaked(o, wf, dir);
-  if(!bakedIm&&allLayersReady(o, wf, dir)) bakedIm=tryBake(o, wf, dir);
 
   const ang=dirAngle(dir);
   c.save();
@@ -277,10 +276,12 @@ function drawComposite(c, p, down, forcedDir){
   c.fillRect(-8*sc, 3*sc, 16*sc, 4*sc);
   c.restore();
 
-  if(bakedIm){
-    c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
-  } else if(!drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm)){
-    return;
+  let drew=drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm);
+  if(!drew){
+    let bakedIm=getBaked(o, wf, dir);
+    if(!bakedIm&&allLayersReady(o, wf, dir)) bakedIm=tryBake(o, wf, dir);
+    if(bakedIm) c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
+    else return;
   }
 
   if(down){

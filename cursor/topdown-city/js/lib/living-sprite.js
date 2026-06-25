@@ -61,7 +61,7 @@ function resolveDir(entity, opts){
   if(fromInput){ entity._faceDir=fromInput; entity.a=Math.atan2(mdy,mdx); return fromInput; }
   const vx=entity.vx||0, vy=entity.vy||0;
   const fromVel=dirNameFromDelta(vx,vy);
-  const thresh=opts.threshold!=null?opts.threshold:0.35;
+  const thresh=opts.threshold!=null?opts.threshold:0.15;
   if(fromVel&&Math.hypot(vx,vy)>thresh){ entity._faceDir=fromVel; entity.a=Math.atan2(vy,vx); return fromVel; }
   if(entity._faceDir) return entity._faceDir;
   const idle=dirNameFromAngle(facingAngle(entity));
