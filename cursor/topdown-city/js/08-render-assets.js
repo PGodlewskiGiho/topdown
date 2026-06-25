@@ -1457,6 +1457,21 @@ function drawForestRock(x,y,s,v,moss){
 
 function drawForestFloraItem(d){
   const s=d.s, r=d.rot||0, x=d.x, y=d.y;
+  if(FOREST_GRASS.ready){
+    let vk=null, sc=s;
+    switch(d.kind){
+      case "needle": vk="clump_needle"; sc=s*1.2; break;
+      case "fern": vk="clump_fern"; sc=s*1.05; break;
+      case "moss": vk="patch_moss"; sc=s*0.9; break;
+      case "sprout": vk="clump_small"; sc=s*1.25; break;
+      case "blade":
+      case "clover":
+        vk=["clump_med","clump_shade","clump_wispy","clump_mossy","clump_dense","clump_pine"][((x*73856093)^(y*19349663))>>>0)%6];
+        sc=s*1.12;
+        break;
+    }
+    if(vk){ drawForestGrassClump(x,y,sc,vk); return; }
+  }
   ctx.save(); ctx.translate(x,y); ctx.rotate(r);
   switch(d.kind){
     case "leaf": {
@@ -1574,8 +1589,10 @@ function drawForestFloraItem(d){
       ctx.fillStyle="rgba(52,78,44,0.28)"; ctx.beginPath(); ctx.ellipse(-s*0.1,-s*0.08,s*0.35,s*0.18,r*0.2,0,7); ctx.fill();
       break;
     }
-    default: { // blade
-      ctx.strokeStyle="#2a5828"; ctx.lineWidth=1.1; for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(k*2,s*0.15); ctx.quadraticCurveTo(k*2.5,-s*0.35,k*1.2,-s*0.75); ctx.stroke(); }
+    default: { // blade — procedural fallback gdy PNG jeszcze się ładuje
+      const [gwx,gwy]=grassWindAt(x,y,s);
+      ctx.strokeStyle="#2a5828"; ctx.lineWidth=1.1;
+      for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(k*2+gwx*0.2,s*0.15); ctx.quadraticCurveTo(k*2.5+gwx*0.35,-s*0.35,k*1.2+gwx*0.5,-s*0.75+gwy*0.1); ctx.stroke(); }
     }
   }
   ctx.restore();
