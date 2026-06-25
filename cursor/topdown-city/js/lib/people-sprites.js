@@ -1,8 +1,8 @@
-/* people-sprites.js — GTA2 modular PNG pedestrians (per-dir layers, baked fallback) */
+/* people-sprites.js — GTA2 modular PNG pedestrians (16 frames × 8 dirs per anim) */
 (function(global){
 "use strict";
 
-const BUILD=2026062703;
+const BUILD=2026062704;
 
 let resolvedRoot=null;
 
@@ -51,7 +51,9 @@ function outfitKey(o){
   return [o.body,o.shirt,o.pants,o.skin,o.hair||"none"].join("|");
 }
 
-function bakeKey(o,wf,dir){ return outfitKey(o)+"|"+wf+"|"+dir; }
+function frameTag(fi){ return "f"+String(fi).padStart(2,"0"); }
+
+function bakeKey(o, anim, fi, dir){ return outfitKey(o)+"|"+anim+"|"+fi+"|"+dir; }
 
 function queueImg(path, onload){
   if(!path) return;
@@ -110,17 +112,23 @@ function warmDefault(){
   const dirs=meta.directions||(LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]);
   const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
   for(const d of dirs){
-    prefetchOutfit(sample,"walk0",d);
-    prefetchOutfit(sample,"walk1",d);
+    prefetchOutfit(sample,"walk",0,d);
+    prefetchOutfit(sample,"walk",1,d);
+  }
+}
+
+function prefetchAnimRing(o, anim, direction, centerFi){
+  const frames=(meta&&meta.animations&&meta.animations[anim]&&meta.animations[anim].frames)||16;
+  const c=centerFi!=null?centerFi:0;
+  for(let i=0;i<4;i++){
+    const fi=(c+i)%frames;
+    prefetchOutfit(o, anim, fi, direction);
   }
 }
 
 function prefetchAllDirections(o){
   const dirs=meta.directions||(LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]);
-  for(const d of dirs){
-    prefetchOutfit(o,"walk0",d);
-    prefetchOutfit(o,"walk1",d);
-  }
+  for(const d of dirs) prefetchAnimRing(o,"walk",d,0);
 }
 
 function resolveOutfit(p){
@@ -153,7 +161,8 @@ function resolveOutfit(p){
   return o;
 }
 
-function layerPaths(o, wf, direction){
+function layerPaths(o, anim, fi, direction){
+  const tag=frameTag(fi);
   const order=meta.layer_order||["shoes","pants","arms","torso","skin","hair"];
   const b=o.body||"male";
   const map={
@@ -168,21 +177,19 @@ function layerPaths(o, wf, direction){
   for(const k of order){
     const rel=map[k];
     if(!rel) continue;
-    out.push(assetsBase()+b+"/"+rel+"/"+wf+"/"+direction+".png");
+    out.push(assetsBase()+b+"/"+rel+"/"+anim+"/"+tag+"/"+direction+".png");
   }
   return out;
 }
 
-function prefetchOutfit(o, wf, direction){
-  for(const path of layerPaths(o, wf, direction)) queueImg(path, ()=>tryBake(o, wf, direction));
-  const alt=wf==="walk0"?"walk1":"walk0";
-  for(const path of layerPaths(o, alt, direction)) queueImg(path);
+function prefetchOutfit(o, anim, fi, direction){
+  for(const path of layerPaths(o, anim, fi, direction)) queueImg(path, ()=>tryBake(o, anim, fi, direction));
 }
 
-function tryBake(o, wf, dir){
-  const key=bakeKey(o,wf,dir);
+function tryBake(o, anim, fi, dir){
+  const key=bakeKey(o, anim, fi, dir);
   if(baked[key]) return baked[key];
-  const paths=layerPaths(o, wf, dir);
+  const paths=layerPaths(o, anim, fi, dir);
   const layers=[];
   for(const path of paths){
     const im=getImg(path);
@@ -198,9 +205,9 @@ function tryBake(o, wf, dir){
   return c;
 }
 
-function getBaked(o, wf, dir){
-  const key=bakeKey(o,wf,dir);
-  return baked[key]||tryBake(o,wf,dir);
+function getBaked(o, anim, fi, dir){
+  const key=bakeKey(o, anim, fi, dir);
+  return baked[key]||tryBake(o, anim, fi, dir);
 }
 
 function buildMul(o, p){
@@ -223,8 +230,8 @@ function pickDrawDir(p, forced){
   return "S";
 }
 
-function drawDirLayers(c, o, wf, dir, ax, ay, sx, sy, bm){
-  const paths=layerPaths(o, wf, dir);
+function drawDirLayers(c, o, anim, fi, dir, ax, ay, sx, sy, bm){
+  const paths=layerPaths(o, anim, fi, dir);
   let drew=false;
   for(const path of paths){
     const im=getImg(path);
@@ -244,6 +251,19 @@ function dirAngle(dir){
   return (i>=0?i:2)*(Math.PI/4);
 }
 
+function resolveAnim(p, down){
+  if(LS&&LS.animName) return LS.animName(p,{down});
+  if(down||p.state==="down") return "death";
+  if(p.swimming) return "swim";
+  if(p.hostile||p.armed||p.weapon!=null) return "gun";
+  return "walk";
+}
+
+function resolveFrame(p, anim){
+  if(LS&&LS.animFrame) return LS.animFrame(p, anim, meta);
+  return 0;
+}
+
 function drawComposite(c, p, down, forcedDir){
   const o=resolveOutfit(p);
   if(!o) return;
@@ -255,11 +275,12 @@ function drawComposite(c, p, down, forcedDir){
   const ay=(meta.anchor||[11,21])[1]*sc;
   c.imageSmoothingEnabled=false;
 
-  const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down):"walk0";
+  const anim=resolveAnim(p, down);
+  const fi=resolveFrame(p, anim);
   const dir=pickDrawDir(p, forcedDir);
   p._spriteDir=dir;
   p._faceDir=dir;
-  prefetchOutfit(o, wf, dir);
+  prefetchAnimRing(o, anim, dir, fi);
 
   const ang=dirAngle(dir);
   c.save();
@@ -268,18 +289,10 @@ function drawComposite(c, p, down, forcedDir){
   c.fillRect(-8*sc, 3*sc, 16*sc, 4*sc);
   c.restore();
 
-  if(!drawDirLayers(c, o, wf, dir, ax, ay, sx, sy, bm)){
-    const bakedIm=getBaked(o, wf, dir);
+  if(!drawDirLayers(c, o, anim, fi, dir, ax, ay, sx, sy, bm)){
+    const bakedIm=getBaked(o, anim, fi, dir);
     if(bakedIm) c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
     else return;
-  }
-
-  if(down){
-    c.save();
-    c.rotate(Math.PI/2);
-    c.fillStyle="rgba(0,0,0,.2)";
-    c.fillRect(-5*sc, 0, 10*sc, 4*sc);
-    c.restore();
   }
 
   if(p.hostile){
@@ -303,7 +316,7 @@ const PeopleSprites={
   get meta(){ return meta; },
   resolveOutfit,
   dirName(p){ return p._spriteDir||"S"; },
-  walkFrame(p){ return LS?LS.walkPhase(p):0; },
+  walkFrame(p){ return LS?LS.animFrame(p,"walk",meta):0; },
   facingAngle(p){ return LS?LS.facingAngle(p):0; },
 };
 global.PeopleSprites=PeopleSprites;

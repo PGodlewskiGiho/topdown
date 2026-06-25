@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Export 16 pedestrian frames + palette-index grids (16×22) for layer masks. */
+/** Export pedestrian STY frames + palette-index grids (22×22) for layer masks. */
 import fs from 'fs';
 import path from 'path';
 import { createCanvas, ImageData } from 'canvas';
@@ -7,12 +7,30 @@ import { STY } from '/tmp/gta2-sty-viewer/js/sty.js';
 
 global.ImageData = ImageData;
 
-const [styPath, outDir, remapIdStr] = process.argv.slice(2);
+const [styPath, outDir, remapIdStr, indicesArg] = process.argv.slice(2);
 const remapId = parseInt(remapIdStr || '27', 10);
 const CANVAS_W = 22;
 const CANVAS_H = 22;
 const ANCHOR_X = 11;
 const ANCHOR_Y = 21;
+
+function parseIndices(arg) {
+  if (!arg) return [...Array(16).keys()];
+  const out = [];
+  for (const part of arg.split(',')) {
+    const p = part.trim();
+    if (!p) continue;
+    if (p.includes('-')) {
+      const [a, b] = p.split('-').map((x) => parseInt(x, 10));
+      for (let i = a; i <= b; i++) out.push(i);
+    } else {
+      out.push(parseInt(p, 10));
+    }
+  }
+  return [...new Set(out)].sort((a, b) => a - b);
+}
+
+const indices = parseIndices(indicesArg);
 
 const buf = fs.readFileSync(styPath);
 const sty = new STY(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
@@ -25,9 +43,12 @@ if (!pal) {
 
 fs.mkdirSync(outDir, { recursive: true });
 
-for (let i = 0; i < 16; i++) {
+for (const i of indices) {
   const s = peds[i];
-  if (!s) continue;
+  if (!s) {
+    console.warn('skip missing ped', i);
+    continue;
+  }
   const bmp = s.bitmap;
   const w = bmp.width;
   const h = bmp.height;
@@ -52,9 +73,10 @@ for (let i = 0; i < 16; i++) {
     }
   }
   ctx.putImageData(norm, 0, 0);
-  fs.writeFileSync(path.join(outDir, `frame_${String(i).padStart(2, '0')}.png`), c.toBuffer('image/png'));
+  const tag = String(i).padStart(3, '0');
+  fs.writeFileSync(path.join(outDir, `frame_${tag}.png`), c.toBuffer('image/png'));
 
-  const indices = Array.from({ length: CANVAS_H }, () => Array(CANVAS_W).fill(0));
+  const grid = Array.from({ length: CANVAS_H }, () => Array(CANVAS_W).fill(0));
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
       const idx = bmp.data[y * w + x];
@@ -65,12 +87,12 @@ for (let i = 0; i < 16; i++) {
         const si = (y * w + x) * 4;
         if (img.data[si + 3] === 0) continue;
       }
-      indices[cy][cx] = idx;
+      grid[cy][cx] = idx;
     }
   }
   fs.writeFileSync(
-    path.join(outDir, `frame_${String(i).padStart(2, '0')}.idx.json`),
-    JSON.stringify({ w: CANVAS_W, h: CANVAS_H, indices })
+    path.join(outDir, `frame_${tag}.idx.json`),
+    JSON.stringify({ w: CANVAS_W, h: CANVAS_H, sty_index: i, indices: grid })
   );
 }
-console.log('ok', outDir, remapId);
+console.log('ok', outDir, remapId, indices.length, 'frames');
