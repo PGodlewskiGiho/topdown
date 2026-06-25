@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import shutil
 import subprocess
@@ -16,17 +17,18 @@ SCRIPTS = os.path.dirname(__file__)
 STY = os.environ.get("GTA2_STY", "/tmp/bil.sty")
 CANVAS = (22, 22)
 ANCHOR = (11, 21)
-DIR_NAMES = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"]
 BODY_TYPES = ("male", "female", "hardy")
 
-# bil.sty default male: 8 dirs × 2 walk frames — sprite pairs are non-consecutive (see gta2_ped_walk_map.json).
-WALK_MAP_PATH = os.path.join(SCRIPTS, "gta2_ped_walk_map.json")
-with open(WALK_MAP_PATH, encoding="utf-8") as _wm:
-    _walk = json.load(_wm)
+# gta2_re: animation_frame 0-7 = walk cycle; facing = sprite rotation (baked to 8 dirs at export).
+ANIM_MAP_PATH = os.path.join(SCRIPTS, "gta2_ped_anim_map.json")
+with open(ANIM_MAP_PATH, encoding="utf-8") as _am:
+    _anim = json.load(_am)
+DIR_NAMES = _anim["directions"]
+WALK_FRAME_NAMES = _anim["walk_frames"]
 FRAME_DIR_WALK = []
-for _d in _walk["directions"]:
-    FRAME_DIR_WALK.append((_d, 0))
-    FRAME_DIR_WALK.append((_d, 1))
+for _wf_i, _wf in enumerate(WALK_FRAME_NAMES):
+    for _d in DIR_NAMES:
+        FRAME_DIR_WALK.append((_d, _wf_i, _wf))
 
 REMAP_META = {
     27: {"shirt": "blue", "pants": "jeans"},
@@ -77,11 +79,15 @@ LAYER_EXTRA = {
 }
 
 
-def export_frames(remap_id: int, out_dir: str):
+def export_frames(remap_id: int, out_dir: str, body_type: str = "male"):
     os.makedirs(out_dir, exist_ok=True)
     export_js = os.path.join(SCRIPTS, "export_gta2_indices.mjs")
     project_root = os.path.join(SCRIPTS, "..")
-    subprocess.run(["node", export_js, STY, out_dir, str(remap_id)], check=True, cwd=project_root)
+    subprocess.run(
+        ["node", export_js, STY, out_dir, str(remap_id), body_type],
+        check=True,
+        cwd=project_root,
+    )
 
 
 def load_indices(frames_dir: str, idx: int) -> list[list[int]]:
@@ -131,7 +137,7 @@ def mask_from_layer(layer: Image.Image) -> list[list[bool]]:
 
 def build_masks(frames_dir: str) -> dict[int, dict[str, list[list[bool]]]]:
     masks = {}
-    for i in range(16):
+    for i in range(2):
         layers = split_layers(load_indices(frames_dir, i), load_rgba_frame(frames_dir, i))
         masks[i] = {k: mask_from_layer(v) for k, v in layers.items()}
     return masks
@@ -157,6 +163,38 @@ def save_part(body: str, part: str, variant: str, walk: str, direction: str, lay
     layer.save(path, "PNG")
 
 
+def rotate_layer(im: Image.Image, direction: str) -> Image.Image:
+    """Bake GTA2 sprite rotation: base bitmap faces N; rotate to game direction."""
+    if direction not in DIR_NAMES:
+        return im.copy()
+    idx = DIR_NAMES.index(direction)
+    target_rad = idx * (math.pi / 4)
+    pil_deg = -math.degrees(target_rad + _anim["rotation_offset_rad"])
+
+    px_list = [(x, y) for y in range(im.height) for x in range(im.width) if im.getpixel((x, y))[3] > 0]
+    if not px_list:
+        return im.copy()
+    com_x = sum(x for x, _ in px_list) / len(px_list)
+    com_y = sum(y for _, y in px_list) / len(px_list)
+
+    pad = 64
+    big = Image.new("RGBA", (pad, pad), (0, 0, 0, 0))
+    bcx, bcy = pad // 2, pad // 2
+    big.paste(im, (int(bcx - com_x), int(bcy - com_y)), im)
+    rotated = big.rotate(pil_deg, resample=Image.NEAREST, center=(bcx, bcy))
+
+    out = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
+    pts = [(x, y) for y in range(rotated.height) for x in range(rotated.width) if rotated.getpixel((x, y))[3] > 0]
+    if not pts:
+        return out
+    minx, maxx = min(x for x, _ in pts), max(x for x, _ in pts)
+    miny, maxy = min(y for _, y in pts), max(y for _, y in pts)
+    foot_x = (minx + maxx) // 2
+    foot_y = maxy
+    out.paste(rotated, (ANCHOR[0] - foot_x, ANCHOR[1] - foot_y), rotated)
+    return out
+
+
 def scale_layer(im: Image.Image, sx: float, sy: float, ax: int = ANCHOR[0], ay: int = ANCHOR[1]) -> Image.Image:
     if sx == 1.0 and sy == 1.0:
         return im.copy()
@@ -176,23 +214,27 @@ def scale_layer(im: Image.Image, sx: float, sy: float, ax: int = ANCHOR[0], ay: 
 
 def extract_all(masks: dict, frame_cache: dict[int, dict[int, Image.Image]]):
     for i in range(16):
-        direction, walk_i = FRAME_DIR_WALK[i]
-        wf = f"walk{walk_i}"
-        m = masks[i]
+        direction, _walk_i, wf = FRAME_DIR_WALK[i]
+        base_i = i % 2
+        m = masks[base_i]
 
         for shirt_id, rid in SHIRT_REMAP.items():
-            src = frame_cache[rid][i]
-            save_part("male", "torsos", shirt_id, wf, direction, apply_mask(src, m["torso"]))
-            save_part("male", "arms", shirt_id, wf, direction, apply_mask(src, m["arms"]))
+            torso = rotate_layer(apply_mask(frame_cache[rid][base_i], m["torso"]), direction)
+            arms = rotate_layer(apply_mask(frame_cache[rid][base_i], m["arms"]), direction)
+            save_part("male", "torsos", shirt_id, wf, direction, torso)
+            save_part("male", "arms", shirt_id, wf, direction, arms)
 
         for pants_id, rid in PANTS_REMAP.items():
-            src = frame_cache[rid][i]
-            save_part("male", "pants", pants_id, wf, direction, apply_mask(src, m["pants"]))
-            save_part("male", "shoes", pants_id, wf, direction, apply_mask(src, m["shoes"]))
+            pants = rotate_layer(apply_mask(frame_cache[rid][base_i], m["pants"]), direction)
+            shoes = rotate_layer(apply_mask(frame_cache[rid][base_i], m["shoes"]), direction)
+            save_part("male", "pants", pants_id, wf, direction, pants)
+            save_part("male", "shoes", pants_id, wf, direction, shoes)
 
-        src27 = frame_cache[BASE_REMAP][i]
-        save_part("male", "skins", "medium", wf, direction, apply_mask(src27, m["skin"]))
-        save_part("male", "hairs", "brown", wf, direction, apply_mask(src27, m["hair"]))
+        src27 = frame_cache[BASE_REMAP][base_i]
+        skin = rotate_layer(apply_mask(src27, m["skin"]), direction)
+        hair = rotate_layer(apply_mask(src27, m["hair"]), direction)
+        save_part("male", "skins", "medium", wf, direction, skin)
+        save_part("male", "hairs", "brown", wf, direction, hair)
 
 
 def recolor_layer(im: Image.Image, src_rgb, dst_rgb, tol=48) -> Image.Image:
@@ -304,8 +346,7 @@ def build_skirts(body: str = "female"):
 
 def composite_frame(outfit, frame_i: int, scale: int = 6) -> Image.Image:
     body = outfit.get("body", "male")
-    direction, walk_i = FRAME_DIR_WALK[frame_i]
-    wf = f"walk{walk_i}"
+    direction, _walk_i, wf = FRAME_DIR_WALK[frame_i]
     canvas = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
     for part, key in [
         ("shoes", outfit["pants"]),
@@ -339,6 +380,8 @@ def write_meta():
         "directions": DIR_NAMES,
         "walk_frames": 2,
         "total_frames": 16,
+        "animation_source": "gta2_ped_anim_map.json",
+        "facing_mode": "baked_rotation",
         "body_types": [{"id": b} for b in BODY_TYPES],
         "builds": [
             {"id": "slim", "sx": 0.88, "sy": 1.02},
@@ -387,7 +430,7 @@ def write_previews():
 
 
 def verify_masks(frames_dir: str, masks: dict):
-    for i in range(16):
+    for i in range(2):
         orig = load_rgba_frame(frames_dir, i)
         m = masks[i]
         rebuilt = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
@@ -407,7 +450,7 @@ def main():
     for remap_id in set(REMAP_META) | {BASE_REMAP}:
         fd = os.path.join(tmp, str(remap_id))
         export_frames(remap_id, fd)
-        frame_cache[remap_id] = {i: load_rgba_frame(fd, i) for i in range(16)}
+        frame_cache[remap_id] = {i: load_rgba_frame(fd, i) for i in range(2)}
 
     base_dir = os.path.join(tmp, str(BASE_REMAP))
     masks = build_masks(base_dir)

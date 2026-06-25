@@ -1,0 +1,26 @@
+{
+  "comment": "GTA2 pedestrian animation layout from gta2_re Char_B4::UpdateAnimState_546360. Sprite ID = baseId + offset + animation_frame. animation_frame 0-7 is an 8-step walk CYCLE (not 8 facings). Facing comes from field_40_rotation at draw time; we bake 8 rotations at export.",
+  "source": "CriminalRETeam/gta2_re Source/char.cpp UpdateAnimState_546360",
+  "directions": ["E", "SE", "S", "SW", "W", "NW", "N", "NE"],
+  "sprite_facing": "N",
+  "rotation_offset_rad": 1.5707963267948966,
+  "body_types": {
+    "male": { "graphic_type": 0, "base_id": 0 },
+    "female": { "graphic_type": 1, "base_id": 158 },
+    "hardy": { "graphic_type": 2, "base_id": 316 }
+  },
+  "anim_states": {
+    "walk_slow_moving": { "state": 0, "offset": 0, "frame_max": 7 },
+    "walk_fast_moving": { "state": 1, "offset": 8, "frame_max": 7 },
+    "walk_slow_idle": { "state": 0, "offset": 143, "frame_max": 5 },
+    "walk_fast_idle": { "state": 1, "offset": 135, "frame_max": 5 },
+    "walk_armed_slow": { "state": 0, "offset": 37, "frame_max": 7 },
+    "walk_armed_fast": { "state": 1, "offset": 45, "frame_max": 7 }
+  },
+  "walk_export": {
+    "slow": { "offset": 0, "frames": [0, 4] },
+    "fast": { "offset": 8, "frames": [0, 4] }
+  },
+  "walk_frames": ["walk0", "walk1"],
+  "total_export_frames": 16
+}

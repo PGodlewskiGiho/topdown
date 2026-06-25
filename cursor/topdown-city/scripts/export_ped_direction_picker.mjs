@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Export 8 GTA2 ped sprites from bil.sty as a labeled picker sheet (user assigns E/S/W/N…). */
+/** Debug sheet: export a block of ped sprites from bil.sty (not used for direction mapping). */
 import fs from 'fs';
 import path from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';

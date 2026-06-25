@@ -6,6 +6,10 @@
     "dev": "python3 -m http.server 8080",
     "smoke": "node scripts/smoke-check.mjs",
     "check": "npm run smoke",
-    "gen:people": "python3 scripts/gen_topdown_people.py"
+    "gen:people": "python3 scripts/gen_topdown_people.py",
+    "gen:gta2": "python3 scripts/gen_gta2_people_parts.py"
+  },
+  "devDependencies": {
+    "canvas": "^3.2.3"
   }
 }

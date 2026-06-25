@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Export 16 pedestrian frames + palette-index grids (16×22) for layer masks. */
+/** Export GTA2 walk-cycle frames + palette-index grids (from gta2_re anim formula). */
 import fs from 'fs';
 import path from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';
@@ -10,21 +10,20 @@ const { STY } = await import(pathToFileURL(path.join(styViewer, 'js/sty.js')).hr
 
 global.ImageData = ImageData;
 
-const mapPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'gta2_ped_walk_map.json');
-const walkMap = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
-const DIRS = walkMap.directions;
+const mapPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'gta2_ped_anim_map.json');
+const animMap = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+
+const [styPath, outDir, remapIdStr, bodyType = 'male'] = process.argv.slice(2);
+const remapId = parseInt(remapIdStr || '27', 10);
+const body = animMap.body_types[bodyType] || animMap.body_types.male;
+const baseId = body.base_id;
+
 const PED_INDICES = [];
-for (const d of DIRS) {
-  const pair = walkMap.walk_sprites[d];
-  if (!pair || pair.length !== 2) {
-    console.error('bad walk_sprites for', d);
-    process.exit(1);
-  }
-  PED_INDICES.push(pair[0], pair[1]);
+const spec = animMap.walk_export.slow;
+for (const frame of spec.frames) {
+  PED_INDICES.push(baseId + spec.offset + frame);
 }
 
-const [styPath, outDir, remapIdStr] = process.argv.slice(2);
-const remapId = parseInt(remapIdStr || '27', 10);
 const CANVAS_W = 22;
 const CANVAS_H = 22;
 const ANCHOR_X = 11;
@@ -41,11 +40,11 @@ if (!pal) {
 
 fs.mkdirSync(outDir, { recursive: true });
 
-for (let i = 0; i < 16; i++) {
+for (let i = 0; i < PED_INDICES.length; i++) {
   const pedIdx = PED_INDICES[i];
   const s = peds[pedIdx];
   if (!s) {
-    console.error('missing ped sprite', pedIdx);
+    console.error('missing ped sprite', pedIdx, 'body', bodyType, 'base', baseId);
     process.exit(1);
   }
   const bmp = s.bitmap;
@@ -90,7 +89,14 @@ for (let i = 0; i < 16; i++) {
   }
   fs.writeFileSync(
     path.join(outDir, `frame_${String(i).padStart(2, '0')}.idx.json`),
-    JSON.stringify({ w: CANVAS_W, h: CANVAS_H, indices, ped_sprite: pedIdx })
+    JSON.stringify({
+      w: CANVAS_W,
+      h: CANVAS_H,
+      indices,
+      ped_sprite: pedIdx,
+      body_type: bodyType,
+      base_id: baseId,
+    })
   );
 }
-console.log('ok', outDir, remapId, 'sprites', PED_INDICES.join(','));
+console.log('ok', outDir, remapId, bodyType, 'sprites', PED_INDICES.join(','));
