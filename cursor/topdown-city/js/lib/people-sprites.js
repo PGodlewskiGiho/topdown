@@ -2,7 +2,7 @@
 (function(global){
 "use strict";
 
-const BUILD=2026062315;
+const BUILD=2026062520;
 const BASE="assets/people/gta2/parts/bodies/";
 const META_URL="assets/people/gta2/meta.json";
 const GO=global.Gta2Outfit;
@@ -132,8 +132,8 @@ function drawComposite(c, p, down){
   c.fillStyle="rgba(0,0,0,.28)";
   c.fillRect(-7*sc, 2*sc, 14*sc, 3*sc);
 
-  const wf=LS.walkFrameName(p, down);
-  const dir=LS.dirName(p);
+  const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down):(down?"walk0":"walk0");
+  const dir=p._faceDir||((LS&&LS.dirName)?LS.dirName(p):"S");
   prefetchOutfit(o, wf, dir);
   let drew=false;
   for(const path of layerPaths(o, wf, dir)){

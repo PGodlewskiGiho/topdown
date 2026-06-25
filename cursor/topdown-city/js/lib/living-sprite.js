@@ -2,9 +2,8 @@
 (function(global){
 "use strict";
 
-/** Screen atan2(vy,vx): 0=E, π/2=S, π=W, −π/2=N */
+/** Screen coords: atan2(dy,dx) → E=0, S=π/2, W=π, N=−π/2 */
 const DIR=["E","SE","S","SW","W","NW","N","NE"];
-const MOVING_THRESHOLD=4;
 
 function snap8Index(a){
   const d=((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
@@ -15,32 +14,51 @@ function snap8Angle(a){
   return snap8Index(a)*(Math.PI/4);
 }
 
+function dirNameFromAngle(a){
+  return DIR[snap8Index(a)];
+}
+
+function dirNameFromDelta(dx,dy){
+  const mv=Math.hypot(dx,dy);
+  if(mv<0.001) return null;
+  return dirNameFromAngle(Math.atan2(dy,dx));
+}
+
+/** Set facing from movement input or displacement; keeps last dir when idle. */
+function setFacingFromDelta(entity,dx,dy){
+  const dir=dirNameFromDelta(dx,dy);
+  if(dir){
+    entity._faceDir=dir;
+    entity.a=Math.atan2(dy,dx);
+  }
+  return entity._faceDir||dirNameFromAngle(entity.a||0);
+}
+
 function isMoving(entity, threshold){
-  const t=threshold!=null?threshold:MOVING_THRESHOLD;
-  return Math.hypot(entity.vx||0, entity.vy||0)>t;
+  const t=threshold!=null?threshold:0.5;
+  return Math.hypot(entity.vx||0,entity.vy||0)>t;
 }
 
 function facingAngle(entity){
   const vx=entity.vx||0, vy=entity.vy||0;
-  if(isMoving(entity)) return Math.atan2(vy,vx);
+  if(Math.hypot(vx,vy)>0.5) return Math.atan2(vy,vx);
   const a=entity.a;
   if(typeof a==="number"&&isFinite(a)) return a;
   return 0;
 }
 
-function dirNameFromAngle(a){
-  return DIR[snap8Index(a)];
-}
-
 function dirName(entity){
+  if(entity._faceDir) return entity._faceDir;
+  const vx=entity.vx||0, vy=entity.vy||0;
+  const fromVel=dirNameFromDelta(vx,vy);
+  if(fromVel) return fromVel;
   return dirNameFromAngle(facingAngle(entity));
 }
 
-function walkPhase(entity, threshold){
-  const t=threshold!=null?threshold:MOVING_THRESHOLD;
-  const mv=Math.hypot(entity.vx||0, entity.vy||0);
+function walkPhase(entity){
+  const mv=Math.hypot(entity.vx||0,entity.vy||0);
   const time=entity.previewT!=null?entity.previewT:performance.now()*0.001;
-  return mv>t?((Math.sin(time*13)>0)?1:0):0;
+  return mv>0.5?((Math.sin(time*13)>0)?1:0):0;
 }
 
 function walkFrameName(entity, down){
@@ -48,19 +66,15 @@ function walkFrameName(entity, down){
   return "walk"+walkPhase(entity);
 }
 
-function syncFacing(entity, threshold){
-  if(isMoving(entity, threshold)){
-    entity.a=Math.atan2(entity.vy||0, entity.vx||0);
-  }
-  return entity.a;
+function syncFacing(entity){
+  return setFacingFromDelta(entity, entity.vx||0, entity.vy||0);
 }
 
 const LivingSprite={
-  DIR, MOVING_THRESHOLD,
-  snap8Index, snap8Angle,
-  snap8:snap8Angle,
-  facingAngle, dirName, dirNameFromAngle,
-  walkPhase, walkFrameName,
+  DIR,
+  snap8Index, snap8Angle, snap8:snap8Angle,
+  dirNameFromAngle, dirNameFromDelta, setFacingFromDelta,
+  facingAngle, dirName, walkPhase, walkFrameName,
   isMoving, syncFacing,
 };
 global.LivingSprite=LivingSprite;

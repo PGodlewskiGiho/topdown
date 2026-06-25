@@ -295,7 +295,9 @@ function updateInside(dt){
     const ax=(keys["d"]||keys["arrowright"]?1:0)-(keys["a"]||keys["arrowleft"]?1:0);
     const ay=(keys["s"]||keys["arrowdown"]?1:0)-(keys["w"]||keys["arrowup"]?1:0);
     const spd=keys["shift"]?ped.run:ped.walk;
-    if(ax||ay){ const m=Math.hypot(ax,ay); p.vx=ax/m*spd; p.vy=ay/m*spd; p.a=Math.atan2(ay,ax); }
+    if(ax||ay){ const m=Math.hypot(ax,ay); p.vx=ax/m*spd; p.vy=ay/m*spd;
+      if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,ax,ay);
+      else p.a=Math.atan2(ay,ax); }
     else { p.vx*=0.6; p.vy*=0.6; }
     p.x+=p.vx*dt; p.y+=p.vy*dt;
     resolveInteriorEntity(p,it,fp,p.r,dt);

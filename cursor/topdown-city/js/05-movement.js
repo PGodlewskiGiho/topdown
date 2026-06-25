@@ -166,8 +166,11 @@ function updatePed(dt){
   const len=Math.hypot(ix,iy);
   const swim=inWater(ped.x,ped.y); ped.swimming=swim;
   const spd= swim ? ped.walk*0.55 : (keys["shift"]?ped.run:ped.walk);
-  if(len>0){ ped.vx=ix/len*spd; ped.vy=iy/len*spd; ped.a=Math.atan2(iy,ix); }
-  else { ped.vx=0; ped.vy=0; }
+  if(len>0){
+    ped.vx=ix/len*spd; ped.vy=iy/len*spd;
+    if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(ped,ix,iy);
+    else { ped.a=Math.atan2(iy,ix); }
+  } else { ped.vx=0; ped.vy=0; }
   const ppx=ped.x, ppy=ped.y;
   const ptf=terrainSpeedFactor(ped.x,ped.y, ped.vx, ped.vy);
   ped.x+=ped.vx*dt*ptf; ped.y+=ped.vy*dt*ptf;

@@ -326,20 +326,28 @@ function pedWalkGraph(p,dt){
   if(p.cross){
     p.crossProg += dt*p.speed/Math.max(28,p.crossW);
     if(p.crossProg>=1){ p.pside=-p.pside; p.cross=0; pedSyncPos(p); return; }
-    const pos=pedPos(p); p.a=Math.atan2(pos[1]-p.y,pos[0]-p.x)||p.a; p.x=pos[0]; p.y=pos[1]; return;
+    const pos=pedPos(p);
+    const cdx=pos[0]-p.x, cdy=pos[1]-p.y;
+    if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,cdx,cdy);
+    else p.a=Math.atan2(cdy,cdx)||p.a;
+    p.x=pos[0]; p.y=pos[1]; return;
   }
   if(p._wait){
     p.waitT+=dt;
     const ok = isSignal(p.pb[0],p.pb[1]) ? signalState(p.pb[0],p.pb[1],p.waitAxis)==="red" : pedClear(p);
     if(ok) pedStartCross(p);
     else if(p.waitT>9) pedPickTurn(p);
-    else { const B=pedBasis(p), pos=pedPos(p,B); p.x=pos[0]; p.y=pos[1]; p.a=Math.atan2(B.ny*p.pside,B.nx*p.pside); }
+    else { const B=pedBasis(p), pos=pedPos(p,B); p.x=pos[0]; p.y=pos[1];
+      if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,B.nx*p.pside,B.ny*p.pside);
+      else p.a=Math.atan2(B.ny*p.pside,B.nx*p.pside); }
     return;
   }
   const B=pedBasis(p);
   p.pt += dt*p.speed/Math.max(24,B.g.e.len);
   if(p.pt>=1){ p.pt=1; pedDecide(p); pedSyncPos(p); return; }
-  const pos=pedPos(p,B); p.x=pos[0]; p.y=pos[1]; p.a=Math.atan2(B.fy,B.fx);
+  const pos=pedPos(p,B); p.x=pos[0]; p.y=pos[1];
+  if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,B.fx,B.fy);
+  else p.a=Math.atan2(B.fy,B.fx);
 }
 function updateTrafficCar(c,dt){
   if(c.maxHp && !c.dead && c.hp>0 && c.hp<c.maxHp*0.08) damageCar(c, 1.4*dt, c.x, c.y, "burn");   // burning -> burns down
@@ -519,7 +527,8 @@ function updateNpcPed(p,dt){
       p.tx=nx; p.ty=ny; p.repick=rand(2,5);
     }
     const dx=p.tx-p.x, dy=p.ty-p.y, d=Math.hypot(dx,dy)||1;
-    p.a=Math.atan2(dy,dx);
+    if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,dx,dy);
+    else p.a=Math.atan2(dy,dx);
     p.x+=dx/d*p.speed*dt; p.y+=dy/d*p.speed*dt;
   }
   { const ci=Math.floor((p.x-ROAD)/GAP), cj=Math.floor((p.y-ROAD)/GAP);
@@ -528,7 +537,9 @@ function updateNpcPed(p,dt){
       if(dd<p.r){ if(dd>0.001){p.x+=ex/dd*(p.r-dd); p.y+=ey/dd*(p.r-dd);} if(!p.onGraph)p.repick=0; }
     } } }
   if(!p.onGraph) collideFences(p);
-  p.vx=(p.x-_wx)/Math.max(dt,0.001); p.vy=(p.y-_wy)/Math.max(dt,0.001);
+  const mdx=p.x-_wx, mdy=p.y-_wy;
+  p.vx=mdx/Math.max(dt,0.001); p.vy=mdy/Math.max(dt,0.001);
+  if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,mdx,mdy);
   } finally { if(inWater(p.x,p.y)){ p.x=_wx; p.y=_wy; p.vx=0; p.vy=0; } }
 }
 

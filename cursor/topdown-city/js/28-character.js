@@ -177,6 +177,7 @@ function drawCharacterStage(pc, w, h, char, opts){
     vx:Math.cos(spin)*28, vy:Math.sin(spin)*28,
   };
   if(typeof Gta2Outfit!=="undefined") Gta2Outfit.applyGta2Ids(preview);
+  if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(preview,preview.vx,preview.vy);
   if(typeof drawPerson==="function") drawPerson(preview, preview.shirt, false, pc);
   pc.restore();
 }
