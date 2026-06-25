@@ -2,10 +2,26 @@
 /** Export 16 pedestrian frames + palette-index grids (16×22) for layer masks. */
 import fs from 'fs';
 import path from 'path';
+import { pathToFileURL, fileURLToPath } from 'url';
 import { createCanvas, ImageData } from 'canvas';
-import { STY } from '/tmp/gta2-sty-viewer/js/sty.js';
+
+const styViewer = process.env.GTA2_STY_VIEWER || '/tmp/gta2-sty-viewer-js';
+const { STY } = await import(pathToFileURL(path.join(styViewer, 'js/sty.js')).href);
 
 global.ImageData = ImageData;
+
+const mapPath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'gta2_ped_walk_map.json');
+const walkMap = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+const DIRS = walkMap.directions;
+const PED_INDICES = [];
+for (const d of DIRS) {
+  const pair = walkMap.walk_sprites[d];
+  if (!pair || pair.length !== 2) {
+    console.error('bad walk_sprites for', d);
+    process.exit(1);
+  }
+  PED_INDICES.push(pair[0], pair[1]);
+}
 
 const [styPath, outDir, remapIdStr] = process.argv.slice(2);
 const remapId = parseInt(remapIdStr || '27', 10);
@@ -26,8 +42,12 @@ if (!pal) {
 fs.mkdirSync(outDir, { recursive: true });
 
 for (let i = 0; i < 16; i++) {
-  const s = peds[i];
-  if (!s) continue;
+  const pedIdx = PED_INDICES[i];
+  const s = peds[pedIdx];
+  if (!s) {
+    console.error('missing ped sprite', pedIdx);
+    process.exit(1);
+  }
   const bmp = s.bitmap;
   const w = bmp.width;
   const h = bmp.height;
@@ -70,7 +90,7 @@ for (let i = 0; i < 16; i++) {
   }
   fs.writeFileSync(
     path.join(outDir, `frame_${String(i).padStart(2, '0')}.idx.json`),
-    JSON.stringify({ w: CANVAS_W, h: CANVAS_H, indices })
+    JSON.stringify({ w: CANVAS_W, h: CANVAS_H, indices, ped_sprite: pedIdx })
   );
 }
-console.log('ok', outDir, remapId);
+console.log('ok', outDir, remapId, 'sprites', PED_INDICES.join(','));

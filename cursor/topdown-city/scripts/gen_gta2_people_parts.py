@@ -19,11 +19,12 @@ ANCHOR = (11, 21)
 DIR_NAMES = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"]
 BODY_TYPES = ("male", "female", "hardy")
 
-# GTA2 ped walk cycle: 8 directions clockwise from South, 2 frames each.
-# STY export frame order is SE,E,NE,N,NW,W,SW,S — not S-first.
-GTA2_FRAME_DIRS = ["SE", "E", "NE", "N", "NW", "W", "SW", "S"]
+# bil.sty default male: 8 dirs × 2 walk frames — sprite pairs are non-consecutive (see gta2_ped_walk_map.json).
+WALK_MAP_PATH = os.path.join(SCRIPTS, "gta2_ped_walk_map.json")
+with open(WALK_MAP_PATH, encoding="utf-8") as _wm:
+    _walk = json.load(_wm)
 FRAME_DIR_WALK = []
-for _d in GTA2_FRAME_DIRS:
+for _d in _walk["directions"]:
     FRAME_DIR_WALK.append((_d, 0))
     FRAME_DIR_WALK.append((_d, 1))
 
@@ -78,10 +79,9 @@ LAYER_EXTRA = {
 
 def export_frames(remap_id: int, out_dir: str):
     os.makedirs(out_dir, exist_ok=True)
-    export_js = "/tmp/export_gta2_indices.mjs"
-    if not os.path.isfile(export_js):
-        shutil.copy(os.path.join(SCRIPTS, "export_gta2_indices.mjs"), export_js)
-    subprocess.run(["node", export_js, STY, out_dir, str(remap_id)], check=True, cwd="/tmp")
+    export_js = os.path.join(SCRIPTS, "export_gta2_indices.mjs")
+    project_root = os.path.join(SCRIPTS, "..")
+    subprocess.run(["node", export_js, STY, out_dir, str(remap_id)], check=True, cwd=project_root)
 
 
 def load_indices(frames_dir: str, idx: int) -> list[list[int]]:
