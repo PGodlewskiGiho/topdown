@@ -1,14 +1,22 @@
-/* people-sprites.js — GTA2 modular PNG pedestrians (8 dirs × 2 walk frames) */
+/* people-sprites.js — GTA2 modular PNG pedestrians (body × 8 dirs × 2 walk) */
 (function(global){
 "use strict";
 
-const BUILD=20260626;
-const BASE="assets/people/gta2/parts/";
+const BUILD=20260627;
+const BASE="assets/people/gta2/parts/bodies/";
 const META_URL="assets/people/gta2/meta.json";
+const GO=global.Gta2Outfit;
 const imgs={};
 let meta=null, loadP=null, ready=false;
 
 const DIR=["E","SE","S","SW","W","NW","N","NE"];
+const BUILD_SCALE={
+  slim:{sx:0.88,sy:1.02},
+  average:{sx:1.0,sy:1.0},
+  athletic:{sx:0.94,sy:1.04},
+  stocky:{sx:1.08,sy:1.06},
+  hardy:{sx:1.12,sy:1.08},
+};
 
 function loadImg(path){
   return new Promise((res,rej)=>{
@@ -23,15 +31,17 @@ function loadImg(path){
 function partPaths(m){
   const s=new Set();
   const walk=["walk0","walk1"];
-  for(const d of m.directions||DIR)
-    for(const wf of walk){
-      for(const x of m.shirts||[]) s.add(BASE+"torsos/"+x.id+"/"+wf+"/"+d+".png");
-      for(const x of m.pants||[]) s.add(BASE+"pants/"+x.id+"/"+wf+"/"+d+".png");
-      for(const x of m.shoes||[]) s.add(BASE+"shoes/"+x.id+"/"+wf+"/"+d+".png");
-      for(const x of m.arms||[]) s.add(BASE+"arms/"+x.id+"/"+wf+"/"+d+".png");
-      for(const x of m.skins||[]) s.add(BASE+"skins/"+x.id+"/"+wf+"/"+d+".png");
-      for(const x of m.hairs||[]) s.add(BASE+"hairs/"+x.id+"/"+wf+"/"+d+".png");
-    }
+  const bodies=(m.body_types||[{id:"male"}]).map(b=>b.id);
+  for(const body of bodies)
+    for(const d of m.directions||DIR)
+      for(const wf of walk){
+        for(const x of m.shirts||[]) s.add(BASE+body+"/torsos/"+x.id+"/"+wf+"/"+d+".png");
+        for(const x of m.pants||[]) s.add(BASE+body+"/pants/"+x.id+"/"+wf+"/"+d+".png");
+        for(const x of m.shoes||[]) s.add(BASE+body+"/shoes/"+x.id+"/"+wf+"/"+d+".png");
+        for(const x of m.arms||[]) s.add(BASE+body+"/arms/"+x.id+"/"+wf+"/"+d+".png");
+        for(const x of m.skins||[]) s.add(BASE+body+"/skins/"+x.id+"/"+wf+"/"+d+".png");
+        for(const x of m.hairs||[]) s.add(BASE+body+"/hairs/"+x.id+"/"+wf+"/"+d+".png");
+      }
   return [...s];
 }
 
@@ -49,16 +59,22 @@ function pick(arr, seed){ return arr[Math.abs(seed)%arr.length]; }
 
 function resolveOutfit(p){
   if(p._gta2Outfit) return p._gta2Outfit;
+  if(GO) GO.applyGta2Ids(p);
   const seed=p._visSeed!=null?p._visSeed:((p.x|0)*7919+(p.y|0)*6151)|0;
+  const body=GO?GO.bodyType(p):(p.body||"male");
   const shirts=meta.shirts||[];
-  const pants=meta.pants||[];
+  let pants=meta.pants||[];
+  if(GO) pants=GO.filterPantsForGender(pants, body, meta.rules, seed);
   const skins=meta.skins||[];
   const hairs=meta.hairs||[];
+  const defs=meta.rules&&meta.rules.body_build_default||{};
   const o={
-    shirt: pick(shirts, seed+31).id,
-    pants: pick(pants, seed+17).id,
-    skin: pick(skins, seed+5).id,
-    hair: pick(hairs, seed+59).id,
+    body,
+    build:p.build||(defs[body]||"average"),
+    shirt: p.shirtId||pick(shirts, seed+31).id,
+    pants: p.pantsId||(body==="female"&&GO.pickFemalePants?GO.pickFemalePants(pants, seed):pick(pants, seed+17).id),
+    skin: p.skinId||pick(skins, seed+5).id,
+    hair: p.hairId!=null?p.hairId:pick(hairs, seed+59).id,
   };
   if(p.shirtId) o.shirt=p.shirtId;
   if(p.pantsId) o.pants=p.pantsId;
@@ -80,12 +96,11 @@ function walkFrame(p){
   return mv>4?((Math.sin(t*13)>0)?1:0):0;
 }
 
-function dirName(p){
-  return DIR[snap8(p.a||0)];
-}
+function dirName(p){ return DIR[snap8(p.a||0)]; }
 
 function layerPaths(o, wf, direction){
   const order=meta.layer_order||["shoes","pants","arms","torso","skin","hair"];
+  const b=o.body||"male";
   const map={
     shoes:"shoes/"+o.pants,
     pants:"pants/"+o.pants,
@@ -98,14 +113,26 @@ function layerPaths(o, wf, direction){
   for(const k of order){
     const rel=map[k];
     if(!rel) continue;
-    out.push(BASE+rel+"/"+wf+"/"+direction+".png");
+    out.push(BASE+b+"/"+rel+"/"+wf+"/"+direction+".png");
   }
   return out;
 }
 
+function buildMul(o, p){
+  const b=BUILD_SCALE[o.build]||BUILD_SCALE.average;
+  const h=clamp(pHeight(p), 0.86, 1.14);
+  return {sx:b.sx*h, sy:b.sy*h};
+}
+
+function pHeight(p){ return p.height!=null?p.height:1; }
+function clamp(v,a,b){ return v<a?a:v>b?b:v; }
+
 function drawComposite(c, p, down){
   const o=resolveOutfit(p);
-  const sc=((p.r||9)/9)*2.05;
+  const rad=((p.r||9)/9);
+  const bm=buildMul(o, p);
+  const sc=rad*2.05;
+  const sx=sc*bm.sx, sy=sc*bm.sy;
   const ax=(meta.anchor||[11,21])[0]*sc;
   const ay=(meta.anchor||[11,21])[1]*sc;
   c.imageSmoothingEnabled=false;
@@ -113,27 +140,21 @@ function drawComposite(c, p, down){
   c.fillStyle="rgba(0,0,0,.28)";
   c.fillRect(-7*sc, 2*sc, 14*sc, 3*sc);
 
+  const wf=down?"walk0":("walk"+walkFrame(p));
+  const dir=dirName(p);
+  for(const path of layerPaths(o, wf, dir)){
+    const im=imgs[path];
+    if(!im||!im.complete) continue;
+    const w=im.width*sx, h=im.height*sy;
+    c.drawImage(im, -ax*bm.sx, -ay*bm.sy, w, h);
+  }
+
   if(down){
-    const wf="walk0", dir=dirName(p);
-    for(const path of layerPaths(o, wf, dir)){
-      const im=imgs[path];
-      if(!im||!im.complete) continue;
-      c.drawImage(im, -ax, -ay, im.width*sc, im.height*sc);
-    }
     c.save();
     c.rotate(Math.PI/2);
     c.fillStyle="rgba(0,0,0,.2)";
     c.fillRect(-5*sc, 0, 10*sc, 4*sc);
     c.restore();
-    return;
-  }
-
-  const wf="walk"+walkFrame(p);
-  const dir=dirName(p);
-  for(const path of layerPaths(o, wf, dir)){
-    const im=imgs[path];
-    if(!im||!im.complete) continue;
-    c.drawImage(im, -ax, -ay, im.width*sc, im.height*sc);
   }
 
   if(p.hostile){

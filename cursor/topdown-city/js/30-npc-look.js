@@ -261,5 +261,6 @@ function applyNpcLook(p, look){
   for(const k of ["skin","shirt","pants","shoes","body","hair","hairStyle","shirtStyle","beard","hat","hatColor","accessory","scarfColor","prop","propColor","r","speed","color","archetype","archetypeId","model","age","build","height","shorts","parts","_visSeed"]){
     if(look[k]!==undefined) p[k]=look[k];
   }
+  if(typeof Gta2Outfit!=="undefined") Gta2Outfit.applyGta2Ids(p);
   return p;
 }
