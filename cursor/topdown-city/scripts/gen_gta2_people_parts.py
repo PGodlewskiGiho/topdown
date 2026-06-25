@@ -100,6 +100,11 @@ def load_rgba_frame(frames_dir: str, idx: int) -> Image.Image:
     return Image.open(os.path.join(frames_dir, f"frame_{idx:03d}.png")).convert("RGBA")
 
 
+PART_ORDER = ("shoes", "pants", "arms", "torso", "skin", "hair")
+PART_ID = {name: i + 1 for i, name in enumerate(PART_ORDER)}
+ID_PART = {v: k for k, v in PART_ID.items()}
+
+
 def part_for_pixel(idx: int, x: int, y: int) -> str | None:
     if idx in HAIR_IDX:
         return "hair"
@@ -112,7 +117,7 @@ def part_for_pixel(idx: int, x: int, y: int) -> str | None:
     if idx in ARM_IDX:
         return "arms"
     if idx in SHIRT_IDX:
-        return "arms" if x < 5 or x > 16 else "torso"
+        return "arms" if x < 6 or x > 15 else "torso"
     return None
 
 
@@ -173,9 +178,14 @@ def pivot_from_image(im: Image.Image) -> tuple[float, float]:
 
 def _rotate_padded(im: Image.Image, pil_deg: float, pivot: tuple[float, float]) -> Image.Image:
     pad = 64
-    big = Image.new("RGBA", (pad, pad), (0, 0, 0, 0))
     bcx, bcy = pad // 2, pad // 2
-    big.paste(im, (int(bcx - pivot[0]), int(bcy - pivot[1])), im)
+    ox, oy = int(bcx - pivot[0]), int(bcy - pivot[1])
+    if im.mode == "L":
+        big = Image.new("L", (pad, pad), 0)
+        big.paste(im, (ox, oy))
+        return big.rotate(pil_deg, resample=Image.NEAREST, center=(bcx, bcy))
+    big = Image.new("RGBA", (pad, pad), (0, 0, 0, 0))
+    big.paste(im, (ox, oy), im)
     return big.rotate(pil_deg, resample=Image.NEAREST, center=(bcx, bcy))
 
 
@@ -188,6 +198,71 @@ def _paste_offset_for_feet(rotated: Image.Image) -> tuple[int, int]:
     foot_x = (minx + maxx) // 2
     foot_y = maxy
     return (ANCHOR[0] - foot_x, ANCHOR[1] - foot_y)
+
+
+def heal_full_composite(im: Image.Image, passes: int = 3) -> Image.Image:
+    """Fill 1px gaps in the full silhouette (arms/torso disconnects after rotation)."""
+    out = im.copy()
+    w, h = out.size
+    neigh4 = ((1, 0), (-1, 0), (0, 1), (0, -1))
+    neigh8 = neigh4 + ((1, 1), (-1, 1), (1, -1), (-1, -1))
+    for p in range(passes):
+        px = out.load()
+        snap = out.copy()
+        spx = snap.load()
+        neigh = neigh4 if p == 0 else neigh8
+        for y in range(1, h - 1):
+            for x in range(1, w - 1):
+                if spx[x, y][3]:
+                    continue
+                n = 0
+                r = g = b = 0
+                for dx, dy in neigh:
+                    nx, ny = x + dx, y + dy
+                    c = spx[nx, ny]
+                    if c[3]:
+                        n += 1
+                        r += c[0]
+                        g += c[1]
+                        b += c[2]
+                if n >= 2:
+                    px[x, y] = (r // n, g // n, b // n, 255)
+    return out
+
+
+def composite_layers(layers: dict[str, Image.Image]) -> Image.Image:
+    full = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
+    for k in PART_ORDER:
+        full = Image.alpha_composite(full, layers[k])
+    return full
+
+
+def layers_from_healed_full(full: Image.Image, grid: list[list[int]]) -> dict[str, Image.Image]:
+    healed = heal_full_composite(full)
+    grid = heal_part_grid(grid, healed)
+    layers = {k: Image.new("RGBA", CANVAS, (0, 0, 0, 0)) for k in PART_ORDER}
+    rpx = healed.load()
+    lpx = {k: v.load() for k, v in layers.items()}
+    for y in range(CANVAS[1]):
+        for x in range(CANVAS[0]):
+            if not rpx[x, y][3]:
+                continue
+            pid = grid[y][x]
+            if not pid:
+                votes: dict[int, int] = {}
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        if dx == 0 and dy == 0:
+                            continue
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < CANVAS[0] and 0 <= ny < CANVAS[1] and grid[ny][nx]:
+                            votes[grid[ny][nx]] = votes.get(grid[ny][nx], 0) + 1
+                if votes:
+                    pid = max(votes, key=votes.get)
+            name = ID_PART.get(pid) if pid else None
+            if name:
+                lpx[name][x, y] = rpx[x, y]
+    return layers
 
 
 def close_rotation_gaps(im: Image.Image) -> Image.Image:
@@ -237,6 +312,107 @@ def direction_transform(ref_rgba: Image.Image, direction: str) -> tuple[tuple[fl
     return pivot, paste_xy, pil_deg
 
 
+def part_grid_from_indices(indices: list[list[int]]) -> list[list[int]]:
+    grid = [[0] * CANVAS[0] for _ in range(CANVAS[1])]
+    for y in range(CANVAS[1]):
+        for x in range(CANVAS[0]):
+            idx = indices[y][x]
+            if not idx:
+                continue
+            part = part_for_pixel(idx, x, y)
+            if part:
+                grid[y][x] = PART_ID[part]
+    return grid
+
+
+def part_grid_to_image(grid: list[list[int]]) -> Image.Image:
+    im = Image.new("L", CANVAS, 0)
+    px = im.load()
+    for y in range(CANVAS[1]):
+        for x in range(CANVAS[0]):
+            px[x, y] = grid[y][x]
+    return im
+
+
+def image_to_part_grid(im: Image.Image) -> list[list[int]]:
+    px = im.load()
+    return [[int(px[x, y]) for x in range(CANVAS[0])] for y in range(CANVAS[1])]
+
+
+def rotate_to_canvas(im: Image.Image, pil_deg: float, pivot: tuple[float, float], paste_xy: tuple[int, int]) -> Image.Image:
+    rotated = _rotate_padded(im, pil_deg, pivot)
+    if im.mode == "RGBA":
+        out = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
+        out.paste(rotated, paste_xy, rotated)
+        return close_rotation_gaps(out)
+    out = Image.new("L", CANVAS, 0)
+    out.paste(rotated, paste_xy)
+    return out
+
+
+def heal_part_grid(grid: list[list[int]], rgba: Image.Image) -> list[list[int]]:
+    """Assign rotated orphan pixels to the nearest body-part region."""
+    px = rgba.load()
+    out = [row[:] for row in grid]
+    for _ in range(4):
+        changed = False
+        for y in range(CANVAS[1]):
+            for x in range(CANVAS[0]):
+                if out[y][x] or not px[x, y][3]:
+                    continue
+                votes: dict[int, int] = {}
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        if dx == 0 and dy == 0:
+                            continue
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < CANVAS[0] and 0 <= ny < CANVAS[1] and out[ny][nx]:
+                            votes[out[ny][nx]] = votes.get(out[ny][nx], 0) + 1
+                if votes:
+                    out[y][x] = max(votes, key=votes.get)
+                    changed = True
+        if not changed:
+            break
+    return out
+
+
+def layers_from_rotated(rgba: Image.Image, grid: list[list[int]]) -> dict[str, Image.Image]:
+    layers = {k: Image.new("RGBA", CANVAS, (0, 0, 0, 0)) for k in PART_ORDER}
+    rpx = rgba.load()
+    lpx = {k: v.load() for k, v in layers.items()}
+    for y in range(CANVAS[1]):
+        for x in range(CANVAS[0]):
+            pid = grid[y][x]
+            if not pid or not rpx[x, y][3]:
+                continue
+            name = ID_PART.get(pid)
+            if name:
+                lpx[name][x, y] = rpx[x, y]
+    return layers
+
+
+def bridge_limbs(layers: dict[str, Image.Image], passes: int = 2) -> dict[str, Image.Image]:
+    """Extend arms/torso/skin by 1px into gaps inside the silhouette."""
+    out = {k: layers[k].copy() for k in PART_ORDER}
+    for _ in range(passes):
+        full = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
+        for k in PART_ORDER:
+            full = Image.alpha_composite(full, out[k])
+        fpx = full.load()
+        for part in ("arms", "torso", "skin"):
+            px = out[part].load()
+            for y in range(CANVAS[1]):
+                for x in range(CANVAS[0]):
+                    if px[x, y][3] or not fpx[x, y][3]:
+                        continue
+                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)):
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < CANVAS[0] and 0 <= ny < CANVAS[1] and out[part].getpixel((nx, ny))[3]:
+                            px[x, y] = fpx[x, y]
+                            break
+    return out
+
+
 def scale_layer(im: Image.Image, sx: float, sy: float, ax: int = ANCHOR[0], ay: int = ANCHOR[1]) -> Image.Image:
     if sx == 1.0 and sy == 1.0:
         return im.copy()
@@ -254,36 +430,45 @@ def scale_layer(im: Image.Image, sx: float, sy: float, ax: int = ANCHOR[0], ay: 
     return out
 
 
-def extract_all(masks: dict, frame_cache: dict[int, dict[int, Image.Image]]):
+def extract_all(frames_dir: str, frame_cache: dict[int, dict[int, Image.Image]]):
     total = SLOT_COUNT * len(DIR_NAMES)
     done = 0
     for slot_i, slot in enumerate(EXPORT_SLOTS):
         folder = slot["folder"]
-        m = masks[slot_i]
+        indices = load_indices(frames_dir, slot_i)
+        part_src = part_grid_from_indices(indices)
         ref = frame_cache[BASE_REMAP][slot_i]
+
         for direction in DIR_NAMES:
-            pivot, paste_xy, _ = direction_transform(ref, direction)
+            pivot, paste_xy, pil_deg = direction_transform(ref, direction)
+            rot_grid = image_to_part_grid(
+                rotate_to_canvas(part_grid_to_image(part_src), pil_deg, pivot, paste_xy)
+            )
+
+            def save_layers(rid: int, shirt_id: str | None, pants_id: str | None):
+                rgba = frame_cache[rid][slot_i]
+                rot_rgba = rotate_to_canvas(rgba, pil_deg, pivot, paste_xy)
+                grid = heal_part_grid(rot_grid, rot_rgba)
+                layers = bridge_limbs(layers_from_rotated(rot_rgba, grid))
+                layers = layers_from_healed_full(composite_layers(layers), grid)
+                if shirt_id:
+                    save_part("male", "torsos", shirt_id, folder, direction, layers["torso"])
+                    save_part("male", "arms", shirt_id, folder, direction, layers["arms"])
+                if pants_id:
+                    save_part("male", "pants", pants_id, folder, direction, layers["pants"])
+                    save_part("male", "shoes", pants_id, folder, direction, layers["shoes"])
+                if shirt_id is None and pants_id is None:
+                    save_part("male", "skins", "medium", folder, direction, layers["skin"])
+                    save_part("male", "hairs", "brown", folder, direction, layers["hair"])
 
             for shirt_id, rid in SHIRT_REMAP.items():
-                src = frame_cache[rid][slot_i]
-                torso = rotate_layer(apply_mask(src, m["torso"]), direction, pivot, paste_xy)
-                arms = rotate_layer(apply_mask(src, m["arms"]), direction, pivot, paste_xy)
-                save_part("male", "torsos", shirt_id, folder, direction, torso)
-                save_part("male", "arms", shirt_id, folder, direction, arms)
-
+                save_layers(rid, shirt_id, None)
             for pants_id, rid in PANTS_REMAP.items():
-                src = frame_cache[rid][slot_i]
-                pants = rotate_layer(apply_mask(src, m["pants"]), direction, pivot, paste_xy)
-                shoes = rotate_layer(apply_mask(src, m["shoes"]), direction, pivot, paste_xy)
-                save_part("male", "pants", pants_id, folder, direction, pants)
-                save_part("male", "shoes", pants_id, folder, direction, shoes)
+                save_layers(rid, None, pants_id)
+            save_layers(BASE_REMAP, None, None)
 
-            skin = rotate_layer(apply_mask(ref, m["skin"]), direction, pivot, paste_xy)
-            hair = rotate_layer(apply_mask(ref, m["hair"]), direction, pivot, paste_xy)
-            save_part("male", "skins", "medium", folder, direction, skin)
-            save_part("male", "hairs", "brown", folder, direction, hair)
             done += 1
-            if done % 500 == 0:
+            if done % 100 == 0:
                 print(f"extract {done}/{total}")
 
 
@@ -432,7 +617,7 @@ def write_meta():
         "clip_folders": [s["folder"] for s in EXPORT_SLOTS],
         "export_slots": SLOT_COUNT,
         "animation_source": "gta2_ped_anim_map.json",
-        "facing_mode": "baked_rotation",
+        "facing_mode": "rotate_then_split",
         "body_types": [{"id": b} for b in BODY_TYPES],
         "builds": [
             {"id": "slim", "sx": 0.88, "sy": 1.02},
@@ -500,9 +685,7 @@ def main():
         frame_cache[remap_id] = {i: load_rgba_frame(fd, i) for i in range(SLOT_COUNT)}
 
     base_dir = os.path.join(tmp, str(BASE_REMAP))
-    masks = build_masks(base_dir)
-    verify_masks(base_dir, masks)
-    extract_all(masks, frame_cache)
+    extract_all(base_dir, frame_cache)
     build_color_variants("male")
     build_body_variants()
     for body in BODY_TYPES:
