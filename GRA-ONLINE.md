@@ -28,4 +28,4 @@ python3 -m http.server 8080
 ## Jeśli 404 lub stare pliki
 
 - Upewnij się, że Pages wskazuje gałąź **`main`**, folder **`/` (root)** — w root jest `index.html` z przekierowaniem.
-- Wyczyść cache (Ctrl+F5) lub dodaj `?v=2026062625` do URL.
+- Wyczyść cache (Ctrl+F5) lub dodaj `?v=2026062630` do URL.

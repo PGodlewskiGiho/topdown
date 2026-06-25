@@ -300,23 +300,28 @@ function drawSpeech(p){
   ctx.fillStyle="#555"; for(let k=0;k<3;k++){ ctx.globalAlpha=k<n?1:0.3; ctx.beginPath(); ctx.arc(bx-4+k*4,by,1.1,0,7); ctx.fill(); }
   ctx.globalAlpha=1;
 }
+function entitySpriteDir(p){
+  if(typeof LivingSprite==="undefined") return "S";
+  let dx=0, dy=0;
+  const isPlayer=typeof ped!=="undefined"&&p===ped&&typeof mode!=="undefined"&&mode==="foot";
+  if(isPlayer&&typeof keys!=="undefined"){
+    dx=(keys["d"]||keys["arrowright"]?1:0)-(keys["a"]||keys["arrowleft"]?1:0);
+    dy=(keys["s"]||keys["arrowdown"]?1:0)-(keys["w"]||keys["arrowup"]?1:0);
+  }
+  if(!dx&&!dy){ dx=p.vx||0; dy=p.vy||0; }
+  if(Math.hypot(dx,dy)>0.001){
+    const dir=LivingSprite.dirNameFromDelta(dx,dy);
+    if(dir){ p.a=Math.atan2(dy,dx); return dir; }
+  }
+  return LivingSprite.dirNameFromAngle(p.a!=null?p.a:Math.PI/2);
+}
+
 function drawPerson(p,color,down,targetCtx){
   if(typeof PeopleSprites!=="undefined"&&PeopleSprites.meta){
-    if(typeof LivingSprite!=="undefined"){
-      const isPlayer=typeof ped!=="undefined"&&p===ped&&typeof mode!=="undefined"&&mode==="foot";
-      let dir=null;
-      const vx=p.vx||0, vy=p.vy||0;
-      if(Math.hypot(vx,vy)>0.35) dir=LivingSprite.dirNameFromDelta(vx,vy);
-      if(!dir&&isPlayer&&typeof keys!=="undefined"){
-        const ix=(keys["d"]||keys["arrowright"]?1:0)-(keys["a"]||keys["arrowleft"]?1:0);
-        const iy=(keys["s"]||keys["arrowdown"]?1:0)-(keys["w"]||keys["arrowup"]?1:0);
-        dir=LivingSprite.dirNameFromDelta(ix,iy);
-      }
-      if(!dir) dir=LivingSprite.dirNameFromAngle(p.a||0);
-      p._spriteDir=dir;
-      p._faceDir=dir;
-    }
-    PeopleSprites.draw(targetCtx||ctx,p,color,down,p._spriteDir);
+    const dir=entitySpriteDir(p);
+    p._spriteDir=dir;
+    p._faceDir=dir;
+    PeopleSprites.draw(targetCtx||ctx,p,color,down,dir);
     return;
   }
 }
