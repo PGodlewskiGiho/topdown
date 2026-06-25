@@ -42,18 +42,47 @@ function segNormal(s){
 }
 
 function addCanalSeg(x1, y1, x2, y2, hw, meta){
-  CANAL_SEGMENTS.push({x1, y1, x2, y2, hw: hw || CANAL_HW, meta: meta || null});
+  const s={x1, y1, x2, y2, hw: hw || CANAL_HW, meta: meta || null};
+  if(!canalSegClear(s)) return false;
+  CANAL_SEGMENTS.push(s);
+  return true;
+}
+
+function canalPointBlocked(px, py, hw){
+  const pad=(hw||CANAL_HW)+CANAL_WALL+4;
+  if(typeof inRynek==="function"&&inRynek(px,py)) return true;
+  const[ci,cj]=cellAt(px,py);
+  for(let di=-1;di<=1;di++) for(let dj=-1;dj<=1;dj++){
+    const L=getLot(ci+di,cj+dj);
+    if(!L||!L.buildings) continue;
+    for(const b of L.buildings){
+      if(px>=b.x-pad&&px<=b.x+b.w+pad&&py>=b.y-pad&&py<=b.y+b.h+pad) return true;
+    }
+  }
+  return false;
+}
+
+function canalSegClear(s){
+  const dx=s.x2-s.x1, dy=s.y2-s.y1, len=Math.hypot(dx,dy);
+  if(len<24) return false;
+  const step=Math.max(14,Math.min(28,len/5)), hw=s.hw||CANAL_HW;
+  for(let d=0;d<=len;d+=step){
+    const t=d/len, px=s.x1+dx*t, py=s.y1+dy*t;
+    if(canalPointBlocked(px,py,hw)) return false;
+  }
+  return true;
 }
 
 function addCanalStrip(lot, vertical){
   const m = ROAD * 0.52 + 36;
-  const off = 0.32 + hsh(lot.i, lot.j, 848) * 0.36;
-  if(vertical){
-    const x = lot.x + lot.w * off;
-    addCanalSeg(x, lot.y + m, x, lot.y + lot.h - m, CANAL_HW, {i: lot.i, j: lot.j});
-  } else {
-    const y = lot.y + lot.h * off;
-    addCanalSeg(lot.x + m, y, lot.x + lot.w - m, y, CANAL_HW, {i: lot.i, j: lot.j});
+  const offs=vertical
+    ?[0.16,0.84,0.28,0.72].map(f=>lot.x+lot.w*f)
+    :[0.16,0.84,0.28,0.72].map(f=>lot.y+lot.h*f);
+  for(const pos of offs){
+    const s=vertical
+      ?{x1:pos,y1:lot.y+m,x2:pos,y2:lot.y+lot.h-m,hw:CANAL_HW}
+      :{x1:lot.x+m,y1:pos,x2:lot.x+lot.w-m,y2:pos,hw:CANAL_HW};
+    if(addCanalSeg(s.x1,s.y1,s.x2,s.y2,s.hw,{i:lot.i,j:lot.j})) return;
   }
 }
 
@@ -128,8 +157,14 @@ function buildCanalBridges(){
 }
 
 function buildCanalNetwork(){
+  CANAL_SEGMENTS.length=0;
+  CANAL_ENTRIES.length=0;
+  CANAL_BRIDGES.length=0;
+  CANAL_TUNNELS.length=0;
+  CANAL_SHEDS.length=0;
   for(let i = 2; i <= 8; i++) for(let j = 2; j <= 8; j++){
     if(typeof isOldTownCell === "function" && isOldTownCell(i, j)){
+      if(typeof isMarketNode==="function"&&isMarketNode(i,j)) continue;
       const lot = cellBlockRect(i, j);
       addCanalStrip(lot, (i + j) % 2 === 0);
     }
@@ -139,6 +174,7 @@ function buildCanalNetwork(){
   ];
   for(const[i0, j0, i1, j1] of spine){
     if(!inCanalCity(i0, j0)) continue;
+    if(typeof isMarketNode==="function"&&(isMarketNode(i0,j0)||isMarketNode(i1,j1))) continue;
     const L0 = cellBlockRect(i0, j0), L1 = cellBlockRect(i1, j1);
     const p0 = [L0.x + L0.w * 0.62, L0.y + L0.h * 0.38];
     const p1 = [L1.x + L1.w * 0.38, L1.y + L1.h * 0.62];
@@ -416,7 +452,6 @@ function drawBrickWall(x1, y1, x2, y2, inset, col){
 }
 
 function drawCanalWaterSeg(s, ox, oy, t){
-  const ds = distToSeg;
   const dx = s.x2 - s.x1, dy = s.y2 - s.y1, len = Math.hypot(dx, dy) || 1;
   const nx = -dy / len, ny = dx / len;
   const hw = s.hw;
@@ -432,6 +467,9 @@ function drawCanalWaterSeg(s, ox, oy, t){
   ctx.closePath();
   ctx.fillStyle = "#3a4a42";
   ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.lineTo(p3[0], p3[1]);
+  ctx.closePath();
   if(typeof applyWaterSimInClip === "function" && typeof waterSimShouldRun === "function" && waterSimShouldRun()){
     ctx.save(); ctx.clip();
     applyWaterSimInClip("river", 0.38, 0.018);
@@ -454,8 +492,30 @@ function drawCanalWaterSeg(s, ox, oy, t){
     ctx.stroke();
   }
   ctx.restore();
-  drawBrickWall(s.x1, s.y1, s.x2, s.y2, hw + 5, "#7a6454");
-  drawBrickWall(s.x1, s.y1, s.x2, s.y2, -(hw + 5), "#6a5848");
+}
+
+function drawCanalWallSeg(s){
+  drawBrickWall(s.x1, s.y1, s.x2, s.y2, s.hw + 5, "#7a6454");
+  drawBrickWall(s.x1, s.y1, s.x2, s.y2, -(s.hw + 5), "#6a5848");
+}
+
+function drawCanalWater(ox, oy){
+  ensureCanals();
+  const t = typeof gameTime !== "undefined" ? gameTime : 0;
+  for(const s of CANAL_SEGMENTS){
+    const mx = (s.x1 + s.x2) * 0.5, my = (s.y1 + s.y2) * 0.5;
+    if(mx < ox - 80 || mx > ox + VW + 80 || my < oy - 80 || my > oy + VH + 80) continue;
+    drawCanalWaterSeg(s, ox, oy, t);
+  }
+}
+
+function drawCanalStructures(ox, oy){
+  ensureCanals();
+  for(const s of CANAL_SEGMENTS){
+    const mx = (s.x1 + s.x2) * 0.5, my = (s.y1 + s.y2) * 0.5;
+    if(mx < ox - 80 || mx > ox + VW + 80 || my < oy - 80 || my > oy + VH + 80) continue;
+    drawCanalWallSeg(s);
+  }
 }
 
 function drawCanalBridge(b, t){
@@ -497,21 +557,16 @@ function drawCanalEntry(e, t){
   ctx.restore();
 }
 
-function drawCanals(ox, oy){
+function drawCanalProps(ox, oy){
   ensureCanals();
   const t = typeof gameTime !== "undefined" ? gameTime : 0;
-  for(const s of CANAL_SEGMENTS){
-    const mx = (s.x1 + s.x2) * 0.5, my = (s.y1 + s.y2) * 0.5;
-    if(mx < ox - 80 || mx > ox + VW + 80 || my < oy - 80 || my > oy + VH + 80) continue;
-    drawCanalWaterSeg(s, ox, oy, t);
-  }
   for(const b of CANAL_BRIDGES){
     if(b.x < ox - 60 || b.x > ox + VW + 60 || b.y < oy - 60 || b.y > oy + VH + 60) continue;
     drawCanalBridge(b, t);
   }
-  for(const t of CANAL_TUNNELS){
-    if(t.x < ox - 60 || t.x > ox + VW + 60 || t.y < oy - 60 || t.y > oy + VH + 60) continue;
-    drawCanalTunnel(t);
+  for(const tun of CANAL_TUNNELS){
+    if(tun.x < ox - 60 || tun.x > ox + VW + 60 || tun.y < oy - 60 || tun.y > oy + VH + 60) continue;
+    drawCanalTunnel(tun);
   }
   for(const s of CANAL_SHEDS){
     if(s.x < ox - 40 || s.x > ox + VW + 40 || s.y < oy - 40 || s.y > oy + VH + 40) continue;
@@ -533,6 +588,12 @@ function drawCanals(ox, oy){
     if(e.x < ox - 40 || e.x > ox + VW + 40 || e.y < oy - 40 || e.y > oy + VH + 40) continue;
     drawCanalEntry(e, t);
   }
+}
+
+function drawCanals(ox, oy){
+  drawCanalWater(ox, oy);
+  drawCanalStructures(ox, oy);
+  drawCanalProps(ox, oy);
 }
 
 function spawnCanalBoats(){
@@ -573,7 +634,8 @@ function canalSpawnPoint(){
 Game.register({
   id: "canals",
   order: 47,
-  drawAfterRoads(ox, oy){ drawCanals(ox, oy); },
+  drawAfterRoads(ox, oy){ drawCanalWater(ox, oy); },
+  drawAfterBuildings(ox, oy){ drawCanalStructures(ox, oy); drawCanalProps(ox, oy); },
   update(dt){
     if(typeof gamePhase !== "undefined" && gamePhase !== "playing") return;
     if(mode === "inside" && canalInterior){ updateCanalInterior(dt); return; }

@@ -2013,7 +2013,9 @@ function getLot(i,j){
   if(!lot.mega) addSignals(lot,i,j);
   if(lot.buildings.length) lot.buildings=lot.buildings.filter(b=>{
     const mx=b.x+b.w/2, my=b.y+b.h/2;
-    return !inPlaza(mx,my) && !(typeof inRynek==="function"&&inRynek(mx,my));
+    if(inPlaza(mx,my)) return false;
+    if(typeof buildingOverlapsRynek==="function"&&buildingOverlapsRynek(b)) return false;
+    return true;
   });
   // ---- surface detail (visual only; stable per lot) ----
   lot.tufts=[]; lot.flowers=[]; lot.ripples=[]; lot.pebbles=[];

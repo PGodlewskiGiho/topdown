@@ -33,6 +33,29 @@ function inRynek(x,y){
   return (x-A[0])**2+(y-A[1])**2<R*R;
 }
 
+function buildingOverlapsRynek(b, margin){
+  const A=node(MARKET_NODE.i,MARKET_NODE.j), R=rynekR(MARKET_NODE.i,MARKET_NODE.j)-(margin!=null?margin:12);
+  const cx=clamp(A[0],b.x,b.x+b.w), cy=clamp(A[1],b.y,b.y+b.h);
+  if((A[0]-cx)**2+(A[1]-cy)**2<R*R) return true;
+  const corners=[[b.x,b.y],[b.x+b.w,b.y],[b.x,b.y+b.h],[b.x+b.w,b.y+b.h]];
+  for(const[px,py] of corners) if((px-A[0])**2+(py-A[1])**2<R*R) return true;
+  return false;
+}
+
+function stallHitsBuilding(s){
+  const pad=10, hw=s.w*0.55, hd=s.d*0.55;
+  const[ci,cj]=cellAt(s.x,s.y);
+  for(let di=-1;di<=1;di++) for(let dj=-1;dj<=1;dj++){
+    const L=getLot(ci+di,cj+dj);
+    if(!L||!L.buildings) continue;
+    for(const b of L.buildings){
+      if(s.x+hw<b.x-pad||s.x-hw>b.x+b.w+pad||s.y+hd<b.y-pad||s.y-hd>b.y+b.h+pad) continue;
+      return true;
+    }
+  }
+  return false;
+}
+
 function ensureMarketStalls(){
   if(_marketStalls) return _marketStalls;
   const A=node(MARKET_NODE.i,MARKET_NODE.j), R=rynekR(MARKET_NODE.i,MARKET_NODE.j);
@@ -52,13 +75,19 @@ function ensureMarketStalls(){
   ];
   _marketStalls=[];
   for(let k=0;k<kinds.length;k++){
-    const ang=k/kinds.length*6.283-0.4, rad=R*0.58+((k%3)-1)*6;
+    const ang=k/kinds.length*6.283-0.4;
     const kind=kinds[k];
-    _marketStalls.push({
-      x:A[0]+Math.cos(ang)*rad, y:A[1]+Math.sin(ang)*rad,
-      a:ang+Math.PI/2, kind:kind.id, col:kind.col, top:kind.top, label:kind.label,
-      w:22+(k%3)*4, d:14+(k%2)*3,
-    });
+    let rad=R*0.58+((k%3)-1)*6;
+    for(let try_=0;try_<6;try_++){
+      const sx=A[0]+Math.cos(ang)*rad, sy=A[1]+Math.sin(ang)*rad;
+      const stall={
+        x:sx, y:sy,
+        a:ang+Math.PI/2, kind:kind.id, col:kind.col, top:kind.top, label:kind.label,
+        w:22+(k%3)*4, d:14+(k%2)*3,
+      };
+      if(!stallHitsBuilding(stall)){ _marketStalls.push(stall); break; }
+      rad*=0.92;
+    }
   }
   return _marketStalls;
 }
@@ -140,12 +169,12 @@ function drawRynekFountain(cx,cy,t){
   ctx.beginPath(); ctx.arc(cx,cy-20,5,0,7); ctx.fill();
 }
 
-function drawRynek(ox,oy){
+function drawRynekGround(ox,oy){
   if(!inSpawnCity(Math.round((ox+VW*0.5)/GAP),Math.round((oy+VH*0.5)/GAP))) return;
   const i=MARKET_NODE.i, j=MARKET_NODE.j;
   const cx=nX(i,j), cy=nY(i,j);
   if(cx<ox-200||cx>ox+VW+200||cy<oy-200||cy>oy+VH+200) return;
-  const R=rynekR(i,j), t=performance.now()/1000;
+  const R=rynekR(i,j);
   ctx.save();
   drawCobbleRect(cx-R,cy-R,R*2,R*2,771);
   ctx.strokeStyle="rgba(100,92,80,.55)"; ctx.lineWidth=2;
@@ -158,6 +187,16 @@ function drawRynek(ox,oy){
     ctx.strokeStyle="rgba(110,100,88,.28)"; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(ang)*R,cy+Math.sin(ang)*R); ctx.stroke();
   }
+  ctx.restore();
+}
+
+function drawRynekProps(ox,oy){
+  if(!inSpawnCity(Math.round((ox+VW*0.5)/GAP),Math.round((oy+VH*0.5)/GAP))) return;
+  const i=MARKET_NODE.i, j=MARKET_NODE.j;
+  const cx=nX(i,j), cy=nY(i,j);
+  if(cx<ox-200||cx>ox+VW+200||cy<oy-200||cy>oy+VH+200) return;
+  const R=rynekR(i,j), t=performance.now()/1000;
+  ctx.save();
   drawRynekFountain(cx,cy,t);
   const stalls=ensureMarketStalls();
   for(const s of stalls){
@@ -169,6 +208,11 @@ function drawRynek(ox,oy){
   ctx.textAlign="center";
   ctx.fillText(MARKET_NAME,cx,cy-R+16);
   ctx.restore();
+}
+
+function drawRynek(ox,oy){
+  drawRynekGround(ox,oy);
+  drawRynekProps(ox,oy);
 }
 
 function drawHistoricFacade(b,a,cc,ar,P,fillPoly){
@@ -210,7 +254,10 @@ Game.register({
       const L=getLot(i,j);
       if(L.oldtown) drawOldTownLot(L);
     }
-    drawRynek(ox,oy);
+    drawRynekGround(ox,oy);
+  },
+  drawAfterBuildings(ox,oy){
+    drawRynekProps(ox,oy);
   },
   drawMap(mctx,opts){
     if(!opts||!opts.world) return;
