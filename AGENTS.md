@@ -11,7 +11,7 @@
 
 ## Czego NIGDY nie robić
 
-1. **Nie twórz `index.html` w rootcie repo** (`/index.html`). Root nie jest stroną gry. Redirecty stamtąd psują live URL i powodują pętle.
+1. **Nie twórz `index.html` w rootcie repo** (`/index.html`). Przy deployu **tylko przez GitHub Actions** root nie jest publikowany — plik w rootcie psuje konfigurację albo wraca do branch deploy.
 2. **Nie dodawaj `?v=`** do URL skryptów, CSS ani assetów (ani w HTML, ani w JS).
 3. **Nie dodawaj skryptów redirect** (`location.replace`, `location.assign`, `location.href = …`) w żadnym `index.html`.
 4. **Nie zapisuj `tdc_build` w localStorage** ani nie wymuszaj przeładowania strony dla cache-bustingu.

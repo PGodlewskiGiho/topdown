@@ -23,7 +23,9 @@ Użyj **tylko jednej** metody (nie obu naraz):
 **Nie używaj** „Deploy from branch” (folder `/` ani `/cursor/topdown-city`).  
 Mieszanie z Actions powoduje zły `index.html`, redirecty i 404.
 
-W repo **nie ma** root `index.html` — gra jest wyłącznie w `cursor/topdown-city/`.
+W repo **nie ma** root `index.html` — gra jest wyłącznie w `cursor/topdown-city/`, a Actions publikuje ten folder jako root strony.
+
+Po przełączeniu na Actions zrób push na `main` (albo uruchom workflow ręcznie) — pierwszy deploy **po** zmianie ustawień jest wymagany.
 
 **Nie mieszaj** Actions + „Deploy from branch”.
 
@@ -59,6 +61,7 @@ cursor/topdown-city/     ← gra (index.html, js/, assets/)
 
 | Objaw | Rozwiązanie |
 |--------|-------------|
-| 404 na `assets/people/gta2/...` | Pages → **GitHub Actions**, nie branch root |
+| 404 na `/topdown/` po przełączeniu na Actions | Push na `main` i odczekaj ~1 min; sprawdź że Source = GitHub Actions |
+| 404 na `assets/people/gta2/...` | Pages → **GitHub Actions**, nie branch deploy |
 | Stare pliki w cache | Ctrl+Shift+R (twarde odświeżenie) |
 | URL z `/cursor/topdown-city/` przy Actions | Użyj **https://pgodlewskigiho.github.io/topdown/** |
