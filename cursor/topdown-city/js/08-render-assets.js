@@ -265,6 +265,7 @@ function carBodyDesign(v, color){
     }
     if(dg>0.6){ ctx.strokeStyle="rgba(0,0,0,0.35)"; ctx.lineWidth=2.5; ctx.setLineDash([3,3]); _bodyPathC(P,L,W,era); ctx.stroke(); ctx.setLineDash([]); }
   }
+  if(v.police) drawPoliceMarkings(v, L, W, accent);
   // smoke / fire (unrotate so it rises straight up on screen)
   if(v.maxHp && dZone>0.55){
     ctx.rotate(-(v.a+Math.PI/2));
@@ -274,6 +275,39 @@ function carBodyDesign(v, color){
     if(dZone>0.80){ for(let i=0;i<6;i++){ const fx=(Math.random()-0.5)*W*0.45, fy=(Math.random()-0.5)*L*0.4;
       ctx.fillStyle=Math.random()<0.55?"#ff6a18":"#ffd23b"; ctx.beginPath(); ctx.arc(fx,fy,1.4+Math.random()*3.2,0,7); ctx.fill(); } }
   }
+}
+
+function drawPoliceMarkings(v, L, W, accent){
+  const hl=L/2, hw=W/2, mk=v.marking||v.unit||"patrol";
+  ctx.save();
+  if(mk==="apc"){
+    ctx.fillStyle="rgba(55,65,42,0.5)";
+    ctx.fillRect(-hw*0.38,-hl*0.18,hw*0.76,hl*0.36);
+    ctx.fillStyle="#8a9870";
+    ctx.fillRect(-1.5,-hl*0.3,3,hl*0.6);
+    ctx.strokeStyle="rgba(0,0,0,0.35)"; ctx.lineWidth=0.8;
+    ctx.strokeRect(-hw*0.38,-hl*0.18,hw*0.76,hl*0.36);
+    ctx.restore();
+    return;
+  }
+  const stripeH=L*0.13, stripeY=-hl*0.04;
+  ctx.fillStyle="rgba(245,248,252,0.94)";
+  ctx.fillRect(-hw*0.9, stripeY-stripeH*0.5, hw*1.8, stripeH);
+  ctx.fillStyle=accent||"#1e4f9c";
+  ctx.fillRect(-hw*0.9, stripeY+stripeH*0.28, hw*1.8, stripeH*0.2);
+  ctx.fillStyle=mk==="swat"?"#c0392b":"#1a3060";
+  ctx.font="bold "+Math.max(4.5,L*0.052)+"px monospace";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  ctx.fillText(mk==="swat"?"SWAT":"POLICJA", 0, stripeY+stripeH*0.08);
+  if(mk==="patrol"){
+    const ry=-hl*0.4, rw=hw*0.78, rh=L*0.075;
+    ctx.fillStyle="rgba(30,79,156,0.32)";
+    ctx.fillRect(-rw*0.5, ry-rh*0.5, rw, rh);
+    ctx.fillStyle="rgba(255,255,255,0.55)";
+    for(let i=0;i<5;i++) if(i%2===0) ctx.fillRect(-rw*0.48+i*rw*0.2, ry-rh*0.45, rw*0.1, rh*0.9);
+  }
+  ctx.restore();
 }
 
 // continuous greenhouse canopy path (front=up). topInset/botInset are
