@@ -2,27 +2,30 @@
 
 ## Adres gry (jedyny)
 
-**https://pgodlewskigiho.github.io/topdown/**
+**https://pgodlewskigiho.github.io/topdown/cursor/topdown-city/**
 
-Po wejściu dodaj `?v=2026062701` jeśli widzisz 404 lub stare pliki:  
-**https://pgodlewskigiho.github.io/topdown/?v=2026062701**
+Po wejściu dodaj `?v=2026062702` jeśli widzisz 404 lub stare pliki:  
+**https://pgodlewskigiho.github.io/topdown/cursor/topdown-city/?v=2026062702**
+
+Krótki link z roota repo (`/topdown/`) przekierowuje automatycznie do gry.
 
 ## GitHub Pages — konfiguracja (jednorazowo)
 
 Użyj **tylko jednej** metody (nie obu naraz):
 
-### Zalecane: GitHub Actions
+### Obecnie: branch main (root)
 
 1. https://github.com/PGodlewskiGiho/topdown/settings/pages
-2. **Source:** `GitHub Actions`
-3. Workflow `Deploy TOPDOWN CITY to GitHub Pages` wdraża folder `cursor/topdown-city` do roota Pages
-4. Gra: `https://pgodlewskigiho.github.io/topdown/`
-5. Assety: `https://pgodlewskigiho.github.io/topdown/assets/...` (ścieżki względne)
+2. **Source:** `Deploy from a branch` → branch `main`, folder `/ (root)`
+3. Gra: `https://pgodlewskigiho.github.io/topdown/cursor/topdown-city/`
+4. Assety: `.../cursor/topdown-city/assets/people/gta2/...`
 
-### Alternatywa: branch main (root)
+### Alternatywa: GitHub Actions
 
-Jeśli nie używasz Actions — branch `main`, folder `/` — wejdź przez:  
-`https://pgodlewskigiho.github.io/topdown/cursor/topdown-city/`
+1. Pages → **Source:** `GitHub Actions`
+2. Workflow wdraża folder `cursor/topdown-city` do roota Pages
+3. Gra: `https://pgodlewskigiho.github.io/topdown/`
+4. Assety: `https://pgodlewskigiho.github.io/topdown/assets/...`
 
 **Nie mieszaj** Actions + „Deploy from branch” — wtedy są 404 i stare pliki.
 
@@ -39,7 +42,7 @@ python3 -m http.server 8080
 
 ```
 cursor/topdown-city/     ← gra (index.html, js/, assets/)
-  assets/people/gta2/    ← sprite’y pieszych (PNG)
+  assets/people/gta2/    ← sprite'y pieszych (PNG)
   js/lib/people-sprites.js
 .github/workflows/deploy-pages.yml
 ```
@@ -48,6 +51,6 @@ cursor/topdown-city/     ← gra (index.html, js/, assets/)
 
 | Objaw | Rozwiązanie |
 |--------|-------------|
-| 404 na `assets/people/gta2/...` | Pages → **GitHub Actions**, nie branch root |
-| Stare sprite’y / brak obrotu | Ctrl+Shift+R lub `?v=2026062701` |
-| URL z `/cursor/topdown-city/` przy Actions | Użyj **https://pgodlewskigiho.github.io/topdown/** |
+| 404 na `assets/people/gta2/...` | Wejdź przez **cursor/topdown-city/** (nie samo `/topdown/`) |
+| Stare sprite'y / brak obrotu | Ctrl+Shift+R lub `?v=2026062702` |
+| URL `/topdown/` bez gry | Root przekierowuje do `cursor/topdown-city/` |
