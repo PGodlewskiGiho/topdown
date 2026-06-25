@@ -32,7 +32,7 @@ function applyCharacterToPed(ch){
   ch=ch||playerCharacter;
   ped.name=ch.name||"Wędrowiec";
   ped.body=ch.body||"male";
-  ped.model=ch.model||(typeof Humanoid2D!=="undefined"?(ch.body==="female"?"female":ch.body==="hardy"?"hardy":"civilian"):"civilian");
+  ped.model=ch.model||(ch.body==="female"?"female":ch.body==="hardy"?"hardy":"civilian");
   ped.skin=ch.skin;
   ped.hair=ch.hairStyle==="bald"?null:ch.hair;
   ped.hairStyle=ch.hairStyle;
@@ -168,12 +168,13 @@ function drawCharacterStage(pc, w, h, char, opts){
   pc.translate(w/2, h*0.54+bob);
   pc.scale(sc, sc);
   const preview={
-    x:0, y:0, a:Math.PI/2+spin, r:bodyRadius(char.body),
+    x:0, y:0, a:0, r:bodyRadius(char.body),
     skin:char.skin, shirt:char.shirt, pants:char.pants,
     hair:char.hairStyle==="bald"?null:char.hair,
     hairStyle:char.hairStyle, beard:char.beard,
     shirtStyle:char.shirtStyle, hat:char.hat, hatColor:char.hatColor,
-    body:char.body, height:1, previewT:t, vx:28, vy:0,
+    body:char.body, height:1, previewT:t,
+    vx:Math.cos(spin)*28, vy:Math.sin(spin)*28,
   };
   if(typeof Gta2Outfit!=="undefined") Gta2Outfit.applyGta2Ids(preview);
   if(typeof drawPerson==="function") drawPerson(preview, preview.shirt, false, pc);

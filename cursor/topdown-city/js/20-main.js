@@ -1,13 +1,5 @@
 /* TOPDOWN CITY — 20-main.js */
 /* ---------- main loop ---------- */
-if(typeof Humanoid2D!=="undefined"&&!Humanoid2D.BUILD){
-  const u=new URL(location.href);
-  if(!u.searchParams.has("fresh")){
-    u.searchParams.set("fresh","1");
-    u.searchParams.set("b",String(Date.now()));
-    location.replace(u.toString());
-  }
-}
 getLot(1,2);  // ensure dealership exists near spawn
 getLot(2,1);  // ensure gun shop exists near spawn
 let last=performance.now();

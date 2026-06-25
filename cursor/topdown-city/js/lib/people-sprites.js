@@ -2,15 +2,15 @@
 (function(global){
 "use strict";
 
-const BUILD=2026062810;
+const BUILD=2026062811;
 const BASE="assets/people/gta2/parts/bodies/";
 const META_URL="assets/people/gta2/meta.json";
 const GO=global.Gta2Outfit;
+const LS=global.LivingSprite;
 const imgs={};
 const pending=new Set();
 let meta=null, loadP=null, ready=false;
 
-const DIR=["E","SE","S","SW","W","NW","N","NE"];
 const BUILD_SCALE={
   slim:{sx:0.88,sy:1.02},
   average:{sx:1.0,sy:1.0},
@@ -84,19 +84,6 @@ function resolveOutfit(p){
   return o;
 }
 
-function snap8(a){
-  const d=((a%(Math.PI*2))+Math.PI*2)%(Math.PI*2);
-  return Math.round(d/(Math.PI/4))%(DIR.length);
-}
-
-function walkFrame(p){
-  const mv=Math.hypot(p.vx||0,p.vy||0);
-  const t=p.previewT!=null?p.previewT:performance.now()*0.001;
-  return mv>4?((Math.sin(t*13)>0)?1:0):0;
-}
-
-function dirName(p){ return DIR[snap8(p.a||0)]; }
-
 function layerPaths(o, wf, direction){
   const order=meta.layer_order||["shoes","pants","arms","torso","skin","hair"];
   const b=o.body||"male";
@@ -145,8 +132,8 @@ function drawComposite(c, p, down){
   c.fillStyle="rgba(0,0,0,.28)";
   c.fillRect(-7*sc, 2*sc, 14*sc, 3*sc);
 
-  const wf=down?"walk0":("walk"+walkFrame(p));
-  const dir=dirName(p);
+  const wf=LS.walkFrameName(p, down);
+  const dir=LS.dirName(p);
   prefetchOutfit(o, wf, dir);
   let drew=false;
   for(const path of layerPaths(o, wf, dir)){
@@ -173,10 +160,7 @@ function drawComposite(c, p, down){
 }
 
 function draw(c,p,color,down){
-  if(!meta){
-    if(global.People2D) global.People2D.draw(c,p,color,down);
-    return;
-  }
+  if(!meta) return;
   c.save();
   c.translate(p.x,p.y);
   drawComposite(c,p,down);
@@ -184,11 +168,14 @@ function draw(c,p,color,down){
 }
 
 const PeopleSprites={
-  draw, init, BUILD, DIR,
+  draw, init, BUILD,
+  get DIR(){ return LS.DIR; },
   get ready(){ return ready; },
   get meta(){ return meta; },
   resolveOutfit,
-  dirName, walkFrame,
+  dirName(p){ return LS.dirName(p); },
+  walkFrame(p){ return LS.walkPhase(p); },
+  facingAngle(p){ return LS.facingAngle(p); },
 };
 global.PeopleSprites=PeopleSprites;
 init();

@@ -304,13 +304,6 @@ function drawPerson(p,color,down,targetCtx){
   if(typeof PeopleSprites!=="undefined"&&PeopleSprites.meta){
     PeopleSprites.draw(targetCtx||ctx,p,color,down); return;
   }
-  if(typeof People2D!=="undefined"){ People2D.draw(targetCtx||ctx,p,color,down); return; }
-  const c=targetCtx||ctx;
-  const skin=p.skin||"#e8b888", shirt=p.shirt||color;
-  c.save(); c.translate(p.x,p.y); c.rotate(p.a);
-  c.fillStyle=shirt; c.beginPath(); c.ellipse(0,0,9,11,0,0,7); c.fill();
-  c.fillStyle=skin; c.beginPath(); c.arc(5,0,4.5,0,7); c.fill();
-  c.restore();
 }
 
 function vignette(){

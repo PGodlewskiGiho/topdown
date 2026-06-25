@@ -214,7 +214,7 @@ function rollNpcAppearance(x,y,opts){
   const arch=npcArchDef(archId);
   const age=npcPickAge(arch);
   const build=pick(arch.build||["average","average","slim","athletic"]);
-  const model=typeof People2D!=="undefined"?People2D.modelForArchetype(archId):typeof Humanoid2D!=="undefined"?Humanoid2D.modelForArchetype(archId, age, build):"civilian";
+  const model=archId||"civilian";
   const body=pick(arch.body);
   const hairStyle=npcPickHairStyle(arch, age);
   const hairCol=arch.hair?pick(arch.hair):pick(NPC_HAIR);
