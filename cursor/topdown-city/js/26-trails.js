@@ -1,22 +1,43 @@
 /* TOPDOWN CITY — 26-trails.js */
-/* Forest footpaths — worn earth that fades into the forest floor */
+/* Uneven field roads — worn earth ribbons (forest trails, dirt & rural paths) */
 
-function isForestTrailEdge(i,j,di,dj){
+const FIELD_ROAD_KLASS = new Set(["trail", "dirt", "rural"]);
+const PAVED_ROAD_KLASS = new Set(["hwy", "blvd", "art", "st"]);
+
+function isFieldRoadKlass(klass){ return FIELD_ROAD_KLASS.has(klass); }
+
+function isFieldRoadEdge(i,j,di,dj){
   const e=getEdge(i,j,di,dj);
-  return e.exists && !e.bridge && e.klass==="trail";
+  return e.exists && !e.bridge && isFieldRoadKlass(e.klass);
 }
-function forestTrailNode(i,j){
-  if(biomeOf(i,j)!=="forest") return false;
+
+function fieldRoadNode(i,j){
+  let hasField=false, hasPaved=false;
   for(const[di,dj]of[[1,0],[0,1],[-1,0],[0,-1]]){
     const e=getEdge(i,j,di,dj);
-    if(e.exists && e.klass==="trail") return true;
+    if(!e.exists) continue;
+    if(isFieldRoadKlass(e.klass)) hasField=true;
+    else if(PAVED_ROAD_KLASS.has(e.klass)) hasPaved=true;
   }
-  return false;
+  return hasField && !hasPaved;
 }
 
-function trailRibbonPoints(p0,cp,p1, baseW, i,j,di,dj){
+// legacy aliases (forest-only checks kept for any external callers)
+function isForestTrailEdge(i,j,di,dj){ return isFieldRoadEdge(i,j,di,dj) && getEdge(i,j,di,dj).klass==="trail"; }
+function forestTrailNode(i,j){ return fieldRoadNode(i,j) && biomeOf(i,j)==="forest"; }
+
+function fieldRoadTex(klass){
+  if(klass==="trail") return getTex("forest_trail");
+  return getTex("dirt") || getTex("forest_trail");
+}
+function fieldRoadFallback(klass){
+  return klass==="trail" ? "#5a4636" : klass==="dirt" ? "#5a4f3c" : "#4a4438";
+}
+
+function trailRibbonPoints(p0,cp,p1, baseW, i,j,di,dj, klass){
   const len=Math.hypot(p1[0]-p0[0],p1[1]-p0[1])||1;
   const steps=Math.max(12, Math.ceil(len/14));
+  const wobMul=klass==="trail"?1:klass==="dirt"?0.88:0.82;
   const left=[], right=[], centers=[];
   for(let s=0;s<=steps;s++){
     const t=s/steps;
@@ -28,7 +49,7 @@ function trailRibbonPoints(p0,cp,p1, baseW, i,j,di,dj){
     const n2=hsh(Math.floor(p[0]/8),Math.floor(p[1]/8),523);
     const wob=0.78+n1*0.32+n2*0.18;
     const wave=Math.sin(t*13.7+hsh(i,j,525)*6.28)*0.14;
-    const hw=baseW*(0.38+wob*0.22+wave);
+    const hw=baseW*(0.38+wob*0.22+wave)*wobMul;
     const edge=hsh(Math.floor(p[0]/11+di*3),Math.floor(p[1]/11+dj*5),527);
     const lOff=hw*(0.92+edge*0.22);
     const rOff=hw*(0.88+(1-edge)*0.24);
@@ -39,27 +60,35 @@ function trailRibbonPoints(p0,cp,p1, baseW, i,j,di,dj){
   return {left,right,centers,steps};
 }
 
-function fillTrailRibbon(left,right,tex){
+function fillTrailRibbon(left,right,tex,fallback){
   if(left.length<2) return;
   ctx.beginPath();
   ctx.moveTo(left[0][0],left[0][1]);
   for(let k=1;k<left.length;k++) ctx.lineTo(left[k][0],left[k][1]);
   for(let k=right.length-1;k>=0;k--) ctx.lineTo(right[k][0],right[k][1]);
   ctx.closePath();
-  ctx.fillStyle=tex||"#5a4636"; ctx.fill();
+  ctx.fillStyle=tex||fallback||"#5a4636"; ctx.fill();
 }
 
-function drawTrailSoftHalo(left,right,centers){
+function drawTrailSoftHalo(left,right,centers,biome){
+  const isDesert=biome==="desert";
   ctx.save();
   for(let k=0;k<centers.length;k+=2){
     const p=centers[k];
     const dl=k>0?Math.hypot(p[0]-centers[k-1][0],p[1]-centers[k-1][1]):28;
     const rad=Math.max(16,dl*0.55);
     const g=ctx.createRadialGradient(p[0],p[1],0,p[0],p[1],rad);
-    g.addColorStop(0,"rgba(72,58,42,0.38)");
-    g.addColorStop(0.45,"rgba(58,50,36,0.16)");
-    g.addColorStop(0.72,"rgba(42,58,34,0.07)");
-    g.addColorStop(1,"rgba(36,52,30,0)");
+    if(isDesert){
+      g.addColorStop(0,"rgba(108,88,58,0.32)");
+      g.addColorStop(0.45,"rgba(92,74,48,0.14)");
+      g.addColorStop(0.72,"rgba(78,62,40,0.06)");
+      g.addColorStop(1,"rgba(68,54,36,0)");
+    } else {
+      g.addColorStop(0,"rgba(72,58,42,0.38)");
+      g.addColorStop(0.45,"rgba(58,50,36,0.16)");
+      g.addColorStop(0.72,"rgba(42,58,34,0.07)");
+      g.addColorStop(1,"rgba(36,52,30,0)");
+    }
     ctx.fillStyle=g;
     ctx.beginPath(); ctx.arc(p[0],p[1],rad,0,7); ctx.fill();
   }
@@ -78,8 +107,8 @@ function drawTrailEdgeWear(left,right,centers){
   ctx.restore();
 }
 
-function scatterTrailEdgeBits(left,right,i,j){
-  const tex=getTex("forest_trail");
+function scatterTrailEdgeBits(left,right,i,j,biome){
+  const tex=getTex("forest_trail") || getTex("dirt");
   if(!tex) return;
   ctx.save(); ctx.globalAlpha=0.42;
   for(let pass=0;pass<2;pass++){
@@ -94,7 +123,8 @@ function scatterTrailEdgeBits(left,right,i,j){
     }
   }
   ctx.restore();
-  // grass / moss bleeding back onto path edges
+  if(biome!=="forest") return;
+  // grass / moss bleeding back onto path edges (forest only)
   ctx.save();
   for(let k=1;k<left.length-1;k+=4){
     if(hsh(i,j,k,537)>0.55) continue;
@@ -108,20 +138,28 @@ function scatterTrailEdgeBits(left,right,i,j){
   ctx.restore();
 }
 
-function drawForestTrailEdge(i,j,di,dj){
+function drawFieldRoadEdge(i,j,di,dj){
   const {e,p0,p1,cp}=edgeGeom(i,j,i+di,j+dj);
-  const {left,right,centers}=trailRibbonPoints(p0,cp,p1,e.width,i,j,di,dj);
-  const tex=getTex("forest_trail");
-  drawTrailSoftHalo(left,right,centers);
-  fillTrailRibbon(left,right,tex);
+  const biome=biomeOf(i,j);
+  const {left,right,centers}=trailRibbonPoints(p0,cp,p1,e.width,i,j,di,dj,e.klass);
+  const tex=fieldRoadTex(e.klass);
+  drawTrailSoftHalo(left,right,centers,biome);
+  fillTrailRibbon(left,right,tex,fieldRoadFallback(e.klass));
   drawTrailEdgeWear(left,right,centers);
-  scatterTrailEdgeBits(left,right,i,j);
+  scatterTrailEdgeBits(left,right,i,j,biome);
 }
 
-function drawForestTrailNode(i,j,ax,ay){
-  if(!forestTrailNode(i,j)) return;
+function drawFieldRoadNode(i,j,ax,ay){
+  if(!fieldRoadNode(i,j)) return;
   const r0=nodeMaxWidth(i,j)*0.34+hsh(i,j,545)*10;
-  const tex=getTex("forest_trail");
+  const edges=[];
+  for(const[di,dj]of[[1,0],[0,1],[-1,0],[0,-1]]){
+    const e=getEdge(i,j,di,dj);
+    if(e.exists && isFieldRoadKlass(e.klass)) edges.push(e);
+  }
+  const main=edges.reduce((a,b)=>a.width>b.width?a:b, edges[0]);
+  const tex=fieldRoadTex(main?.klass||"dirt");
+  const fallback=fieldRoadFallback(main?.klass||"dirt");
   ctx.save();
   const g=ctx.createRadialGradient(ax,ay,0,ax,ay,r0*1.6);
   g.addColorStop(0,"rgba(68,54,40,0.32)"); g.addColorStop(0.55,"rgba(52,44,32,0.12)"); g.addColorStop(1,"rgba(40,55,34,0)");
@@ -134,21 +172,26 @@ function drawForestTrailNode(i,j,ax,ay){
     a?ctx.lineTo(px,py):ctx.moveTo(px,py);
   }
   ctx.closePath();
-  ctx.fillStyle=tex||"#5a4636"; ctx.fill();
+  ctx.fillStyle=tex||fallback; ctx.fill();
   ctx.fillStyle="rgba(36,28,20,0.12)"; ctx.fill();
   ctx.restore();
 }
 
-function drawForestTrails(ox,oy){
+// legacy names
+function drawForestTrailEdge(i,j,di,dj){ drawFieldRoadEdge(i,j,di,dj); }
+function drawForestTrailNode(i,j,ax,ay){ drawFieldRoadNode(i,j,ax,ay); }
+
+function drawFieldRoads(ox,oy){
   const i0=Math.floor((ox-NODE_VAR*2)/GAP)-1, i1=Math.floor((ox+VW+NODE_VAR*2)/GAP)+2;
   const j0=Math.floor((oy-NODE_VAR*2)/GAP)-1, j1=Math.floor((oy+VH+NODE_VAR*2)/GAP)+2;
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
-    if(isForestTrailEdge(i,j,1,0)) drawForestTrailEdge(i,j,1,0);
-    if(isForestTrailEdge(i,j,0,1)) drawForestTrailEdge(i,j,0,1);
+    if(isFieldRoadEdge(i,j,1,0)) drawFieldRoadEdge(i,j,1,0);
+    if(isFieldRoadEdge(i,j,0,1)) drawFieldRoadEdge(i,j,0,1);
   }
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
-    if(!forestTrailNode(i,j)) continue;
+    if(!fieldRoadNode(i,j)) continue;
     const A=node(i,j);
-    drawForestTrailNode(i,j,A[0],A[1]);
+    drawFieldRoadNode(i,j,A[0],A[1]);
   }
 }
+function drawForestTrails(ox,oy){ drawFieldRoads(ox,oy); }

@@ -692,22 +692,25 @@ function drawRoads(ox,oy){
     for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge||e.klass==="dirt"||e.klass==="rural"||e.klass==="trail") continue;
       strokeEdge(i,j,di,dj, e.width+7, "#878d96"); } }
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
-    for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge||e.klass==="trail") continue;
+    for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj);
+      if(!e.exists||e.bridge||e.klass==="dirt"||e.klass==="rural"||e.klass==="trail") continue;
       strokeEdge(i,j,di,dj); } }
-  const _at=getTex("asphalt"), _dt=getTex("dirt");
-  if(_at||_dt){ for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge||e.klass==="trail") continue;
-    const tp=(e.klass==="dirt"||e.klass==="rural"||e.klass==="trail")?_dt:_at; if(tp){ ctx.strokeStyle=tp; ctx.lineWidth=e.width;
-      const A=node(i,j), B=node(i+di,j+dj), C=e.cp;
-      ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.quadraticCurveTo(C[0],C[1],B[0],B[1]); ctx.stroke(); } } } }
-  drawForestTrails(ox,oy);
+  const _at=getTex("asphalt");
+  if(_at){ for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj);
+    if(!e.exists||e.bridge||e.klass==="dirt"||e.klass==="rural"||e.klass==="trail") continue;
+    ctx.strokeStyle=_at; ctx.lineWidth=e.width;
+    const A=node(i,j), B=node(i+di,j+dj), C=e.cp;
+    ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.quadraticCurveTo(C[0],C[1],B[0],B[1]); ctx.stroke(); } } } }
+  if(typeof drawFieldRoads==="function") drawFieldRoads(ox,oy);
+  else if(typeof drawForestTrails==="function") drawForestTrails(ox,oy);
   if(typeof drawForestBridges==="function") drawForestBridges(ox,oy);
   // intersections (roundabouts get a ring + island)
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
     const mw=nodeMaxWidth(i,j); if(!mw) continue; const A=node(i,j);
     if(isRoundabout(i,j)){
       drawRoundabout(i,j,A,mw);
-    } else if(forestTrailNode(i,j)){
-      /* organic trail junction drawn in drawForestTrails */
+    } else if(typeof fieldRoadNode==="function" ? fieldRoadNode(i,j) : forestTrailNode(i,j)){
+      /* organic field-road junction drawn in drawFieldRoads */
     } else {
       const jr=junctionRadius(i,j,mw);
       const js=junctionStyle(i,j);
