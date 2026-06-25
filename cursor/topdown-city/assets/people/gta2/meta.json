@@ -21,6 +21,8 @@
   ],
   "walk_frames": 2,
   "total_frames": 16,
+  "animation_source": "gta2_ped_anim_map.json",
+  "facing_mode": "baked_rotation",
   "body_types": [
     {
       "id": "male"
