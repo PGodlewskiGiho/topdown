@@ -331,7 +331,8 @@ function updateTrain(t,dt){
   for(const ck of [t.ai+","+t.aj,t.bi+","+t.bj]){
     const c=crossingRegistry.get(ck);
     if(c&&c.kind==="level"&&c.gateDown&&t.hornCd<=0&&Math.hypot(t.x-c.cx,t.y-c.cy)<200){
-      if(typeof honk==="function") honk();
+      if(typeof playWorldHorn==="function") playWorldHorn(t.x,t.y);
+      else if(typeof honk==="function") honk();
       t.hornCd=rand(3,7);
     }
   }

@@ -1,7 +1,7 @@
 /* TOPDOWN CITY — 18-audio.js */
 /* ---------- audio (synthesized, no files) ---------- */
 let actx=null, master=null, audioOn=true, mHeld=false;
-let engOsc, engOsc2, engGain, engFilt, sirenOsc, sirenGain, rainGain;
+let engOsc, engOsc2, engGain, engFilt, engRumble, engRumbleGain, engNoiseGain, sirenOsc, sirenGain, rainGain;
 let forestAmbGain, forestWindGain, forestWindFilt, forestWindFilt2, forestRustleGain, forestStreamGain;
 let forestAudioBirdTimer=0, forestAnimalTimer=0, forestCritterTimer=0, forestWindSmooth=0, forestAudioLast=0;
 function playerInForest(){
@@ -303,8 +303,18 @@ function initAudio(){
   engFilt=actx.createBiquadFilter(); engFilt.type="lowpass"; engFilt.frequency.value=600;
   engOsc=actx.createOscillator();  engOsc.type="sawtooth";  engOsc.frequency.value=55;
   engOsc2=actx.createOscillator(); engOsc2.type="sawtooth"; engOsc2.frequency.value=55; engOsc2.detune.value=10;
-  engOsc.connect(engFilt); engOsc2.connect(engFilt); engFilt.connect(engGain); engGain.connect(master);
-  engOsc.start(); engOsc2.start();
+  engRumble=actx.createOscillator(); engRumble.type="sine"; engRumble.frequency.value=48;
+  engRumbleGain=actx.createGain(); engRumbleGain.gain.value=0;
+  engOsc.connect(engFilt); engOsc2.connect(engFilt); engRumble.connect(engRumbleGain); engRumbleGain.connect(engFilt);
+  engFilt.connect(engGain); engGain.connect(master);
+  engOsc.start(); engOsc2.start(); engRumble.start();
+  const engNoiseLen=actx.sampleRate, engNoiseBuf=actx.createBuffer(1,engNoiseLen,actx.sampleRate), end=engNoiseBuf.getChannelData(0);
+  for(let i=0;i<engNoiseLen;i++) end[i]=Math.random()*2-1;
+  const engNoiseSrc=actx.createBufferSource(); engNoiseSrc.buffer=engNoiseBuf; engNoiseSrc.loop=true;
+  const engNoiseFilt=actx.createBiquadFilter(); engNoiseFilt.type="bandpass"; engNoiseFilt.frequency.value=220; engNoiseFilt.Q.value=0.55;
+  engNoiseGain=actx.createGain(); engNoiseGain.gain.value=0;
+  engNoiseSrc.connect(engNoiseFilt); engNoiseFilt.connect(engNoiseGain); engNoiseGain.connect(engFilt);
+  engNoiseSrc.start();
   // siren: square through bandpass
   sirenGain=actx.createGain(); sirenGain.gain.value=0;
   const sf=actx.createBiquadFilter(); sf.type="bandpass"; sf.frequency.value=900; sf.Q.value=3;
@@ -343,10 +353,15 @@ function bellStrike(f0,vol,when){
 function playBell(){ initAudio(); bellStrike(330,0.5,0); bellStrike(330,0.42,1.15); }
 function playThunder(){ noiseBurst(0.9,"lowpass",150,0,0.5); }
 function playHorn(){ if(!actx||!audioOn) return; const t0=actx.currentTime, moto=car.kind==="moto";
-  const f=actx.createBiquadFilter(); f.type="lowpass"; f.frequency.value=1700;
-  const g=actx.createGain(); g.gain.setValueAtTime(0.0001,t0); g.gain.exponentialRampToValueAtTime(0.13,t0+0.02); g.gain.setValueAtTime(0.13,t0+0.3); g.gain.exponentialRampToValueAtTime(0.001,t0+0.46);
-  f.connect(g); g.connect(master);
-  for(const fr of (moto?[470,590]:[300,380])){ const o=actx.createOscillator(); o.type="square"; o.frequency.value=fr; o.connect(f); o.start(t0); o.stop(t0+0.5); }
+  const f=actx.createBiquadFilter(); f.type="lowpass"; f.frequency.value=moto?2200:1500;
+  const f2=actx.createBiquadFilter(); f2.type="bandpass"; f2.frequency.value=moto?620:340; f2.Q.value=1.8;
+  const g=actx.createGain(); g.gain.setValueAtTime(0.0001,t0); g.gain.linearRampToValueAtTime(0.16,t0+0.03); g.gain.setValueAtTime(0.14,t0+0.28); g.gain.exponentialRampToValueAtTime(0.001,t0+0.52);
+  f2.connect(f); f.connect(g); g.connect(master);
+  for(const fr of (moto?[470,590,720]:[285,365,440])){
+    const o=actx.createOscillator(); o.type="sawtooth"; o.frequency.value=fr;
+    const og=actx.createGain(); og.gain.value=fr>400?0.22:0.38;
+    o.connect(og); og.connect(f2); o.start(t0); o.stop(t0+0.55);
+  }
 }
 function playBicycleBell(){ if(!actx||!audioOn) return; const t0=actx.currentTime;
   for(let n=0;n<2;n++){ const tt=t0+n*0.16, o=actx.createOscillator(); o.type="sine"; o.frequency.value=2150;
@@ -358,9 +373,20 @@ function updateAudio(){
   if(!actx) return;
   const sp=Math.hypot(car.vx,car.vy);
   if(mode==="car" && car.kind!=="bike"){
-    const moto=car.kind==="moto", f=(moto?80:50)+sp*(moto?0.26:0.16); engOsc.frequency.value=f; engOsc2.frequency.value=f*1.01;
-    engGain.gain.value=(moto?0.04:0.05)+Math.min(0.12,sp*0.0004); engFilt.frequency.value=(moto?900:500)+sp*0.8;
-  } else engGain.gain.value*=0.85;
+    const moto=car.kind==="moto", f=(moto?80:50)+sp*(moto?0.26:0.16);
+    engOsc.frequency.value=f; engOsc2.frequency.value=f*1.01;
+    engRumble.frequency.value=38+sp*0.06;
+    const throttle=(keys["w"]||keys["arrowup"]?1:0)-(keys["s"]||keys["arrowdown"]?1:0);
+    const load=0.55+Math.min(0.45,sp/120)+(throttle>0?0.12:0);
+    engGain.gain.value=(moto?0.045:0.055)+Math.min(0.14,sp*0.00045)*load;
+    engRumbleGain.gain.value=Math.min(0.09,0.02+sp*0.00022)*load;
+    engNoiseGain.gain.value=Math.min(0.05,0.008+sp*0.00012)*(0.7+Math.abs(throttle)*0.3);
+    engFilt.frequency.value=(moto?950:580)+sp*0.9;
+  } else {
+    engGain.gain.value*=0.85;
+    if(engRumbleGain) engRumbleGain.gain.value*=0.85;
+    if(engNoiseGain) engNoiseGain.gain.value*=0.85;
+  }
   if(lawActive()){
     const ax=mode==="car"?car.x:ped.x, ay=mode==="car"?car.y:ped.y; let dmin=1e9;
     for(const c of cops) dmin=Math.min(dmin,Math.hypot(c.x-ax,c.y-ay));
