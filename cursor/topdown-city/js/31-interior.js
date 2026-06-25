@@ -142,7 +142,7 @@ function buildMultiFloorPlan(type,w,h,wt,floorIdx,totalFloors,seed){
       add(sx,sy,58,44,"#2e3238","parkingslot");
       zones.push({x:sx+4,y:sy+4,w:50,h:36,kind:"parkingslot"});
     }
-    add(elX+elW*0.15,Y0+IH*0.42,elW*0.7,IH*0.16,"#1f2733","elevator",true);
+    add(elX+elW*0.15,Y0+IH*0.42,elW*0.7,IH*0.16,"#1f2733","elevator",false);
     add(stX+stW*0.1,Y0+6,stW*0.8,IH-12,"#4a4038","stairs",false);
     return {items:it,rooms,walls,zones,parking:true,label,spawnCar:{x:X0+elW+40,y:Y0+IH*0.55,a:-Math.PI/2}};
   }
@@ -155,14 +155,14 @@ function buildMultiFloorPlan(type,w,h,wt,floorIdx,totalFloors,seed){
     const nApt=type==="blok"?4:3;
     const aptW=(IW-elW-stW-16)/nApt;
     for(let i=0;i<nApt;i++) furnishApt(X0+elW+8+i*aptW, aptY, aptW-4, aptH, r, it, rooms, i);
-    add(elX+elW*0.15,Y0+6,elW*0.7,IH*0.35,"#1f2733","elevator",true);
+    add(elX+elW*0.15,Y0+6,elW*0.7,IH*0.35,"#1f2733","elevator",false);
     return {items:it,rooms,walls,zones,parking:false,label:"Parter"};
   }
 
   // residential floors
   const corH=clamp(IH*0.14, 22, 36), corY=Y0+(IH-corH)*0.5;
   rooms.push({x:X0+elW+4,y:corY,w:IW-elW-stW-8,h:corH,name:"korytarz",floor:"#5a5048"});
-  add(elX+elW*0.15,corY-corH*0.05,elW*0.7,corH*1.1,"#1f2733","elevator",true);
+  add(elX+elW*0.15,corY-corH*0.05,elW*0.7,corH*1.1,"#1f2733","elevator",false);
   add(stX+stW*0.05,corY-corH*0.05,stW*0.9,corH*1.1,"#4a4038","stairs",false);
 
   const nApt=type==="blok"?Math.max(4,Math.floor((IW-elW-stW)/78)):Math.max(3,Math.floor((IW-elW-stW)/88));
@@ -263,7 +263,7 @@ function resolveInteriorEntity(ent, it, fp, r, dt){
     const qx=clamp(ent.x,o.x,o.x+o.w), qy=clamp(ent.y,o.y,o.y+o.h), dx=ent.x-qx, dy=ent.y-qy, d=Math.hypot(dx,dy);
     if(d<r){ if(d>0.001){ ent.x+=dx/d*(r-d); ent.y+=dy/d*(r-d); } else ent.x=o.x+o.w+r; }
   }
-  for(const o of fp.items){ if(!o.solid) continue;
+  for(const o of fp.items){ if(!o.solid||o.kind==="elevator"||o.kind==="stairs") continue;
     const qx=clamp(ent.x,o.x,o.x+o.w), qy=clamp(ent.y,o.y,o.y+o.h), dx=ent.x-qx, dy=ent.y-qy, d=Math.hypot(dx,dy);
     if(d<r){ if(d>0.001){ ent.x+=dx/d*(r-d); ent.y+=dy/d*(r-d); } else ent.y=o.y+o.h+r; }
   }
@@ -292,8 +292,16 @@ function updateInside(dt){
   if(it.drivingCar&&it.icar&&fp.parking) updateInteriorCar(dt);
   else {
     const p=it.player;
+    let inElevator=false, inStairs=false;
+    for(const z of fp.zones){
+      if(!pointInZone(p,z)) continue;
+      if(z.kind==="elevator") inElevator=true;
+      if(z.kind==="stairs") inStairs=true;
+    }
     const ax=(keys["d"]||keys["arrowright"]?1:0)-(keys["a"]||keys["arrowleft"]?1:0);
-    const ay=(keys["s"]||keys["arrowdown"]?1:0)-(keys["w"]||keys["arrowup"]?1:0);
+    let ay=(keys["s"]||keys["arrowdown"]?1:0)-(keys["w"]||keys["arrowup"]?1:0);
+    if(inStairs) ay=0;
+    else if(inElevator&&(keys["arrowup"]||keys["arrowdown"])) ay=0;
     const spd=keys["shift"]?ped.run:ped.walk;
     if(ax||ay){ const m=Math.hypot(ax,ay); p.vx=ax/m*spd; p.vy=ay/m*spd;
       if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,ax,ay);
@@ -302,13 +310,11 @@ function updateInside(dt){
     p.x+=p.vx*dt; p.y+=p.vy*dt;
     resolveInteriorEntity(p,it,fp,p.r,dt);
 
-    for(const z of fp.zones){
-      if(!pointInZone(p,z)) continue;
-      if(z.kind==="elevator"&&it._floorCd<=0){
+    if(it._floorCd<=0){
+      if(inElevator){
         if(keys["e"]||keys["arrowup"]||keys["pageup"]) changeInteriorFloor(1);
         else if(keys["q"]||keys["arrowdown"]||keys["pagedown"]) changeInteriorFloor(-1);
-      }
-      if(z.kind==="stairs"&&it._floorCd<=0){
+      } else if(inStairs){
         if(keys["w"]||keys["arrowup"]) changeInteriorFloor(1);
         else if(keys["s"]||keys["arrowdown"]) changeInteriorFloor(-1);
       }

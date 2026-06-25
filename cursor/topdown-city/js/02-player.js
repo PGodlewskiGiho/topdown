@@ -143,8 +143,8 @@ function setKey(e,down){
     else if(typeof equipWeaponByIdx==="function") equipWeaponByIdx(idx);
     else if(owned[idx]) curWeapon=idx;
   }
-  if(down && k==="q"){ if(typeof tuningOpen!=="undefined"&&tuningOpen) return; if(!qHeld){ qHeld=true; cycleWeapon(-1); } }  if(!down && k==="q") qHeld=false;
-  if(down && k==="e"){ if(typeof tuningOpen!=="undefined"&&tuningOpen) return; if(!eHeld){ eHeld=true; cycleWeapon(1); } }   if(!down && k==="e") eHeld=false;
+  if(down && k==="q"){ if(typeof tuningOpen!=="undefined"&&tuningOpen) return; if(mode!=="inside"&&!qHeld){ qHeld=true; cycleWeapon(-1); } }  if(!down && k==="q") qHeld=false;
+  if(down && k==="e"){ if(typeof tuningOpen!=="undefined"&&tuningOpen) return; if(mode!=="inside"&&!eHeld){ eHeld=true; cycleWeapon(1); } }   if(!down && k==="e") eHeld=false;
   keys[k]=down;
 }
 window.addEventListener("keydown", e=>setKey(e,true));
