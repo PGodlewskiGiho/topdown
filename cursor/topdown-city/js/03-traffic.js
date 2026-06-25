@@ -130,7 +130,7 @@ function maintainPeds(){
 }
 const awayFromCam=(x,y)=>Math.hypot(x-cam.x,y-cam.y) > 720;
 function respawnTraffic(c){ let n; for(let k=0;k<24;k++){ n=spawnTrafficCar(); if(awayFromCam(n.x,n.y)) break; } Object.assign(c,n); }
-function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); }
+function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); delete p._faceDir; delete p._lastSpriteDir; delete p._gta2Outfit; }
 
 function isAhead(c,dx,dy,ox,oy,dist,lat){
   const rx=ox-c.x, ry=oy-c.y, fwd=rx*dx+ry*dy, side=Math.abs(rx*(-dy)+ry*dx);
@@ -469,7 +469,8 @@ function updateNpcPed(p,dt){
   if(p.hostile){                                                          // armed & provoked -> shoots back
     const tgx=mode==="car"?car.x:ped.x, tgy=mode==="car"?car.y:ped.y;
     const dxp=tgx-p.x, dyp=tgy-p.y, dd=Math.hypot(dxp,dyp)||1;
-    p.a=Math.atan2(dyp,dxp);
+    if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,dxp,dyp);
+    else p.a=Math.atan2(dyp,dxp);
     const mv = dd>170?1 : (dd<95?-0.7:0);
     p.x += dxp/dd*p.speed*1.5*mv*dt; p.y += dyp/dd*p.speed*1.5*mv*dt;
     p.fireCd-=dt;
@@ -482,7 +483,9 @@ function updateNpcPed(p,dt){
   }
   if(p.panic>0){
     p.panic-=dt; p.act=null; p.cross=0; p._wait=false;
-    const dx=p.x-p.threatX, dy=p.y-p.threatY, d=Math.hypot(dx,dy)||1; p.a=Math.atan2(dy,dx);
+    const dx=p.x-p.threatX, dy=p.y-p.threatY, d=Math.hypot(dx,dy)||1;
+    if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,dx,dy);
+    else p.a=Math.atan2(dy,dx);
     const sp=p.speed*2.5; p.x+=dx/d*sp*dt; p.y+=dy/d*sp*dt;
     { const ci=Math.floor((p.x-ROAD)/GAP), cj=Math.floor((p.y-ROAD)/GAP);
       for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){ const L=getLot(i,j); for(const b of L.buildings){
@@ -493,7 +496,9 @@ function updateNpcPed(p,dt){
   if(p.act==="chat"){
     const q=p.partner;
     if(!q || q.state==="down" || q.act!=="chat" || q.partner!==p){ p.act=null; p.talking=false; p.actCd=rand(7,15); p.partner=null; return; }
-    const dx=q.x-p.x, dy=q.y-p.y, d=Math.hypot(dx,dy)||1; p.a=Math.atan2(dy,dx);
+    const dx=q.x-p.x, dy=q.y-p.y, d=Math.hypot(dx,dy)||1;
+    if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,dx,dy);
+    else p.a=Math.atan2(dy,dx);
     if(d>24){ p.talking=false; p.x+=dx/d*p.speed*0.85*dt; p.y+=dy/d*p.speed*0.85*dt; }   // approach partner
     else { p.talking=true; p.chatT-=dt;
       if(p.chatT<=0){ p.act=null; p.talking=false; p.actCd=rand(9,16); p.partner=null;
@@ -503,7 +508,9 @@ function updateNpcPed(p,dt){
   if(p.act==="board"){
     const cpc=p.tcar;
     if(!cpc || cpc.dead || cpc._gone){ p.act=null; p.actCd=rand(7,15); p.tcar=null; p.tlot=null; }
-    else { const dx=cpc.x-p.x, dy=cpc.y-p.y, d=Math.hypot(dx,dy)||1; p.a=Math.atan2(dy,dx);
+    else { const dx=cpc.x-p.x, dy=cpc.y-p.y, d=Math.hypot(dx,dy)||1;
+      if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,dx,dy);
+      else p.a=Math.atan2(dy,dx);
       if(d<cpc.cr+p.r+2){ boardCar(p,cpc); return; }
       p.x+=dx/d*p.speed*1.15*dt; p.y+=dy/d*p.speed*1.15*dt; }
     return;

@@ -47,12 +47,30 @@ function facingAngle(entity){
   return 0;
 }
 
-function dirName(entity){
-  if(entity._faceDir) return entity._faceDir;
+/** Prefer live input/velocity; keep _faceDir only when idle. */
+function resolveDir(entity, opts){
+  opts=opts||{};
+  if(opts.keys){
+    const ix=(opts.keys["d"]||opts.keys["arrowright"]?1:0)-(opts.keys["a"]||opts.keys["arrowleft"]?1:0);
+    const iy=(opts.keys["s"]||opts.keys["arrowdown"]?1:0)-(opts.keys["w"]||opts.keys["arrowup"]?1:0);
+    const kd=dirNameFromDelta(ix,iy);
+    if(kd){ entity._faceDir=kd; entity.a=Math.atan2(iy,ix); return kd; }
+  }
+  const mdx=entity._moveDx||0, mdy=entity._moveDy||0;
+  const fromInput=dirNameFromDelta(mdx,mdy);
+  if(fromInput){ entity._faceDir=fromInput; entity.a=Math.atan2(mdy,mdx); return fromInput; }
   const vx=entity.vx||0, vy=entity.vy||0;
   const fromVel=dirNameFromDelta(vx,vy);
-  if(fromVel) return fromVel;
-  return dirNameFromAngle(facingAngle(entity));
+  const thresh=opts.threshold!=null?opts.threshold:0.35;
+  if(fromVel&&Math.hypot(vx,vy)>thresh){ entity._faceDir=fromVel; entity.a=Math.atan2(vy,vx); return fromVel; }
+  if(entity._faceDir) return entity._faceDir;
+  const idle=dirNameFromAngle(facingAngle(entity));
+  entity._faceDir=idle;
+  return idle;
+}
+
+function dirName(entity){
+  return resolveDir(entity);
 }
 
 function walkPhase(entity){
@@ -74,7 +92,7 @@ const LivingSprite={
   DIR,
   snap8Index, snap8Angle, snap8:snap8Angle,
   dirNameFromAngle, dirNameFromDelta, setFacingFromDelta,
-  facingAngle, dirName, walkPhase, walkFrameName,
+  facingAngle, dirName, resolveDir, walkPhase, walkFrameName,
   isMoving, syncFacing,
 };
 global.LivingSprite=LivingSprite;
