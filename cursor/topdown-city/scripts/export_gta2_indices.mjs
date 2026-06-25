@@ -5,7 +5,9 @@ import path from 'path';
 import { pathToFileURL, fileURLToPath } from 'url';
 import { createCanvas, ImageData } from 'canvas';
 
-const styViewer = process.env.GTA2_STY_VIEWER || '/tmp/gta2-sty-viewer-js';
+const styViewer =
+  process.env.GTA2_STY_VIEWER ||
+  path.join(path.dirname(fileURLToPath(import.meta.url)), 'vendor', 'gta2-sty-viewer-js');
 const { STY } = await import(pathToFileURL(path.join(styViewer, 'js/sty.js')).href);
 
 global.ImageData = ImageData;

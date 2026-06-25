@@ -16,7 +16,9 @@ const outSubdir = process.env.OUT_SUBDIR
   : outDir;
 
 const styPath = process.env.GTA2_STY || '/tmp/bil.sty';
-const styViewer = process.env.GTA2_STY_VIEWER || '/tmp/gta2-sty-viewer-js';
+const styViewer =
+  process.env.GTA2_STY_VIEWER ||
+  path.join(here, 'vendor', 'gta2-sty-viewer-js');
 const remapId = parseInt(process.env.GTA2_REMAP || '27', 10);
 
 // Default male block — 8 consecutive facings (verify visually before mapping).
