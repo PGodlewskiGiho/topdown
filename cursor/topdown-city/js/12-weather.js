@@ -189,6 +189,7 @@ function updateRain(dt){
   }
 }
 function drawWet(ox,oy){
+  if(typeof perfSkipWetRoads==="function" && perfSkipWetRoads()) return;
   if(wetness<0.02) return;
   const i0=Math.floor((ox-ROAD)/GAP)-1,i1=Math.floor((ox+VW)/GAP)+1,j0=Math.floor((oy-ROAD)/GAP)-1,j1=Math.floor((oy+VH)/GAP)+1;
   ctx.save();

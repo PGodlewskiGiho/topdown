@@ -352,6 +352,12 @@ function entitySpriteDir(p){
 
 function drawPerson(p,color,down,targetCtx){
   const c=targetCtx||ctx;
+  if(typeof perfPedLodDist==="function"){
+    const lodD=perfPedLodDist();
+    if(lodD<1e8 && Math.hypot(p.x-cam.x,p.y-cam.y)>lodD && typeof drawPersonSimple==="function"){
+      drawPersonSimple(p,color,down,c); return;
+    }
+  }
   if(typeof PeopleSprites!=="undefined"&&PeopleSprites.meta){
     const dir=entitySpriteDir(p);
     p._spriteDir=dir;
@@ -1779,6 +1785,7 @@ function forEachVisibleTree(ox,oy,fn){
   for(const p of trees) fn(p);
 }
 function updateTreeGhostAlpha(p){
+  if(typeof perfSkipTreeGhost==="function" && perfSkipTreeGhost()){ p._tga=1; return 1; }
   const want=treeOccludesActor(p) ? 0.34 : 1;
   if(p._tga===undefined) p._tga=1;
   p._tga+=(want-p._tga)*0.18;
@@ -1790,7 +1797,12 @@ function drawTreeGhosted(p, fn){
   else fn(p);
 }
 function drawCanopies(ox,oy){
-  const lod=perfEffectiveVw()>1500;
+  const simple=typeof perfSimpleTrees==="function" && perfSimpleTrees();
+  const lod=simple || perfEffectiveVw()>1500;
+  if(simple){
+    forEachVisibleTree(ox,oy, p=>drawTreeCanopySimple(p));
+    return;
+  }
   forEachVisibleTree(ox,oy, p=>drawTreeGhosted(p, tp=>drawTreeCanopy(tp.x,tp.y,tp,lod)));
 }
 // ALTTP-style forest canopy shade: dark pool on the ground under the elevated crown mass.
@@ -2123,7 +2135,9 @@ function drawProps(L){
 // — whose ground pass never calls drawProps — still render their pole, and trunks never hide
 // behind a neighbouring building. Canopies are drawn later still, over actors.
 function drawTrunks(ox,oy){
+  const simple=typeof perfSimpleTrees==="function" && perfSimpleTrees();
   forEachVisibleTree(ox,oy, p=>{
+    if(simple){ drawTreeTrunkSimple(p); return; }
     updateTreeGhostAlpha(p);
     drawTreeGhosted(p, drawTreeTrunk);
   });

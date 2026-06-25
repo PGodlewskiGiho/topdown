@@ -105,6 +105,7 @@ function drawTerrainRelief(ox,oy){
   }
 
   // ridge highlights + slope creases on steeper ground
+  if(!(typeof perfSkipTerrainCreases==="function" && perfSkipTerrainCreases())){
   ctx.lineCap="round";
   for(let gy=y0; gy<y1; gy+=step*2){
     for(let gx=x0; gx<x1; gx+=step*2){
@@ -128,6 +129,7 @@ function drawTerrainRelief(ox,oy){
         ctx.beginPath(); ctx.moveTo(cx-px*8,cy-py*8); ctx.lineTo(cx+px*8,cy+py*8); ctx.stroke();
       }
     }
+  }
   }
   ctx.lineCap="butt";
   ctx.restore();
