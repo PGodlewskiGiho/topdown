@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<title>GTA2 — podgląd kombinacji postaci</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;padding:24px;background:#121018;color:#e8e4dc;font-family:system-ui,sans-serif}
+  h1{font-size:1.25rem;margin:0 0 8px}
+  p{color:#9a94a8;font-size:.9rem;margin:0 0 20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px}
+  figure{margin:0;padding:12px;background:#1a1622;border:1px solid #2a2438;border-radius:10px;text-align:center}
+  figure img{image-rendering:pixelated;image-rendering:crisp-edges;width:128px;height:160px;object-fit:contain}
+  figcaption{margin-top:8px;font-size:.75rem;color:#b8b0c4}
+  .walk{display:flex;gap:8px;justify-content:center}
+  .walk img{width:64px;height:80px}
+  a{color:#7fe0a8}
+</style>
+</head>
+<body>
+<h1>GTA2 — modularne postacie (do potwierdzenia)</h1>
+<p>6 kombinacji: koszula + spodnie + włosy + skóra. Każda karta = 2 klatki chodu (S). Źródło: oryginalne sprite'y GTA2 (<code>bil.sty</code>, remap 27+).</p>
+<div class="grid" id="grid"></div>
+<p style="margin-top:24px">Pełny arkusz: <a href="assets/people/gta2/previews/combinations_sheet.png">combinations_sheet.png</a></p>
+<script>
+const combos=[
+  {id:"blue_jeans_brown", label:"Niebieska koszula · jeans · brązowe włosy"},
+  {id:"white_jeans_blonde", label:"Biała koszula · jeans · blond"},
+  {id:"red_jeans_black", label:"Czerwona koszula · jeans · czarne włosy"},
+  {id:"yellow_jeans_redhair", label:"Żółta koszula · jeans · rude włosy"},
+  {id:"brown_jeans_brown", label:"Brązowa koszula · jeans"},
+  {id:"blue_shorts_blonde", label:"Niebieska koszula · szorty · blond"},
+];
+const grid=document.getElementById("grid");
+const base="assets/people/gta2/previews/";
+for(const c of combos){
+  const fig=document.createElement("figure");
+  fig.innerHTML=`<div class="walk">
+    <img src="${base}${c.id}.png?v=2" alt="">
+  </div>
+  <figcaption>${c.label}</figcaption>`;
+  grid.appendChild(fig);
+}
+</script>
+</body>
+</html>

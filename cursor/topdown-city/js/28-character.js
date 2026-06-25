@@ -4,6 +4,15 @@
 const CHAR_PANTS=["#2a3444","#1a2430","#3a3a48","#283828","#4a4038","#222228"];
 const CHAR_HATS=["#444","#2a3444","#5a4030","#286848","#8a2828","#686868"];
 
+/** Map creator hex colors → GTA2 modular shirt/pants ids (people-sprites.js) */
+const GTA2_SHIRT_FROM_HEX={
+  "#3a6ea5":"blue","#e8e8ec":"white","#c43830":"red","#dcb828":"yellow",
+  "#8a6838":"brown","#e878a8":"pink","#6a7080":"grey",
+};
+const GTA2_PANTS_FROM_HEX={
+  "#2a3444":"jeans","#1a2430":"jeans_dark","#3a3a48":"jeans","#283828":"shorts_blue",
+};
+
 const playerCharacter=defaultCharacter();
 
 function defaultCharacter(){
@@ -169,6 +178,9 @@ function drawCharacterStage(pc, w, h, char, opts){
   const preview={
     x:0, y:0, a:Math.PI/2+spin, r:bodyRadius(char.body),
     skin:char.skin, shirt:char.shirt, pants:char.pants,
+    shirtId:GTA2_SHIRT_FROM_HEX[char.shirt]||"blue",
+    pantsId:GTA2_PANTS_FROM_HEX[char.pants]||"jeans",
+    skinId:"medium", hairId:char.hairStyle==="bald"?null:"brown",
     hair:char.hairStyle==="bald"?null:char.hair,
     hairStyle:char.hairStyle, beard:char.beard,
     shirtStyle:char.shirtStyle, hat:char.hat, hatColor:char.hatColor,

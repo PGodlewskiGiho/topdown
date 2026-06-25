@@ -3,6 +3,7 @@
   "private": true,
   "description": "TOPDOWN CITY — bundled puddle-water-sim (js/lib) for WebGL rain puddles",
   "scripts": {
-    "dev": "python3 -m http.server 8080"
+    "dev": "python3 -m http.server 8080",
+    "gen:people": "python3 scripts/gen_gta2_people_parts.py"
   }
 }

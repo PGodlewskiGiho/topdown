@@ -1,0 +1,176 @@
+{
+  "version": 2,
+  "style": "gta2",
+  "size": [
+    16,
+    22
+  ],
+  "anchor": [
+    8,
+    20
+  ],
+  "directions": [
+    "E",
+    "SE",
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE"
+  ],
+  "walk_frames": 2,
+  "layer_order": [
+    "shoes",
+    "pants",
+    "arms",
+    "torso",
+    "skin",
+    "hair"
+  ],
+  "shirts": [
+    {
+      "id": "blue",
+      "gender": "unisex"
+    },
+    {
+      "id": "brown",
+      "gender": "unisex"
+    },
+    {
+      "id": "grey",
+      "gender": "unisex"
+    },
+    {
+      "id": "pink",
+      "gender": "unisex"
+    },
+    {
+      "id": "red",
+      "gender": "unisex"
+    },
+    {
+      "id": "white",
+      "gender": "unisex"
+    },
+    {
+      "id": "yellow",
+      "gender": "unisex"
+    }
+  ],
+  "pants": [
+    {
+      "id": "jeans",
+      "gender": "unisex"
+    },
+    {
+      "id": "jeans_dark",
+      "gender": "unisex"
+    },
+    {
+      "id": "shorts_blue",
+      "gender": "unisex"
+    }
+  ],
+  "shoes": [
+    {
+      "id": "jeans",
+      "gender": "unisex"
+    },
+    {
+      "id": "jeans_dark",
+      "gender": "unisex"
+    },
+    {
+      "id": "shorts_blue",
+      "gender": "unisex"
+    }
+  ],
+  "arms": [
+    {
+      "id": "default",
+      "gender": "unisex"
+    }
+  ],
+  "skins": [
+    {
+      "id": "light",
+      "gender": "unisex"
+    },
+    {
+      "id": "medium",
+      "gender": "unisex"
+    },
+    {
+      "id": "tan",
+      "gender": "unisex"
+    }
+  ],
+  "hairs": [
+    {
+      "id": "brown",
+      "gender": "unisex"
+    },
+    {
+      "id": "blonde",
+      "gender": "unisex"
+    },
+    {
+      "id": "black",
+      "gender": "unisex"
+    },
+    {
+      "id": "red",
+      "gender": "unisex"
+    }
+  ],
+  "combos_preview": [
+    {
+      "id": "blue_jeans_brown",
+      "shirt": "blue",
+      "pants": "jeans",
+      "hair": "brown",
+      "skin": "medium"
+    },
+    {
+      "id": "white_jeans_blonde",
+      "shirt": "white",
+      "pants": "jeans",
+      "hair": "blonde",
+      "skin": "light"
+    },
+    {
+      "id": "red_jeans_black",
+      "shirt": "red",
+      "pants": "jeans",
+      "hair": "black",
+      "skin": "tan"
+    },
+    {
+      "id": "yellow_jeans_redhair",
+      "shirt": "yellow",
+      "pants": "jeans",
+      "hair": "red",
+      "skin": "medium"
+    },
+    {
+      "id": "brown_jeans_brown",
+      "shirt": "brown",
+      "pants": "jeans",
+      "hair": "brown",
+      "skin": "tan"
+    },
+    {
+      "id": "blue_shorts_blonde",
+      "shirt": "blue",
+      "pants": "shorts_blue",
+      "hair": "blonde",
+      "skin": "light"
+    }
+  ],
+  "rules": {
+    "female_only_pants": [],
+    "male_only_pants": [],
+    "no_hair": []
+  }
+}
