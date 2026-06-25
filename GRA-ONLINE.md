@@ -4,18 +4,19 @@
 
 **https://pgodlewskigiho.github.io/topdown/**
 
-Po wdrożeniu odśwież stronę twardo (Ctrl+F5), żeby wczytać nowe pliki JS.
+(Przekierowanie do `cursor/topdown-city/` — gra i assety są w tym folderze w repo.)
+
+Po wdrożeniu odśwież stronę twardo (Ctrl+F5).
 
 ## Jak włączyć Pages (jednorazowo)
 
-1. Otwórz: **https://github.com/PGodlewskiGiho/topdown/settings/pages**
-2. W **Build and deployment** → **Source** wybierz **GitHub Actions**
-3. Każdy push do gałęzi **`main`** wdraża grę (workflow `.github/workflows/deploy-pages.yml`)
-4. Po pierwszym pushu wejdź w **Actions** → **Deploy TOPDOWN CITY to GitHub Pages** → poczekaj na zielony status
+1. **https://github.com/PGodlewskiGiho/topdown/settings/pages**
+2. **Source:** `Deploy from a branch`
+3. **Branch:** `main` → folder **`/ (root)`** → Save
 
-Gra jest w katalogu `cursor/topdown-city` w repozytorium — workflow publikuje ten folder na Pages.
+Alternatywnie: **GitHub Actions** + workflow `deploy-pages.yml` (wtedy gra jest w root Pages bez `cursor/` w URL).
 
-## Lokalnie (bez GitHub)
+## Lokalnie
 
 ```bash
 cd cursor/topdown-city
@@ -24,9 +25,7 @@ python3 -m http.server 8080
 
 → http://localhost:8080
 
-## Jeśli widzisz 404 lub starą wersję
+## Jeśli 404 lub stare pliki
 
-- Poczekaj 2–5 minut po pushu na `main`
-- Sprawdź, czy repozytorium jest **Public**
-- Upewnij się, że źródło Pages to **GitHub Actions** (nie gałąź `gh-pages`)
-- Wyczyść cache przeglądarki (Ctrl+F5) lub otwórz z `?v=` w URL
+- Upewnij się, że Pages wskazuje gałąź **`main`**, folder **`/` (root)** — w root jest `index.html` z przekierowaniem.
+- Wyczyść cache (Ctrl+F5) lub dodaj `?v=2026062521` do URL.

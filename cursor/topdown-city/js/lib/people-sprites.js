@@ -2,9 +2,15 @@
 (function(global){
 "use strict";
 
-const BUILD=2026062520;
-const BASE="assets/people/gta2/parts/bodies/";
-const META_URL="assets/people/gta2/meta.json";
+const BUILD=2026062521;
+
+function gameBase(){
+  const b=global.__GAME_BASE;
+  return (typeof b==="string"&&b.length)?b:"";
+}
+
+const BASE=gameBase()+"assets/people/gta2/parts/bodies/";
+const META_URL=gameBase()+"assets/people/gta2/meta.json";
 const GO=global.Gta2Outfit;
 const LS=global.LivingSprite;
 const imgs={};
@@ -118,6 +124,12 @@ function buildMul(o, p){
 
 function clamp(v,a,b){ return v<a?a:v>b?b:v; }
 
+function pickDir(p){
+  if(p._faceDir) return p._faceDir;
+  if(!LS) return "S";
+  return LS.dirNameFromDelta(p.vx,p.vy)||LS.dirNameFromDelta(p._moveDx,p._moveDy)||LS.dirName(p)||"S";
+}
+
 function drawComposite(c, p, down){
   const o=resolveOutfit(p);
   if(!o) return;
@@ -132,8 +144,8 @@ function drawComposite(c, p, down){
   c.fillStyle="rgba(0,0,0,.28)";
   c.fillRect(-7*sc, 2*sc, 14*sc, 3*sc);
 
-  const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down):(down?"walk0":"walk0");
-  const dir=p._faceDir||((LS&&LS.dirName)?LS.dirName(p):"S");
+  const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down):"walk0";
+  const dir=pickDir(p);
   prefetchOutfit(o, wf, dir);
   let drew=false;
   for(const path of layerPaths(o, wf, dir)){
@@ -169,7 +181,7 @@ function draw(c,p,color,down){
 
 const PeopleSprites={
   draw, init, BUILD,
-  get DIR(){ return LS.DIR; },
+  get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
   get meta(){ return meta; },
   resolveOutfit,
