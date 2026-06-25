@@ -11,17 +11,6 @@
 <link rel="stylesheet" href="styles/main.css?v=2026062703">
 </head>
 <body>
-<script>
-(function(){
-  var build="2026062703";
-  if(location.protocol==="file:") return;
-  if(location.search.indexOf("v="+build)>=0) return;
-  try{ localStorage.setItem("tdc_build",build); }catch(e){}
-  var u=new URL(location.href);
-  u.searchParams.set("v",build);
-  location.replace(u.toString());
-})();
-</script>
 <canvas id="cv"></canvas>
 <div id="hud">
   <div class="tag">TOPDOWN CITY · <span class="v">modular</span></div>

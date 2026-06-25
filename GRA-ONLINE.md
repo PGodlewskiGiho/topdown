@@ -4,8 +4,7 @@
 
 **https://pgodlewskigiho.github.io/topdown/**
 
-Po wejściu dodaj `?v=2026062703` jeśli widzisz 404 lub stare pliki:  
-**https://pgodlewskigiho.github.io/topdown/?v=2026062703**
+Po wejściu zrób twarde odświeżenie (`Ctrl+Shift+R`) jeśli widzisz 404 lub stare pliki.
 
 ## GitHub Pages — konfiguracja (jednorazowo)
 

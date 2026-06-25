@@ -5,11 +5,10 @@
 <title>TOPDOWN CITY</title>
 <script>
 (function(){
-  var target="/topdown/?v=2026062703";
-  if(location.pathname.indexOf("cursor/topdown-city")>=0){
-    target="index.html?v=2026062703";
-  }
-  location.replace(target);
+  if(location.protocol==="file:") return;
+  var p=location.pathname;
+  if(p.indexOf("cursor/topdown-city")>=0) return;
+  location.replace("/topdown/cursor/topdown-city/?v=2026062703");
 })();
 </script>
 </head>
