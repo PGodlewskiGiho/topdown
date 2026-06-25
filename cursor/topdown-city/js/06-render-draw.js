@@ -110,6 +110,7 @@ function draw(){
       else drawBuildingRoof(b);
     } }
   if(typeof perfEnd==="function") perfEnd("buildings");
+  Game.drawAfterBuildings(ox,oy);
   if(typeof perfBegin==="function") perfBegin("trees");
   drawTrunks(ox,oy);       // tree poles over buildings/ground, under actors (canopies come later)
   drawScorches(ox,oy);

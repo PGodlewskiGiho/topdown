@@ -5,7 +5,7 @@ const Game = {
   systems: [],
   _byId: new Map(),
 
-  /** @param {{id:string, order?:number, init?:Function, update?:Function, updateAlways?:boolean, onLot?:(lot,i,j)=>void, drawAfterRoads?:(ox,oy)=>void, drawActors?:(ox,oy)=>void, drawWorldOverlay?:(ox,oy)=>void, drawMap?:(mctx,opts)=>void}} spec */
+  /** @param {{id:string, order?:number, init?:Function, update?:Function, updateAlways?:boolean, onLot?:(lot,i,j)=>void, drawAfterRoads?:(ox,oy)=>void, drawAfterBuildings?:(ox,oy)=>void, drawActors?:(ox,oy)=>void, drawWorldOverlay?:(ox,oy)=>void, drawMap?:(mctx,opts)=>void}} spec */
   register(spec){
     if(!spec||!spec.id){ console.warn("Game.register: brak id"); return; }
     if(this._byId.has(spec.id)) return;
@@ -32,6 +32,10 @@ const Game = {
 
   drawAfterRoads(ox,oy){
     for(const s of this.systems) if(s.drawAfterRoads) s.drawAfterRoads(ox,oy);
+  },
+
+  drawAfterBuildings(ox,oy){
+    for(const s of this.systems) if(s.drawAfterBuildings) s.drawAfterBuildings(ox,oy);
   },
 
   /** @param {"beforeTraffic"|"afterTraffic"} [layer] */
