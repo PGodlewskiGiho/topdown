@@ -320,7 +320,7 @@
   <script src="js/51-perf-profiler.js?v=20260627"></script>
   <script src="js/06-render-draw.js?v=20260706"></script>
   <script src="js/07-boats.js?v=20260624"></script>
-  <script src="js/lib/people-2d.js?v=20260707"></script>
+  <script src="js/lib/people-2d.js?v=20260708"></script>
   <script src="js/08-render-assets.js?v=20260706"></script>
   <script src="js/09-gauge.js"></script>
   <script src="js/10-time.js"></script>
@@ -348,7 +348,7 @@
   <script src="js/43-puddle-water.js?v=20260702"></script>
   <script src="js/44-sun-glare.js?v=20260702"></script>
   <script>
-  if(typeof Humanoid2D==="undefined"||!Humanoid2D.BUILD){
+  if(typeof People2D==="undefined"||!People2D.BUILD||People2D.BUILD<20260707){
     var sp=new URLSearchParams(location.search);
     if(!sp.has("fresh")){ sp.set("fresh","1"); sp.set("b",String(Date.now())); location.replace(location.pathname+"?"+sp.toString()); }
   }
