@@ -317,13 +317,27 @@ function entitySpriteDir(p){
 }
 
 function drawPerson(p,color,down,targetCtx){
+  const c=targetCtx||ctx;
   if(typeof PeopleSprites!=="undefined"&&PeopleSprites.meta){
     const dir=entitySpriteDir(p);
     p._spriteDir=dir;
     p._faceDir=dir;
-    PeopleSprites.draw(targetCtx||ctx,p,color,down,dir);
+    PeopleSprites.draw(c,p,color,down,dir);
     return;
   }
+  const sc=((p.r||9)/9)*2.05;
+  const shirt=p.shirt||color||"#3a6ea5";
+  c.save();
+  c.translate(p.x,p.y);
+  c.fillStyle="rgba(0,0,0,.25)";
+  c.fillRect(-6*sc,2*sc,12*sc,3*sc);
+  c.fillStyle=shirt;
+  c.fillRect(-5*sc,-8*sc,10*sc,14*sc);
+  c.fillStyle=p.skin||"#e8b888";
+  c.beginPath();
+  c.arc(0,-10*sc,4*sc,0,Math.PI*2);
+  c.fill();
+  c.restore();
 }
 
 function vignette(){

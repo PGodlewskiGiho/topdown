@@ -2,7 +2,7 @@
 (function(global){
 "use strict";
 
-const BUILD=2026062702;
+const BUILD=2026062703;
 
 const GO=global.Gta2Outfit;
 const LS=global.LivingSprite;
@@ -101,13 +101,13 @@ function init(){
         }
         meta=m;
         ready=true;
-        warmDefault();
+        setTimeout(warmDefault, 500);
         return m;
       }catch(e){ lastErr=e; }
     }
     console.warn("PeopleSprites meta load failed", lastErr);
     ready=false;
-    throw lastErr||new Error("meta load failed");
+    return null;
   })();
   return loadP;
 }
@@ -116,20 +116,9 @@ function pick(arr, seed){ return arr[Math.abs(seed)%arr.length]; }
 
 function warmDefault(){
   if(!meta) return;
-  const dirs=meta.directions||(LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]);
   const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
-  for(const d of dirs){
-    prefetchOutfit(sample,"walk0",d);
-    prefetchOutfit(sample,"walk1",d);
-  }
-}
-
-function prefetchAllDirections(o){
-  const dirs=meta.directions||(LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]);
-  for(const d of dirs){
-    prefetchOutfit(o,"walk0",d);
-    prefetchOutfit(o,"walk1",d);
-  }
+  prefetchOutfit(sample,"walk0","S");
+  prefetchOutfit(sample,"walk1","S");
 }
 
 function resolveOutfit(p){
@@ -158,7 +147,6 @@ function resolveOutfit(p){
   if(p.hairId) o.hair=p.hairId;
   if(p.hairStyle==="bald"||p.hair==null) o.hair=null;
   p._gta2Outfit=o;
-  prefetchAllDirections(o);
   return o;
 }
 
@@ -185,8 +173,6 @@ function layerPaths(o, wf, direction){
 
 function prefetchOutfit(o, wf, direction){
   for(const path of layerPaths(o, wf, direction)) queueImg(path, ()=>tryBake(o, wf, direction));
-  const alt=wf==="walk0"?"walk1":"walk0";
-  for(const path of layerPaths(o, alt, direction)) queueImg(path, ()=>tryBake(o, alt, direction));
 }
 
 function tryBake(o, wf, dir){
@@ -295,5 +281,5 @@ const PeopleSprites={
   facingAngle(p){ return LS?LS.facingAngle(p):0; },
 };
 global.PeopleSprites=PeopleSprites;
-init();
+init().catch(()=>{});
 })(typeof window!=="undefined"?window:globalThis);
