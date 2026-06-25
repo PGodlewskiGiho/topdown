@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -99,16 +100,25 @@ function evalLivingSpriteDirTests() {
     if (!existsSync(layer)) fail(`missing GTA2 direction PNG: walk0/${d}.png`);
   }
 
-  const gameToLegacy = { S: "SW", SE: "S", E: "SE", NE: "E", N: "NE", NW: "N", W: "NW", SW: "W" };
-  for (const [gameDir, legacyDir] of Object.entries(gameToLegacy)) {
-    const legacyPath = path.join(
-      siteRoot,
-      "assets/people/gta2/parts/bodies/male/skins/medium/walk0",
-      `${legacyDir}.png`
-    );
-    if (!existsSync(legacyPath)) {
-      fail(`missing legacy GTA2 sprite for game dir ${gameDir}: walk0/${legacyDir}.png`);
+  const torsoDir = path.join(
+    siteRoot,
+    "assets/people/gta2/parts/bodies/male/torsos/blue/walk0"
+  );
+  const hashes = new Map();
+  for (const d of dirs) {
+    const buf = readFileSync(path.join(torsoDir, `${d}.png`));
+    const hash = createHash("md5").update(buf).digest("hex");
+    if (hashes.has(hash)) {
+      fail(
+        `GTA2 walk0/${d}.png duplicates ${hashes.get(hash)} — directions must differ visually`
+      );
     }
+    hashes.set(hash, d);
+  }
+  const eBuf = readFileSync(path.join(torsoDir, "E.png"));
+  const wBuf = readFileSync(path.join(torsoDir, "W.png"));
+  if (eBuf.equals(wBuf)) {
+    fail("GTA2 E and W torso sprites are identical — asset export is broken");
   }
 }
 
