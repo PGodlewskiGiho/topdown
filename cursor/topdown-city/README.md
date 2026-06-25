@@ -17,7 +17,7 @@ Otwórz http://localhost:8080
 npm run check
 ```
 
-Smoke-check sprawdza, czy `index.html` ładuje istniejące pliki, czy każdy plik `js/**/*.js` jest podpięty oraz czy cache-busting `v=` zgadza się z `version.json`.
+Smoke-check sprawdza, czy `index.html` ładuje istniejące pliki, czy każdy plik `js/**/*.js` jest podpięty oraz czy w URL nie ma `?v=`.
 
 ## Dokumentacja
 

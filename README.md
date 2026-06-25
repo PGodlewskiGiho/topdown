@@ -18,7 +18,7 @@ cd cursor/topdown-city
 npm run check
 ```
 
-Smoke-check waliduje lokalne referencje HTML, spójność cache-busting `v=` z `version.json` i listę skryptów ładowanych przez `index.html`.
+Smoke-check waliduje lokalne referencje HTML i listę skryptów ładowanych przez `index.html` (bez `?v=` w URL).
 
 ## Struktura
 

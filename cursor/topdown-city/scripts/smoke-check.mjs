@@ -35,13 +35,6 @@ function collectFiles(dir, extension) {
   });
 }
 
-const versionPath = path.join(siteRoot, "version.json");
-const version = JSON.parse(readText(versionPath));
-const build = String(version.build || "");
-if (!/^\d{10}$/.test(build)) {
-  fail(`${rel(versionPath)} has invalid build value: ${version.build}`);
-}
-
 const htmlFiles = [
   path.join(repoRoot, "index.html"),
   path.join(siteRoot, "index.html"),
@@ -60,11 +53,19 @@ for (const htmlFile of htmlFiles) {
     }
   }
 
-  const versionRefs = [...html.matchAll(/[?&]v=(\d+)/g)].map((match) => match[1]);
-  for (const value of versionRefs) {
-    if (value !== build) {
-      fail(`${rel(htmlFile)} uses v=${value}, expected v=${build}`);
-    }
+  if (/\?v=/.test(html)) {
+    fail(`${rel(htmlFile)} must not use ?v= cache-busting query params`);
+  }
+}
+
+const jsFilesToScan = [
+  ...collectFiles(path.join(siteRoot, "js"), ".js"),
+  path.join(siteRoot, "scripts", "smoke-check.mjs"),
+];
+for (const jsFile of jsFilesToScan) {
+  const js = readText(jsFile);
+  if (/\?v=/.test(js) && !jsFile.endsWith("smoke-check.mjs")) {
+    fail(`${rel(jsFile)} must not append ?v= to asset URLs`);
   }
 }
 
@@ -134,4 +135,4 @@ if (errors.length) {
   process.exit(1);
 }
 
-console.log(`Smoke check passed: ${scriptRefs.length} scripts, build ${build}.`);
+console.log(`Smoke check passed: ${scriptRefs.length} scripts, no ?v= cache busting.`);

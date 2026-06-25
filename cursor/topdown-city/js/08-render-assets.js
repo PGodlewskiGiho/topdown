@@ -1776,18 +1776,17 @@ function treeScreenBox(t){
 }
 function treeVisible(p,cl,cr,ct,cb){ const b=treeScreenBox(p); return b.maxX>=cl&&b.minX<=cr&&b.maxY>=ct&&b.minY<=cb; }
 // ── PNG tree sprites (Pillow-generated, assets/trees/*.png) ──────────────
-const TREE_ASSET_V=2;
 const TREE_SPRITE={ready:false,meta:null,img:{}};
 window.TREE_SPRITE=TREE_SPRITE;
 (function loadTreeSprites(){
-  fetch("assets/trees/meta.json?v="+TREE_ASSET_V).then(r=>r.json()).then(meta=>{
+  fetch("assets/trees/meta.json").then(r=>r.json()).then(meta=>{
     TREE_SPRITE.meta=meta;
     const kinds=Object.keys(meta.kinds); let left=kinds.length||0;
     if(!left){ TREE_SPRITE.ready=true; return; }
     for(const k of kinds){
       const im=new Image();
       im.onload=im.onerror=()=>{ if(--left<=0) TREE_SPRITE.ready=true; };
-      im.src="assets/trees/"+meta.kinds[k].file+"?v="+TREE_ASSET_V;
+      im.src="assets/trees/"+meta.kinds[k].file;
       TREE_SPRITE.img[k]=im;
     }
   }).catch(()=>{});

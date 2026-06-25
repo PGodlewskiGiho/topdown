@@ -41,7 +41,7 @@ cd cursor/topdown-city
 npm run check
 ```
 
-Smoke-check sprawdza referencje HTML, cache-busting `v=` i listę skryptów JS ładowanych przez `index.html`.
+Smoke-check sprawdza referencje HTML i listę skryptów JS ładowanych przez `index.html`.
 
 ## Struktura w repo
 
@@ -58,5 +58,5 @@ cursor/topdown-city/     ← gra (index.html, js/, assets/)
 | Objaw | Rozwiązanie |
 |--------|-------------|
 | 404 na `assets/people/gta2/...` | Pages → **GitHub Actions**, nie branch root |
-| Stare sprite’y / brak obrotu | Ctrl+Shift+R lub `?v=2026062703` |
+| Stare pliki w cache | Ctrl+Shift+R (twarde odświeżenie) |
 | URL z `/cursor/topdown-city/` przy Actions | Użyj **https://pgodlewskigiho.github.io/topdown/** |

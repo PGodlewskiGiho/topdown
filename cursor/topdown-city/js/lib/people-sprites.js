@@ -2,8 +2,6 @@
 (function(global){
 "use strict";
 
-const BUILD=2026062704;
-
 const GO=global.Gta2Outfit;
 const LS=global.LivingSprite;
 const imgs={};
@@ -74,7 +72,7 @@ function queueImg(path, onload){
       console.warn("PeopleSprites missing layer:", path);
     }
   };
-  im.src=path+"?v="+BUILD;
+  im.src=path;
   imgs[path]=im;
 }
 
@@ -91,7 +89,7 @@ function init(){
     let lastErr=null;
     for(const root of candidateRoots()){
       try{
-        const url=root+"assets/people/gta2/meta.json?v="+BUILD;
+        const url=root+"assets/people/gta2/meta.json";
         const r=await fetch(url);
         if(!r.ok){ lastErr=new Error("meta:"+r.status+" "+url); continue; }
         const m=await r.json();
@@ -308,7 +306,7 @@ function draw(c,p,color,down,forcedDir){
 }
 
 const PeopleSprites={
-  draw, init, BUILD, warmDefault,
+  draw, init, warmDefault,
   get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
   get meta(){ return meta; },
