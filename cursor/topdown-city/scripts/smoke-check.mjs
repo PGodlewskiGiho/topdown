@@ -93,6 +93,41 @@ if (!workflow.includes("path: cursor/topdown-city")) {
   fail(".github/workflows/deploy-pages.yml does not deploy cursor/topdown-city");
 }
 
+const gta2Root = path.join(siteRoot, "assets/people/gta2");
+const gta2Meta = JSON.parse(readText(path.join(gta2Root, "meta.json")));
+const gta2PngCount = collectFiles(path.join(gta2Root, "parts"), ".png").length;
+if (gta2PngCount < 1000) {
+  fail(`expected at least 1000 GTA2 layer PNGs, found ${gta2PngCount}`);
+}
+for (const combo of gta2Meta.combos_preview || []) {
+  const preview = path.join(gta2Root, "previews", `${combo.id}.png`);
+  if (!existsSync(preview)) {
+    fail(`missing GTA2 preview PNG: assets/people/gta2/previews/${combo.id}.png`);
+  }
+  const layers = [
+    ["shoes", combo.pants],
+    ["pants", combo.pants],
+    ["arms", combo.shirt],
+    ["torsos", combo.shirt],
+    ["skins", combo.skin],
+    ["hairs", combo.hair],
+  ];
+  for (const [part, variant] of layers) {
+    const layerPath = path.join(
+      gta2Root,
+      "parts/bodies",
+      combo.body,
+      part,
+      variant,
+      "walk0",
+      "S.png"
+    );
+    if (!existsSync(layerPath)) {
+      fail(`missing GTA2 layer PNG for combo ${combo.id}: ${rel(layerPath)}`);
+    }
+  }
+}
+
 if (errors.length) {
   console.error("Smoke check failed:");
   for (const error of errors) console.error(`- ${error}`);

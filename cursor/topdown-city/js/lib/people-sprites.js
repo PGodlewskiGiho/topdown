@@ -1,18 +1,17 @@
-/* people-sprites.js — GTA2 modular PNG pedestrians (relative paths, baked composites) */
+/* people-sprites.js — GTA2 modular PNG pedestrians (baked composites, path-aware) */
 (function(global){
 "use strict";
 
-const BUILD=2026062701;
-
-const META_URL="assets/people/gta2/meta.json";
-const ASSETS_BASE="assets/people/gta2/parts/bodies/";
+const BUILD=2026062702;
 
 const GO=global.Gta2Outfit;
 const LS=global.LivingSprite;
 const imgs={};
 const pending=new Set();
+const failed=new Set();
 const baked={};
 let meta=null, loadP=null, ready=false;
+let resolvedRoot=null;
 
 const BUILD_SCALE={
   slim:{sx:0.88,sy:1.02},
@@ -21,6 +20,35 @@ const BUILD_SCALE={
   stocky:{sx:1.08,sy:1.06},
   hardy:{sx:1.12,sy:1.08},
 };
+
+function gameBase(){
+  const b=global.__GAME_BASE;
+  return (typeof b==="string"&&b.length)?b:"";
+}
+
+function candidateRoots(){
+  const roots=[];
+  const gb=gameBase();
+  if(gb) roots.push(gb);
+  if(typeof location!=="undefined"){
+    const path=location.pathname||"";
+    const nested=path.match(/^(.*\/cursor\/topdown-city\/)/);
+    if(nested) roots.push(nested[1]);
+    const pages=path.match(/^(.*\/topdown\/)/);
+    if(pages) roots.push(pages[1]);
+  }
+  roots.push("");
+  const out=[];
+  for(const r of roots){
+    const n=r.endsWith("/")?r:(r?r+"/":"");
+    if(!out.includes(n)) out.push(n);
+  }
+  return out;
+}
+
+function rootPrefix(){ return resolvedRoot!=null?resolvedRoot:gameBase(); }
+function metaUrl(){ return rootPrefix()+"assets/people/gta2/meta.json"; }
+function assetsBase(){ return rootPrefix()+"assets/people/gta2/parts/bodies/"; }
 
 function outfitKey(o){
   return [o.body,o.shirt,o.pants,o.skin,o.hair||"none"].join("|");
@@ -39,7 +67,13 @@ function queueImg(path, onload){
   pending.add(path);
   const im=new Image();
   im.onload=()=>{ pending.delete(path); if(onload) onload(); };
-  im.onerror=()=>{ pending.delete(path); };
+  im.onerror=()=>{
+    pending.delete(path);
+    if(!failed.has(path)){
+      failed.add(path);
+      console.warn("PeopleSprites missing layer:", path);
+    }
+  };
   im.src=path+"?v="+BUILD;
   imgs[path]=im;
 }
@@ -53,22 +87,28 @@ function getImg(path){
 
 function init(){
   if(loadP) return loadP;
-  loadP=fetch(META_URL+"?v="+BUILD)
-    .then(r=>{
-      if(!r.ok) throw new Error("meta:"+r.status+" "+META_URL);
-      return r.json();
-    })
-    .then(m=>{
-      meta=m;
-      ready=true;
-      warmDefault();
-      return m;
-    })
-    .catch(e=>{
-      console.warn("PeopleSprites meta load failed",e,META_URL);
-      ready=false;
-      throw e;
-    });
+  loadP=(async()=>{
+    let lastErr=null;
+    for(const root of candidateRoots()){
+      try{
+        const url=root+"assets/people/gta2/meta.json?v="+BUILD;
+        const r=await fetch(url);
+        if(!r.ok){ lastErr=new Error("meta:"+r.status+" "+url); continue; }
+        const m=await r.json();
+        if(resolvedRoot!==root){
+          resolvedRoot=root;
+          global.__GAME_BASE=root;
+        }
+        meta=m;
+        ready=true;
+        warmDefault();
+        return m;
+      }catch(e){ lastErr=e; }
+    }
+    console.warn("PeopleSprites meta load failed", lastErr);
+    ready=false;
+    throw lastErr||new Error("meta load failed");
+  })();
   return loadP;
 }
 
@@ -125,6 +165,7 @@ function resolveOutfit(p){
 function layerPaths(o, wf, direction){
   const order=meta.layer_order||["shoes","pants","arms","torso","skin","hair"];
   const b=o.body||"male";
+  const base=assetsBase();
   const map={
     shoes:"shoes/"+o.pants,
     pants:"pants/"+o.pants,
@@ -137,7 +178,7 @@ function layerPaths(o, wf, direction){
   for(const k of order){
     const rel=map[k];
     if(!rel) continue;
-    out.push(ASSETS_BASE+b+"/"+rel+"/"+wf+"/"+direction+".png");
+    out.push(base+b+"/"+rel+"/"+wf+"/"+direction+".png");
   }
   return out;
 }
@@ -145,7 +186,7 @@ function layerPaths(o, wf, direction){
 function prefetchOutfit(o, wf, direction){
   for(const path of layerPaths(o, wf, direction)) queueImg(path, ()=>tryBake(o, wf, direction));
   const alt=wf==="walk0"?"walk1":"walk0";
-  for(const path of layerPaths(o, alt, direction)) queueImg(path);
+  for(const path of layerPaths(o, alt, direction)) queueImg(path, ()=>tryBake(o, alt, direction));
 }
 
 function tryBake(o, wf, dir){
@@ -172,8 +213,16 @@ function getBaked(o, wf, dir){
   return baked[key]||tryBake(o,wf,dir);
 }
 
+function defaultBuildForBody(body){
+  return (meta?.rules?.body_build_default||{})[body]||"average";
+}
+
 function buildMul(o, p){
-  const b=BUILD_SCALE[o.build]||BUILD_SCALE.average;
+  let b=BUILD_SCALE[o.build]||BUILD_SCALE.average;
+  // female/hardy PNG folders are already proportion-scaled at generation time.
+  if((o.body==="female"||o.body==="hardy")&&(!o.build||o.build===defaultBuildForBody(o.body))){
+    b=BUILD_SCALE.average;
+  }
   const h=clamp(p.height!=null?p.height:1, 0.86, 1.14);
   return {sx:b.sx*h, sy:b.sy*h};
 }
@@ -201,6 +250,9 @@ function drawComposite(c, p, down, forcedDir){
   const dir=(forcedDir&&typeof forcedDir==="string")?forcedDir:"S";
   prefetchOutfit(o, wf, dir);
 
+  const bakedIm=getBaked(o, wf, dir);
+  if(!bakedIm) return;
+
   const ang=dirAngle(dir);
   c.save();
   c.rotate(ang-Math.PI/2);
@@ -208,19 +260,7 @@ function drawComposite(c, p, down, forcedDir){
   c.fillRect(-8*sc, 3*sc, 16*sc, 4*sc);
   c.restore();
 
-  const bakedIm=getBaked(o, wf, dir);
-  if(bakedIm){
-    c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
-  } else {
-    let drew=false;
-    for(const path of layerPaths(o, wf, dir)){
-      const im=getImg(path);
-      if(!im) continue;
-      drew=true;
-      c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
-    }
-    if(!drew) return;
-  }
+  c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
 
   if(down){
     c.save();

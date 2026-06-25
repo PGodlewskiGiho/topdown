@@ -90,7 +90,8 @@ function applyGta2Ids(p){
   p.shirtId=shirtIdFromHex(p.shirt||p.color);
   p.skinId=skinIdFromHex(p.skin);
   p.hairId=(p.hairStyle==="bald"||p.hair==null)?null:hairIdFromHex(p.hair);
-  if(!p.pantsId) p.pantsId=pantsIdFromHex(p.pants);
+  if(p.shorts) p.pantsId="shorts_blue";
+  else if(!p.pantsId) p.pantsId=pantsIdFromHex(p.pants);
   p.build=buildForBody(body, p.build);
   delete p._gta2Outfit;
   return p;
