@@ -207,18 +207,27 @@ function toggleVehicle(){
   }
 }
 function jackCar(c){
+  const kind=c.kind||"car";
   car.x=c.x; car.y=c.y; car.a=c.a; car.vx=c.vx||0; car.vy=c.vy||0;
-  car.color=c.color; car.W=c.W; car.L=c.L; car.R=vehicleHitRadius(c.W,c.L,c.kind||"car"); car.kind="car";
-  car.hp=c.hp||120; car.maxHp=c.maxHp||120; car.dmgSeed=c.dmgSeed||1; car.dead=false;
-  car.parts=c.parts?JSON.parse(JSON.stringify(c.parts)):null;
-  car.tuning=c.tuning?{...c.tuning}:null;
-  if(c.model){
-    const m=c.model;
-    car.brand=m.brand; car.carName=m.name; car.type=m.type; car.era=m.era;
-    car.accent=m.accent; car.power=m.power; car.topSpeed=m.topSpeed;
-  } else {
-    car.brand=c.brand||""; car.carName=c.carName||"Auto"; car.type=c.type||"sedan"; car.era=c.era||"modern";
-    car.accent=c.accent||"#ff5b46"; car.power=1.2; car.topSpeed=200;
+  car.color=c.color; car.W=c.W; car.L=c.L; car.R=vehicleHitRadius(c.W,c.L,kind);
+  car.kind=kind; car.dead=false;
+  car.hp=c.hp||120; car.maxHp=c.maxHp||120; car.dmgSeed=c.dmgSeed||1;
+  if(isBikeKind(kind)){
+    applyBikeToPlayerCar(c);
+  }else{
+    car.kind="car";
+    car.parts=c.parts?JSON.parse(JSON.stringify(c.parts)):null;
+    car.tuning=c.tuning?{...c.tuning}:null;
+    if(c.model){
+      const m=c.model;
+      car.brand=m.brand; car.carName=m.name; car.type=m.type; car.era=m.era;
+      car.accent=m.accent; car.power=m.power; car.topSpeed=m.topSpeed;
+    } else {
+      car.brand=c.brand||""; car.carName=c.carName||"Auto"; car.type=c.type||"sedan"; car.era=c.era||"modern";
+      car.accent=c.accent||"#ff5b46"; car.power=1.2; car.topSpeed=200;
+    }
+    if(typeof normalizeCarPerformance==="function") normalizeCarPerformance(car);
+    rebuildGauge();
   }
   const driverLook=rollNpcAppearance(c.x,c.y,{});
   const driver={state:"walk", x:c.x-Math.sin(c.a)*22, y:c.y+Math.cos(c.a)*22, a:c.a+Math.PI/2,
@@ -228,18 +237,29 @@ function jackCar(c){
   const i=traffic.indexOf(c); if(i>=0) traffic.splice(i,1);
   traffic.push(spawnTrafficCar());
   addHeat(0.4);
-  if(typeof normalizeCarPerformance==="function") normalizeCarPerformance(car);
-  rebuildGauge();
   mode="car";
 }
+function isBikeKind(kind){ return kind==="moto"||kind==="bike"; }
+function applyBikeToPlayerCar(src){
+  car.parts=null; car.tuning=null; delete car.model;
+  car.brand=""; car.carName=car.kind==="moto"?"Motocykl":"Rower";
+  car.type=""; car.era=""; car.accent=""; car.power=1; car.topSpeed=0;
+  car.rider=true;
+  car.riderShirt=ped.shirt||src.riderShirt||"#3a6ea5";
+  car.riderSkin=ped.skin||src.riderSkin||"#e8b888";
+  car.riderHair=car.kind==="bike"?(ped.hair||src.riderHair||null):null;
+  car.riderHelmet=car.kind==="moto";
+}
 function jackParked(pc, L){
+  const kind=pc.kind||"car";
   car.x=pc.x; car.y=pc.y; car.a=pc.a; car.vx=0; car.vy=0;
-  car.color=pc.color; car.W=pc.W; car.L=pc.L; car.R=vehicleHitRadius(pc.W,pc.L,pc.kind||"car");
-  car.kind=pc.kind||"car"; car.rider=true; car.riderShirt=ped.shirt||"#3a6ea5"; car.riderSkin=ped.skin||"#e8b888"; car.riderHair=ped.hair||null; car.riderHelmet=(car.kind==="moto");
-  car.hp=pc.hp; car.maxHp=pc.maxHp; car.dmgSeed=pc.dmgSeed; car.dead=false;
-  car.parts=pc.parts?JSON.parse(JSON.stringify(pc.parts)):null;
-  car.tuning=pc.tuning?{...pc.tuning}:null;
-  if(car.kind==="car"){
+  car.color=pc.color; car.W=pc.W; car.L=pc.L; car.R=vehicleHitRadius(pc.W,pc.L,kind);
+  car.kind=kind; car.hp=pc.hp; car.maxHp=pc.maxHp; car.dmgSeed=pc.dmgSeed; car.dead=false;
+  if(isBikeKind(kind)){
+    applyBikeToPlayerCar(pc);
+  }else{
+    car.parts=pc.parts?JSON.parse(JSON.stringify(pc.parts)):null;
+    car.tuning=pc.tuning?{...pc.tuning}:null;
     if(pc.model){ const m=pc.model;
       car.brand=m.brand; car.carName=m.name; car.type=m.type; car.era=m.era; car.accent=m.accent; car.power=m.power; car.topSpeed=m.topSpeed;
     } else {

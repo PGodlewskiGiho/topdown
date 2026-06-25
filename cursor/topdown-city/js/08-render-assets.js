@@ -4,7 +4,8 @@
 // design maps to forward. In SVG the car pointed UP (-y = front); here we
 // build everything with front = -y then rotate by v.a + PI/2 so forward=+x.
 function drawVehicle(v,color){
-  if(v.kind==="moto"||v.kind==="bike"){ drawBike(v); return; }
+  const kind=v.kind||(v.W<=18&&v.L<=48&&!v.type&&!v.brand?"bike":null);
+  if(kind==="moto"||kind==="bike"){ if(!v.kind) v.kind=kind; drawBike(v); return; }
   ctx.save();
   ctx.translate(v.x, v.y);
   if(v.sinking!==undefined){
