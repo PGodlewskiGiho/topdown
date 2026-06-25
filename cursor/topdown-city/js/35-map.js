@@ -257,11 +257,44 @@ function setNavTarget(x,y, silent){
 function clearNavTarget(){ navTarget=null; navPath=[]; }
 
 function mapLotFill(L){
-  if(L.water) return "#163d5c";
+  if(L.water) return "#1e5a8a";
   if(L.mountain) return "#3a3834";
   if(L.mega) return "#4a4e56";
   if(L.empty) return L.B.ground;
   return L.B.walk;
+}
+
+function mapDrawWater(mctx, opts){
+  if(!opts || opts.tx==null || opts.ty==null) return;
+  if(opts.fog && typeof mapIsDiscovered!=="function") return;
+  const cxw=opts.cxw!=null?opts.cxw:(typeof playerWorldPos==="function"?playerWorldPos().x:0);
+  const cyw=opts.cyw!=null?opts.cyw:(typeof playerWorldPos==="function"?playerWorldPos().y:0);
+  const span=opts.viewSpan||MINI_MAP_SPAN;
+  const ox=cxw-span*0.5, oy=cyw-span*0.5;
+  const step=clamp(Math.round(span/36), 24, 48);
+  const drawScore=(scoreFn, color)=>{
+    if(typeof collectWaterPolys!=="function"||typeof scoreFn!=="function") return;
+    const {polys}=collectWaterPolys(scoreFn, ox, oy, step, ox+span, oy+span);
+    if(!polys.length) return;
+    mctx.fillStyle=color;
+    for(const q of polys){
+      let cx=0, cy=0;
+      for(const p of q){ cx+=p[0]; cy+=p[1]; }
+      cx/=q.length; cy/=q.length;
+      if(opts.fog){
+        const[i,j]=typeof cellAt==="function"?cellAt(cx,cy):[0,0];
+        if(!mapIsDiscovered(i,j)) continue;
+      }
+      mctx.beginPath();
+      mctx.moveTo(opts.tx(q[0][0]), opts.ty(q[0][1]));
+      for(let k=1;k<q.length;k++) mctx.lineTo(opts.tx(q[k][0]), opts.ty(q[k][1]));
+      mctx.closePath();
+      mctx.fill();
+    }
+  };
+  drawScore(typeof lakeScore==="function"?lakeScore:null, "#2a7ab8");
+  drawScore(typeof riverScore==="function"?riverScore:null, "#2a8a72");
+  if(typeof canalScore==="function") drawScore(canalScore, "#2a6a68");
 }
 
 function mapDrawTerrain(mctx, opts){
@@ -510,7 +543,7 @@ function renderRotatingMap(bctx,W,H,opts){
   const viewSpan=span;
   const i0=Math.floor((cxw-viewSpan/2-GAP)/GAP)-1, i1=Math.floor((cxw+viewSpan/2)/GAP)+1;
   const j0=Math.floor((cyw-viewSpan/2-GAP)/GAP)-1, j1=Math.floor((cyw+viewSpan/2)/GAP)+1;
-  const mapOpts={tx,ty,i0,i1,j0,j1,scale:MS,fog:!!opts.fog,cxw,cyw,w2,routeWidth:opts.routeWidth||2.8,showPlayer:false};
+  const mapOpts={tx,ty,i0,i1,j0,j1,scale:MS,fog:!!opts.fog,cxw,cyw,viewSpan,w2,routeWidth:opts.routeWidth||2.8,showPlayer:false};
   Game.drawMap(bctx, mapOpts);
 
   if(opts.wantedSearch && typeof stars!=="undefined" && stars>0 && typeof wantedPhase!=="undefined" && wantedPhase==="search" && typeof lkValid!=="undefined" && lkValid){
@@ -623,7 +656,7 @@ function drawBigMap(){
   const span=Math.max(W,H)/MS;
   const i0=Math.floor((cxw-span/2-GAP)/GAP)-1, i1=Math.floor((cxw+span/2)/GAP)+1;
   const j0=Math.floor((cyw-span/2-GAP)/GAP)-1, j1=Math.floor((cyw+span/2)/GAP)+1;
-  const opts={tx,ty,i0,i1,j0,j1,scale:MS,fog:true,cxw,cyw,w2,routeWidth:4,showPlayer:"fixed"};
+  const opts={tx,ty,i0,i1,j0,j1,scale:MS,fog:true,cxw,cyw,viewSpan:span,w2,routeWidth:4,showPlayer:"fixed"};
 
   Game.drawMap(bctx, opts);
 
@@ -722,6 +755,7 @@ Game.register({
   drawWorldOverlay:drawNavRouteWorld,
   drawMap(mctx, opts){
     mapDrawTerrain(mctx, opts);
+    mapDrawWater(mctx, opts);
     mapDrawRoads(mctx, opts);
     mapDrawRoute(mctx, opts.tx, opts.ty, opts.routeWidth||3.2);
     if(opts.showPlayer!==undefined) mapDrawBlips(mctx, opts.tx, opts.ty, opts.showPlayer);

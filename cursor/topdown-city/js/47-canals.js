@@ -432,6 +432,9 @@ function drawCanalWaterSeg(s, ox, oy, t){
   ctx.closePath();
   ctx.fillStyle = "#3a4a42";
   ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.lineTo(p2[0], p2[1]); ctx.lineTo(p3[0], p3[1]);
+  ctx.closePath();
   if(typeof applyWaterSimInClip === "function" && typeof waterSimShouldRun === "function" && waterSimShouldRun()){
     ctx.save(); ctx.clip();
     applyWaterSimInClip("river", 0.38, 0.018);

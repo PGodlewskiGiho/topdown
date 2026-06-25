@@ -135,8 +135,8 @@ function drawRiverCurrentChevrons(ox,oy,t){
   ctx.restore();
 }
 
-function collectWaterPolys(scoreFn, ox, oy, step){
-  const x0=ox-step, y0=oy-step, x1=ox+VW+step, y1=oy+VH+step;
+function collectWaterPolys(scoreFn, ox, oy, step, x1b, y1b){
+  const x0=ox-step, y0=oy-step, x1=x1b!=null?x1b:ox+VW+step, y1=y1b!=null?y1b:oy+VH+step;
   const polys=[], bnd=[];
   for(let gy=y0; gy<y1; gy+=step) for(let gx=x0; gx<x1; gx+=step){
     const v0=scoreFn(gx,gy), v1=scoreFn(gx+step,gy), v2=scoreFn(gx+step,gy+step), v3=scoreFn(gx,gy+step);
@@ -211,7 +211,9 @@ function drawForestRivers(ox,oy){
   wg.addColorStop(0,"#3a8a78"); wg.addColorStop(0.45,"#2e7268"); wg.addColorStop(1,"#255e58");
   ctx.fillStyle=wg; ctx.fill();
 
-  ctx.save(); ctx.clip();
+  ctx.save();
+  clipWaterPolys(polys);
+  ctx.clip();
   if(typeof applyWaterPattern==="function") applyWaterPattern("water_river_v2",ox,oy,t,0.62,1.2);
   if(typeof applyWaterSimInClip==="function") applyWaterSimInClip("river",0.38,0.008);
   if(typeof tintWaterDepth==="function") tintWaterDepth(polys,riverScore,[6,30,26],[50,120,100]);
