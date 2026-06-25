@@ -270,29 +270,33 @@
     </div>
     <button type="button" class="menu-primary char-next-btn" id="btn-char-next">Dalej — wybór świata →</button>
   </div>
-  <div class="menu-panel hidden" id="menu-new">
+  <div class="menu-panel menu-panel-new hidden" id="menu-new">
     <button type="button" class="menu-back" id="btn-back">← Wróć</button>
     <h2>Nowa gra</h2>
     <p class="menu-sub">Wybierz biom i miejsce startu (podgląd na mapie)</p>
-    <div class="menu-field">
-      <span class="menu-label">Świat</span>
-      <label class="menu-world-toggle" for="chk-new-world">
-        <input type="checkbox" id="chk-new-world" checked />
-        <span>Wygeneruj nowy świat</span>
-      </label>
-      <p class="menu-preview menu-world-seed" id="world-seed-preview">—</p>
-      <button type="button" class="menu-secondary" id="btn-reroll-world">🎲 Inny seed</button>
+    <div class="menu-new-scroll">
+      <div class="menu-field">
+        <span class="menu-label">Świat</span>
+        <label class="menu-world-toggle" for="chk-new-world">
+          <input type="checkbox" id="chk-new-world" checked />
+          <span>Wygeneruj nowy świat</span>
+        </label>
+        <p class="menu-preview menu-world-seed" id="world-seed-preview">—</p>
+        <button type="button" class="menu-secondary" id="btn-reroll-world">🎲 Inny seed</button>
+      </div>
+      <div class="menu-field">
+        <span class="menu-label">Biom</span>
+        <div class="menu-choices" id="biome-choices"></div>
+      </div>
+      <div class="menu-field">
+        <span class="menu-label">Miejsce startu</span>
+        <div class="menu-choices menu-choices-col" id="spawn-choices"></div>
+      </div>
+      <p class="menu-preview" id="spawn-preview">—</p>
     </div>
-    <div class="menu-field">
-      <span class="menu-label">Biom</span>
-      <div class="menu-choices" id="biome-choices"></div>
+    <div class="menu-new-footer">
+      <button type="button" class="menu-primary" id="btn-start">Rozpocznij</button>
     </div>
-    <div class="menu-field">
-      <span class="menu-label">Miejsce startu</span>
-      <div class="menu-choices menu-choices-col" id="spawn-choices"></div>
-    </div>
-    <p class="menu-preview" id="spawn-preview">—</p>
-    <button type="button" class="menu-primary" id="btn-start">Rozpocznij</button>
   </div>
   <div class="menu-panel menu-panel-death hidden" id="menu-death">
     <h2 class="death-title" id="death-title">WYELIMINOWANY</h2>
