@@ -1,11 +1,10 @@
-/* people-sprites.js — GTA2 modular PNG pedestrians (relative paths, baked composites) */
+/* people-sprites.js — GTA2 modular PNG pedestrians (path probe, baked composites) */
 (function(global){
 "use strict";
 
-const BUILD=2026062701;
+const BUILD=2026062702;
 
-const META_URL="assets/people/gta2/meta.json";
-const ASSETS_BASE="assets/people/gta2/parts/bodies/";
+let resolvedRoot=null;
 
 const GO=global.Gta2Outfit;
 const LS=global.LivingSprite;
@@ -21,6 +20,31 @@ const BUILD_SCALE={
   stocky:{sx:1.08,sy:1.06},
   hardy:{sx:1.12,sy:1.08},
 };
+
+function candidateRoots(){
+  const roots=[];
+  if(typeof location!=="undefined"){
+    const path=location.pathname||"";
+    const m=path.match(/^(.*\/cursor\/topdown-city\/)/);
+    if(m) roots.push(m[1]);
+    const m2=path.match(/^(.*\/topdown\/)/);
+    if(m2){
+      roots.push(m2[1]);
+      roots.push(m2[1]+"cursor/topdown-city/");
+    }
+  }
+  roots.push("");
+  const out=[];
+  for(const r of roots){
+    const n=r.endsWith("/")?r:(r?r+"/":"");
+    if(!out.includes(n)) out.push(n);
+  }
+  return out;
+}
+
+function rootPrefix(){ return resolvedRoot!=null?resolvedRoot:""; }
+function metaUrl(){ return rootPrefix()+"assets/people/gta2/meta.json"; }
+function assetsBase(){ return rootPrefix()+"assets/people/gta2/parts/bodies/"; }
 
 function outfitKey(o){
   return [o.body,o.shirt,o.pants,o.skin,o.hair||"none"].join("|");
@@ -53,22 +77,25 @@ function getImg(path){
 
 function init(){
   if(loadP) return loadP;
-  loadP=fetch(META_URL+"?v="+BUILD)
-    .then(r=>{
-      if(!r.ok) throw new Error("meta:"+r.status+" "+META_URL);
-      return r.json();
-    })
-    .then(m=>{
-      meta=m;
-      ready=true;
-      warmDefault();
-      return m;
-    })
-    .catch(e=>{
-      console.warn("PeopleSprites meta load failed",e,META_URL);
-      ready=false;
-      throw e;
-    });
+  loadP=(async()=>{
+    let lastErr=null;
+    for(const root of candidateRoots()){
+      try{
+        const url=root+"assets/people/gta2/meta.json?v="+BUILD;
+        const r=await fetch(url);
+        if(!r.ok){ lastErr=new Error("meta:"+r.status+" "+url); continue; }
+        const m=await r.json();
+        if(resolvedRoot!==root) resolvedRoot=root;
+        meta=m;
+        ready=true;
+        warmDefault();
+        return m;
+      }catch(e){ lastErr=e; }
+    }
+    console.warn("PeopleSprites meta load failed",lastErr,metaUrl());
+    ready=false;
+    throw lastErr||new Error("meta load failed");
+  })();
   return loadP;
 }
 
@@ -137,7 +164,7 @@ function layerPaths(o, wf, direction){
   for(const k of order){
     const rel=map[k];
     if(!rel) continue;
-    out.push(ASSETS_BASE+b+"/"+rel+"/"+wf+"/"+direction+".png");
+    out.push(assetsBase()+b+"/"+rel+"/"+wf+"/"+direction+".png");
   }
   return out;
 }
