@@ -539,14 +539,21 @@ function roundaboutIslandR(i,j){
   return Math.max(6,R-rw*0.42);
 }
 function roundaboutObstacleR(i,j){
+  if(!isRoundabout(i,j)) return 0;
   const t=roundaboutType(i,j);
-  if(roundaboutPassable(t)) return 0;
   const Rin=roundaboutIslandR(i,j);
+  if(roundaboutPassable(t)) return Rin;
   if(t==="fountain") return Rin*0.62;
   if(t==="statue") return Rin*0.24;
   if(t==="planter") return Rin*0.50;
   if(t==="tree") return Rin*0.22;
   return Rin*0.45;
+}
+function roundaboutRingR(i,j){ return roundaboutR(i,j)+9; }
+function shouldUseRoundaboutRing(x,y,i,j){
+  if(!isRoundabout(i,j)) return false;
+  const A=node(i,j);
+  return Math.hypot(x-A[0],y-A[1]) < roundaboutRingR(i,j)+10;
 }
 function rbFillGrass(ax,ay,Rin){
   ctx.fillStyle="#3a6534"; ctx.beginPath(); ctx.arc(ax,ay,Rin,0,7); ctx.fill();

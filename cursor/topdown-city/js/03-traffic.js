@@ -130,7 +130,7 @@ function maintainPeds(){
 }
 const awayFromCam=(x,y)=>Math.hypot(x-cam.x,y-cam.y) > 720;
 function respawnTraffic(c){ let n; for(let k=0;k<24;k++){ n=spawnTrafficCar(); if(awayFromCam(n.x,n.y)) break; } Object.assign(c,n); }
-function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); delete p._faceDir; delete p._lastSpriteDir; delete p._gta2Outfit; }
+function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); delete p._faceDir; delete p._lastSpriteDir; delete p._gta2Outfit; delete p.ring; }
 
 function isAhead(c,dx,dy,ox,oy,dist,lat){
   const rx=ox-c.x, ry=oy-c.y, fwd=rx*dx+ry*dy, side=Math.abs(rx*(-dy)+ry*dx);
@@ -233,16 +233,48 @@ function pickExit(ai,aj,bi,bj){                 // next node at B, no U-turn unl
   }
   return ns[(rng()*ns.length)|0];
 }
-function enterRoundabout(c){
-  const ctr=node(c.bi,c.bj), R=roundaboutR(c.bi,c.bj), A=node(c.ai,c.aj);
-  const ex=pickExit(c.ai,c.aj,c.bi,c.bj);
-  const g=edgeGeom(c.bi,c.bj,ex[0],ex[1]);                              // find (bisection) where the exit edge crosses the ring radius -> exit point lies exactly ON the edge
+function enterRoundabout(c, ri, rj, fromAi, fromAj, forceEx){
+  ri=ri!=null?ri:c.bi; rj=rj!=null?rj:c.bj;
+  fromAi=fromAi!=null?fromAi:c.ai; fromAj=fromAj!=null?fromAj:c.aj;
+  const ctr=node(ri,rj), R=roundaboutR(ri,rj);
+  const ex=forceEx||pickExit(fromAi,fromAj,ri,rj);
+  const g=edgeGeom(ri,rj,ex[0],ex[1]);
   const RR=(R+9)*(R+9); let lo=0, hi=0.55;
   for(let s=0;s<22;s++){ const mt=(lo+hi)*0.5, pp=bez(g.p0,g.cp,g.p1,mt); if((pp[0]-ctr[0])*(pp[0]-ctr[0])+(pp[1]-ctr[1])*(pp[1]-ctr[1])<RR) lo=mt; else hi=mt; }
   const et=(lo+hi)*0.5, cx=bez(g.p0,g.cp,g.p1,et);
-  const curAng=Math.atan2(c.y-ctr[1],c.x-ctr[0]);                       // enter ring at the car's current angle (no jump)
-  c.ring={ ci:c.bi, cj:c.bj, R, ang:isFinite(curAng)?curAng:Math.atan2(A[1]-ctr[1],A[0]-ctr[0]),
+  const curAng=Math.atan2(c.y-ctr[1],c.x-ctr[0]);
+  c.ring={ ci:ri, cj:rj, R, ang:isFinite(curAng)?curAng:Math.atan2(ctr[1]-node(fromAi,fromAj)[1],ctr[0]-node(fromAi,fromAj)[0]),
            exitAng:Math.atan2(cx[1]-ctr[1],cx[0]-ctr[0]), exT:Math.min(0.5,et), ex, dir:1 };
+}
+function enterPedRoundabout(p, ri, rj, fromAi, fromAj, forceEx){
+  ri=ri!=null?ri:p.pb[0]; rj=rj!=null?rj:p.pb[1];
+  fromAi=fromAi!=null?fromAi:p.pa[0]; fromAj=fromAj!=null?fromAj:p.pa[1];
+  const ctr=node(ri,rj), R=roundaboutR(ri,rj);
+  const ex=forceEx||pickExit(fromAi,fromAj,ri,rj);
+  const g=edgeGeom(ri,rj,ex[0],ex[1]);
+  const RR=(R+9)*(R+9); let lo=0, hi=0.55;
+  for(let s=0;s<22;s++){ const mt=(lo+hi)*0.5, pp=bez(g.p0,g.cp,g.p1,mt); if((pp[0]-ctr[0])*(pp[0]-ctr[0])+(pp[1]-ctr[1])*(pp[1]-ctr[1])<RR) lo=mt; else hi=mt; }
+  const et=(lo+hi)*0.5, cx=bez(g.p0,g.cp,g.p1,et);
+  const curAng=Math.atan2(p.y-ctr[1],p.x-ctr[0]);
+  const sw=nodeMaxWidth(ri,rj)*0.5+12;
+  p.ring={ ci:ri, cj:rj, R, sw, ang:isFinite(curAng)?curAng:0,
+           exitAng:Math.atan2(cx[1]-ctr[1],cx[0]-ctr[0]), exT:Math.min(0.5,et), ex, dir:p.pside>=0?1:-1 };
+  p.cross=0; p._wait=false;
+}
+function updatePedRoundabout(p,dt){
+  const r=p.ring, ctr=node(r.ci,r.cj);
+  const step=p.speed*dt/Math.max(20,r.R);
+  r.ang+=r.dir*step;
+  const rad=r.R+(r.sw||14)*0.35;
+  p.x=ctr[0]+Math.cos(r.ang)*rad;
+  p.y=ctr[1]+Math.sin(r.ang)*rad;
+  if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,-Math.sin(r.ang)*r.dir,Math.cos(r.ang)*r.dir);
+  else p.a=Math.atan2(Math.cos(r.ang)*r.dir,-Math.sin(r.ang)*r.dir);
+  let d=r.exitAng-r.ang; while(d<0)d+=Math.PI*2; while(d>=Math.PI*2)d-=Math.PI*2;
+  if(d<step*1.5){
+    p.pa=[r.ci,r.cj]; p.pb=r.ex; p.pt=r.exT!=null?r.exT:0.1;
+    p.ring=null; pedPickSide(p); pedSyncPos(p);
+  }
 }
 function updateRoundabout(c,dt){
   const r=c.ring, ctr=node(r.ci,r.cj);
@@ -314,7 +346,8 @@ function pedStartCross(p){ const g=edgeGeom(p.pa[0],p.pa[1],p.pb[0],p.pb[1]);
 function pedDecide(p){
   if(typeof isMarketNode==="function"&&isMarketNode(p.pb[0],p.pb[1])&&rng()<0.78){ pedEnterRynek(p); return; }
   if(isPlaza(p.pb[0],p.pb[1]) && rng()<0.7){ pedEnterPlaza(p); return; }
-  if(!isRoundabout(p.pb[0],p.pb[1]) && rng()<0.42){                                   // cross to the opposite sidewalk at this crosswalk
+  if(isRoundabout(p.pb[0],p.pb[1])){ enterPedRoundabout(p); return; }
+  if(rng()<0.42){                                   // cross to the opposite sidewalk at this crosswalk
     p.waitAxis=(p.pb[1]===p.pa[1])?0:1; p._wait=true; p.waitT=0;
     p.pt=clamp(1-(nodeMaxWidth(p.pb[0],p.pb[1])*0.52+8)/Math.max(40,edgeGeom(p.pa[0],p.pa[1],p.pb[0],p.pb[1]).e.len),0.55,0.96);
     pedSyncPos(p);
@@ -323,6 +356,7 @@ function pedDecide(p){
   pedPickTurn(p);
 }
 function pedWalkGraph(p,dt){
+  if(p.ring){ updatePedRoundabout(p,dt); return; }
   if(p.cross){
     p.crossProg += dt*p.speed/Math.max(28,p.crossW);
     if(p.crossProg>=1){ p.pside=-p.pside; p.cross=0; pedSyncPos(p); return; }
@@ -343,6 +377,9 @@ function pedWalkGraph(p,dt){
     return;
   }
   const B=pedBasis(p);
+  if(isRoundabout(p.pb[0],p.pb[1]) && shouldUseRoundaboutRing(p.x,p.y,p.pb[0],p.pb[1])){
+    enterPedRoundabout(p); return;
+  }
   p.pt += dt*p.speed/Math.max(24,B.g.e.len);
   if(p.pt>=1){ p.pt=1; pedDecide(p); pedSyncPos(p); return; }
   const pos=pedPos(p,B); p.x=pos[0]; p.y=pos[1];
@@ -354,6 +391,9 @@ function updateTrafficCar(c,dt){
   if(c.state==="loose"){ updateLooseCar(c,dt); return; }
   if(c.ring){ updateRoundabout(c,dt); }
   else {
+    if(isRoundabout(c.ai,c.aj) && shouldUseRoundaboutRing(c.x,c.y,c.ai,c.aj)){
+      enterRoundabout(c, c.ai, c.aj, c.bi, c.bj, [c.bi,c.bj]); return;
+    }
     const g=edgeGeom(c.ai,c.aj,c.bi,c.bj);
     const tn=bezTan(g.p0,g.cp,g.p1,c.t), tl=Math.hypot(tn[0],tn[1])||1, fx=tn[0]/tl, fy=tn[1]/tl;
     const edgeKey=c.ai+","+c.aj+","+c.bi+","+c.bj;
@@ -395,7 +435,7 @@ function updateTrafficCar(c,dt){
         if(seg<1e-6){ c.t=nt; continue; } if(seg<=budget){ budget-=seg; c.t=nt; pp=np; } else { c.t+=0.025*(budget/seg); budget=0; } } }
     if(redLight && c.t>stopT){ c.t=stopT; c.speed=0; targetSpeed=0; }
     const rbN=isRoundabout(c.bi,c.bj);
-    if(rbN && (c.t>=1 || Math.hypot(c.x-node(c.bi,c.bj)[0],c.y-node(c.bi,c.bj)[1]) < roundaboutR(c.bi,c.bj)+12)){
+    if(rbN && (c.t>=1 || shouldUseRoundaboutRing(c.x,c.y,c.bi,c.bj))){
       enterRoundabout(c);
     } else if(c.t>=1){
       const nb=pickExit(c.ai,c.aj,c.bi,c.bj); c.ai=c.bi; c.aj=c.bj; c.bi=nb[0]; c.bj=nb[1]; c.t=0;
