@@ -4,8 +4,8 @@
 
 **https://pgodlewskigiho.github.io/topdown/cursor/topdown-city/**
 
-Po wejściu dodaj `?v=2026062702` jeśli widzisz 404 lub stare pliki:  
-**https://pgodlewskigiho.github.io/topdown/cursor/topdown-city/?v=2026062702**
+Po wejściu dodaj `?v=2026062703` jeśli widzisz 404 lub stare pliki:  
+**https://pgodlewskigiho.github.io/topdown/cursor/topdown-city/?v=2026062703**
 
 Krótki link z roota repo (`/topdown/`) przekierowuje automatycznie do gry.
 
@@ -52,5 +52,5 @@ cursor/topdown-city/     ← gra (index.html, js/, assets/)
 | Objaw | Rozwiązanie |
 |--------|-------------|
 | 404 na `assets/people/gta2/...` | Wejdź przez **cursor/topdown-city/** (nie samo `/topdown/`) |
-| Stare sprite'y / brak obrotu | Ctrl+Shift+R lub `?v=2026062702` |
+| Stare sprite'y / brak obrotu | Ctrl+Shift+R lub `?v=2026062703` |
 | URL `/topdown/` bez gry | Root przekierowuje do `cursor/topdown-city/` |

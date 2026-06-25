@@ -1,8 +1,8 @@
-/* people-sprites.js — GTA2 modular PNG pedestrians (path probe, baked composites) */
+/* people-sprites.js — GTA2 modular PNG pedestrians (per-dir layers, baked fallback) */
 (function(global){
 "use strict";
 
-const BUILD=2026062702;
+const BUILD=2026062703;
 
 let resolvedRoot=null;
 
@@ -25,15 +25,16 @@ function candidateRoots(){
   const roots=[];
   if(typeof location!=="undefined"){
     const path=location.pathname||"";
+    if(path.includes("cursor/topdown-city")) roots.push("");
     const m=path.match(/^(.*\/cursor\/topdown-city\/)/);
     if(m) roots.push(m[1]);
     const m2=path.match(/^(.*\/topdown\/)/);
     if(m2){
-      roots.push(m2[1]);
       roots.push(m2[1]+"cursor/topdown-city/");
+      roots.push(m2[1]);
     }
   }
-  roots.push("");
+  if(!roots.includes("")) roots.push("");
   const out=[];
   for(const r of roots){
     const n=r.endsWith("/")?r:(r?r+"/":"");
@@ -85,7 +86,10 @@ function init(){
         const r=await fetch(url);
         if(!r.ok){ lastErr=new Error("meta:"+r.status+" "+url); continue; }
         const m=await r.json();
-        if(resolvedRoot!==root) resolvedRoot=root;
+        if(resolvedRoot!==root){
+          resolvedRoot=root;
+          for(const k in baked) delete baked[k];
+        }
         meta=m;
         ready=true;
         warmDefault();
@@ -207,6 +211,33 @@ function buildMul(o, p){
 
 function clamp(v,a,b){ return v<a?a:v>b?b:v; }
 
+function pickDrawDir(p, forced){
+  const isPlayer=typeof ped!=="undefined"&&p===ped&&typeof mode!=="undefined"&&mode==="foot";
+  if(LS&&LS.spriteDir){
+    const live=LS.spriteDir(p, isPlayer&&typeof keys!=="undefined"?{keys,isPlayer:true}:{});
+    if(live) return live;
+  }
+  if(forced&&typeof forced==="string") return forced;
+  if(p._faceDir) return p._faceDir;
+  if(p._spriteDir) return p._spriteDir;
+  return "S";
+}
+
+function drawDirLayers(c, o, wf, dir, ax, ay, sx, sy, bm){
+  const paths=layerPaths(o, wf, dir);
+  let drew=false;
+  for(const path of paths){
+    const im=getImg(path);
+    if(!im){
+      queueImg(path);
+      continue;
+    }
+    drew=true;
+    c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
+  }
+  return drew;
+}
+
 function dirAngle(dir){
   if(!LS||!LS.DIR) return Math.PI/2;
   const i=LS.DIR.indexOf(dir);
@@ -225,7 +256,9 @@ function drawComposite(c, p, down, forcedDir){
   c.imageSmoothingEnabled=false;
 
   const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down):"walk0";
-  const dir=(forcedDir&&typeof forcedDir==="string")?forcedDir:"S";
+  const dir=pickDrawDir(p, forcedDir);
+  p._spriteDir=dir;
+  p._faceDir=dir;
   prefetchOutfit(o, wf, dir);
 
   const ang=dirAngle(dir);
@@ -235,18 +268,10 @@ function drawComposite(c, p, down, forcedDir){
   c.fillRect(-8*sc, 3*sc, 16*sc, 4*sc);
   c.restore();
 
-  const bakedIm=getBaked(o, wf, dir);
-  if(bakedIm){
-    c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
-  } else {
-    let drew=false;
-    for(const path of layerPaths(o, wf, dir)){
-      const im=getImg(path);
-      if(!im) continue;
-      drew=true;
-      c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
-    }
-    if(!drew) return;
+  if(!drawDirLayers(c, o, wf, dir, ax, ay, sx, sy, bm)){
+    const bakedIm=getBaked(o, wf, dir);
+    if(bakedIm) c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
+    else return;
   }
 
   if(down){
