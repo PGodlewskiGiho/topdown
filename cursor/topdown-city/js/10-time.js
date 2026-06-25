@@ -56,10 +56,17 @@ function drawBlockGrounds(ox,oy){
     // 1) grass courtyard base filling the whole band
     ctx.fillStyle="#3b5a2a"; ctx.fillRect(x-BAND,y-BAND,w+BAND*2,h+BAND*2);
     ctx.fillStyle="#43662f"; ctx.fillRect(x-BAND+2,y-BAND+2,w+BAND*2-4,h+BAND*2-4);
-    // subtle mottling so the lawn isn't a flat block
-    for(let k=0;k<10;k++){ ctx.fillStyle=rng()<0.5?"#3d5d2b":"#4a7034";
-      const mx=x-BAND+rng()*(w+BAND*2), my=y-BAND+rng()*(h+BAND*2);
-      ctx.beginPath(); ctx.ellipse(mx,my,8+rng()*10,5+rng()*7,0,0,7); ctx.fill(); }
+    const lawnVars=["clump_small","clump_med","clump_wispy"];
+    if(typeof drawGrassClumpSprite==="function"&&typeof FOREST_GRASS!=="undefined"&&FOREST_GRASS.ready){
+      for(let k=0;k<22;k++){
+        const mx=x-BAND+rng()*(w+BAND*2), my=y-BAND+rng()*(h+BAND*2);
+        drawGrassClumpSprite(mx,my,5+rng()*4,lawnVars[(rng()*lawnVars.length)|0]);
+      }
+    } else {
+      for(let k=0;k<10;k++){ ctx.fillStyle=rng()<0.5?"#3d5d2b":"#4a7034";
+        const mx=x-BAND+rng()*(w+BAND*2), my=y-BAND+rng()*(h+BAND*2);
+        ctx.beginPath(); ctx.ellipse(mx,my,8+rng()*10,5+rng()*7,0,0,7); ctx.fill(); }
+    }
     // 2) a paved walkway loop hugging the wall (where residents walk), lighter slabs
     const pw0=10;                                                   // walkway width
     ctx.fillStyle="#9a917f";

@@ -1290,6 +1290,14 @@ function drawForestGrassClump(x,y,s,v){
   ctx.imageSmoothingEnabled=sm;
   return true;
 }
+function drawGrassClumpSprite(x,y,s,v){ return drawForestGrassClump(x,y,s,v); }
+window.drawGrassClumpSprite=drawGrassClumpSprite;
+function grassVariantsForDraw(L){
+  if(L.biome==="forest") return FOREST_GRASS._forest||(FOREST_GRASS._forest=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"]);
+  if(L.cemetery) return FOREST_GRASS._park||(FOREST_GRASS._park=["clump_med","clump_large","clump_mossy","clump_wispy","patch_moss"]);
+  if(L.zone==="suburb") return FOREST_GRASS._lawn||(FOREST_GRASS._lawn=["clump_small","clump_med","clump_wispy","clump_dense"]);
+  return FOREST_GRASS._lawn||(FOREST_GRASS._lawn=["clump_small","clump_med","clump_wispy","clump_dense"]);
+}
 const GRASS_TONE=["rgba(26,56,20,.96)","rgba(46,92,36,.96)","rgba(80,146,58,.95)","rgba(120,184,86,.95)"];
 function drawClump(x,y,s){
   const h=(n)=>{ const v=Math.sin(x*12.9898+y*78.233+n*37.17)*43758.5453; return v-(v|0); };
@@ -1303,14 +1311,14 @@ function drawClump(x,y,s){
   }
 }
 function drawGrassDetail(L){
-  if(VW>2200) return;                                            // grass invisible when far out: skip entirely
+  if(VW>2400) return;
   const cl=cam.x-VW/2-20, cr=cam.x+VW/2+20, ct=cam.y-VH/2-20, cb=cam.y+VH/2+20;
-  const useForest=L.biome==="forest"&&FOREST_GRASS.ready;
-  const fKeys=useForest?(FOREST_GRASS._keys||(FOREST_GRASS._keys=Object.keys(FOREST_GRASS.meta?.variants||{}))):null;
+  const usePng=FOREST_GRASS.ready;
+  const lotVars=grassVariantsForDraw(L);
   for(const t of L.tufts){
     if(t.x<cl||t.x>cr||t.y<ct||t.y>cb) continue;
-    if(useForest){
-      const vk=t.v||fKeys[(((t.x*73856093)^(t.y*19349663))>>>0)%fKeys.length];
+    if(usePng){
+      const vk=t.v||lotVars[(((t.x*73856093)^(t.y*19349663))>>>0)%lotVars.length];
       if(!drawForestGrassClump(t.x,t.y,t.s,vk)) drawClump(t.x,t.y,t.s);
     } else drawClump(t.x,t.y,t.s);
   }

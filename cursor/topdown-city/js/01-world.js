@@ -564,12 +564,21 @@ function drawRoundaboutIsland(ax,ay,Rin,i,j,rbType){
   const seed=hsh(i,j,93);
   if(rbType==="grass"||rbType==="meadow"){
     rbFillGrass(ax,ay,Rin);
-    const n=rbType==="meadow"?6:4;
-    for(let k=0;k<n;k++){
-      const ang=seed*6.283+k*2.09, rad=Rin*(0.18+(hsh(i,j,940+k)*0.48));
-      const fx=ax+Math.cos(ang)*rad, fy=ay+Math.sin(ang)*rad*0.88, sz=1.2+hsh(i,j,950+k)*1.8;
-      ctx.fillStyle=rbType==="meadow"?(k%3?"#c8d858":"#e8b848"):"#8ec868";
-      ctx.beginPath(); ctx.arc(fx,fy,sz,0,7); ctx.fill();
+    const n=rbType==="meadow"?10:7;
+    const rbVars=rbType==="meadow"?PARK_GRASS_VARIANTS:LAWN_GRASS_VARIANTS;
+    if(typeof drawGrassClumpSprite==="function"&&typeof FOREST_GRASS!=="undefined"&&FOREST_GRASS.ready){
+      for(let k=0;k<n;k++){
+        const ang=seed*6.283+k*2.09, rad=Rin*(0.14+(hsh(i,j,940+k)*0.52));
+        const fx=ax+Math.cos(ang)*rad, fy=ay+Math.sin(ang)*rad*0.88;
+        drawGrassClumpSprite(fx,fy,5+hsh(i,j,950+k)*5, rbVars[hsh(i,j,960+k)%rbVars.length]);
+      }
+    } else {
+      for(let k=0;k<(rbType==="meadow"?6:4);k++){
+        const ang=seed*6.283+k*2.09, rad=Rin*(0.18+(hsh(i,j,940+k)*0.48));
+        const fx=ax+Math.cos(ang)*rad, fy=ay+Math.sin(ang)*rad*0.88, sz=1.2+hsh(i,j,950+k)*1.8;
+        ctx.fillStyle=rbType==="meadow"?(k%3?"#c8d858":"#e8b848"):"#8ec868";
+        ctx.beginPath(); ctx.arc(fx,fy,sz,0,7); ctx.fill();
+      }
     }
     if(rbType==="meadow") for(let k=0;k<3;k++){ const ang=k*2.09+seed, rad=Rin*0.32;
       ctx.fillStyle="#2a5028"; ctx.beginPath(); ctx.arc(ax+Math.cos(ang)*rad,ay+Math.sin(ang)*rad*0.9,2,0,7); ctx.fill(); }
@@ -1519,7 +1528,7 @@ function addGardens(lot, r){
     if(b.type!=="house" || b.church || r()>0.62) continue;              // gardens around most (not all) houses (never churches)
     const cx=b.x+b.w/2, cy=b.y+b.h/2, hr=Math.max(b.w,b.h)*0.5, reach=24+r()*34;
     for(let k=0;k<8+(r()*8|0);k++){ const a=r()*6.283, d=hr+4+r()*reach;   // ring of lush grass clumps
-      const x=cx+Math.cos(a)*d, y=cy+Math.sin(a)*d*0.9; if(free(x,y,3)) lot.tufts.push({x,y,s:6+r()*5}); }
+      const x=cx+Math.cos(a)*d, y=cy+Math.sin(a)*d*0.9; if(free(x,y,3)) lot.tufts.push({x,y,s:6+r()*5,v:pickGrassVariant(LAWN_GRASS_VARIANTS,r)}); }
     const pc=1+(r()*3|0); for(let q=0;q<pc;q++){ const ca=r()*6.283, cd=hr+10+r()*reach*0.8;   // flower beds
       const fx=cx+Math.cos(ca)*cd, fy=cy+Math.sin(ca)*cd*0.9, col=["#e8d24a","#e07a9a","#c95ad8","#f0f0f0","#e88a3a","#6aa3e0"][(r()*6)|0];
       for(let k=0;k<5+(r()*7|0);k++){ const x=fx+(r()-0.5)*18, y=fy+(r()-0.5)*14; if(free(x,y,2)) lot.flowers.push({x,y,c:col}); } }
@@ -1719,8 +1728,17 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=39;
+const LOT_CACHE_VER=40;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
+const LAWN_GRASS_VARIANTS=["clump_small","clump_med","clump_wispy","clump_dense"];
+const PARK_GRASS_VARIANTS=["clump_med","clump_large","clump_mossy","clump_wispy","patch_moss"];
+function grassVariantsForLot(lot,biome){
+  if(biome==="forest") return FOREST_GRASS_VARIANTS;
+  if(lot.cemetery) return PARK_GRASS_VARIANTS;
+  if(lot.zone==="suburb") return LAWN_GRASS_VARIANTS;
+  return LAWN_GRASS_VARIANTS;
+}
+function pickGrassVariant(vars,r){ return vars[(r()*vars.length)|0]; }
 const DESERT_FLOOR_VARIANTS=["ripple_light","ripple_dark","dune_crest","cracked_earth","salt_patch","pebble_cluster","sage_bush","dry_grass"];
 const DESERT_FLORA=["sage","tumbleweed","driftwood","bone","pebble","crack","salt_crust"];
 
@@ -2021,7 +2039,7 @@ function getLot(i,j){
     for(let k=0;k<6;k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:18+r()*42, ph:r()*6.28});
   } else if(lot.mountain){
     for(let k=0;k<10;k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1.4+r()*3});
-  } else if((lot.empty||lot.zone==="suburb") && !lot.salon && !lot.gunshop && !lot.water && !lot.farm){
+  } else if((lot.empty||lot.zone==="suburb"||lot.cemetery) && !lot.salon && !lot.gunshop && !lot.water && !lot.farm){
     if(biome==="desert"){
       for(let k=0;k<14+(r()*10|0);k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1+r()*2.8});
       for(let k=0;k<8+(r()*7|0);k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:38+r()*72, a:(r()-0.5)*1.2});
@@ -2030,10 +2048,18 @@ function getLot(i,j){
       for(let k=0;k<9;k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1+r()*2.4});
       for(let k=0;k<5;k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:34+r()*64, a:(r()-0.5)*1.2});
     } else {
-      const dense=biome==="forest"; const nt=dense?(118+(r()*82|0)):(5+(r()*5|0));
+      const dense=biome==="forest";
+      const gvars=grassVariantsForLot(lot,biome);
+      let nt;
+      if(dense) nt=118+(r()*82|0);
+      else if(lot.cemetery) nt=42+(r()*34|0);
+      else if(lot.zone==="suburb") nt=30+(r()*24|0);
+      else if(biome==="city") nt=14+(r()*16|0);
+      else nt=20+(r()*18|0);
       for(let k=0;k<nt;k++){
-        const x=left+r()*lw, y=top+r()*lh, s=dense?(6+r()*12):(5+r()*4);
-        lot.tufts.push(dense?{x,y,s,v:FOREST_GRASS_VARIANTS[(r()*FOREST_GRASS_VARIANTS.length)|0]}:{x,y,s});
+        const x=left+r()*lw, y=top+r()*lh;
+        const s=dense?(6+r()*12):(lot.zone==="suburb"?5.5+r()*5:5+r()*4.5);
+        lot.tufts.push({x,y,s,v:pickGrassVariant(gvars,r)});
       }
       if(dense||lot.zone==="forest"){
         genForestFloor(lot,r,left,top,lw,lh,i,j);
