@@ -177,23 +177,33 @@ function updateTrafficDrivePhysics(c, g, fx, fy, targetX, targetY, targetSpeed, 
   if(c.vy==null) c.vy=fy*cruisePx*0.4;
   const body=driveVelBody(c.vx, c.vy, c.a);
   let fwd=body.f, lat=body.l;
-  const desiredA=Math.atan2(fy, fx);
+  let desiredA=Math.atan2(fy, fx);
   const dx=targetX-c.x, dy=targetY-c.y, dist=Math.hypot(dx, dy);
-  const steerIn=driveTrafficSteer(c, desiredA, dist, dt);
+  const laneOff=c._laneOff||0;
+  const laneWant=c._laneWant!=null?c._laneWant:laneOff;
+  const laneDelta=Math.abs(laneOff-laneWant);
+  const laneActive=(c._laneChangeT||0)>0.05 || laneDelta>3;
+  if(laneActive && dist>2){
+    const bearingA=Math.atan2(dy, dx);
+    const laneBlend=clamp(laneDelta/24, 0, 0.82)*((c._laneChangeT||0)>0?1:0.55);
+    desiredA+=driveNormAng(bearingA-desiredA)*laneBlend;
+  }
+  const steerIn=driveTrafficSteer(c, desiredA, dist, dt, laneActive);
   const accel=420*dt;
   if(cruisePx>Math.abs(fwd)) fwd+=Math.min(cruisePx-Math.abs(fwd), accel)*Math.sign(cruisePx||1);
   else fwd+=Math.sign(cruisePx-fwd)*Math.min(Math.abs(cruisePx-fwd), 560*dt);
-  if(Math.abs(fwd)>DRIVE_STEER_MIN_FWD||Math.abs(fwd)>8) c.a+=driveYawFromSteer(steerIn, fwd, 0.82, dt, false);
+  if(Math.abs(fwd)>DRIVE_STEER_MIN_FWD||Math.abs(fwd)>8) c.a+=driveYawFromSteer(steerIn, fwd, laneActive?0.95:0.82, dt, false);
   lat=driveApplyLatGrip(lat, fwd, 1, dt, 0.78, 10.5, 11.2);
   const out=driveVelFromBody(fwd, lat, c.a);
   c.vx=out.vx; c.vy=out.vy;
   const px=c.x, py=c.y;
   c.x+=c.vx*dt; c.y+=c.vy*dt;
-  if(dist>16){
-    const pull=clamp((dist-16)*0.06*dt, 0, 0.10);
-    c.x+=dx*pull; c.y+=dy*pull;
+  const along=dx*fx+dy*fy;
+  if(along>18){
+    const pull=clamp((along-18)*0.05*dt, 0, 0.09);
+    c.x+=fx*pull; c.y+=fy*pull;
   }
-  driveHeadingFromMotion(c, desiredA, dt);
+  driveHeadingFromMotion(c, desiredA, dt, laneActive);
   if(Math.hypot(c.x-px, c.y-py)<0.4 && cruisePx>20){
     c.x+=fx*cruisePx*dt*0.15;
     c.y+=fy*cruisePx*dt*0.15;
@@ -278,6 +288,13 @@ function pedPos(p,B){ B=B||pedBasis(p);
   const s = p.cross? p.pside*(1-2*p.crossProg) : p.pside;
   return [B.pt[0]+B.nx*B.off*s, B.pt[1]+B.ny*B.off*s];
 }
+function pedSyncPos(p){ const pos=pedPos(p); p.x=pos[0]; p.y=pos[1]; }
+function pedPickSide(p){
+  const B=pedBasis(p);
+  const d1=Math.hypot(B.pt[0]+B.nx*B.off-p.x, B.pt[1]+B.ny*B.off-p.y);
+  const d2=Math.hypot(B.pt[0]-B.nx*B.off-p.x, B.pt[1]-B.ny*B.off-p.y);
+  p.pside=d1<=d2?1:-1;
+}
 function pedPickTurn(p){
   const at=p.pb, from=p.pa;
   let nb=neighbors(at[0],at[1]).filter(n=>!(n[0]===from[0]&&n[1]===from[1]));
@@ -285,6 +302,8 @@ function pedPickTurn(p){
   if(!nb.length){ p.onGraph=false; p.tx=p.x; p.ty=p.y; return; }
   const nx=nb[(rng()*nb.length)|0];
   p.pa=[at[0],at[1]]; p.pb=nx; p.pt=0; p._wait=false; p.cross=0;
+  pedPickSide(p);
+  pedSyncPos(p);
 }
 function pedClear(p){ const c=node(p.pb[0],p.pb[1]);
   for(const t of traffic){ if((t.state==="drive"||t.state==="loose")&&Math.hypot(t.x-c[0],t.y-c[1])<58) return false; }
@@ -295,9 +314,10 @@ function pedStartCross(p){ const g=edgeGeom(p.pa[0],p.pa[1],p.pb[0],p.pb[1]);
 function pedDecide(p){
   if(typeof isMarketNode==="function"&&isMarketNode(p.pb[0],p.pb[1])&&rng()<0.78){ pedEnterRynek(p); return; }
   if(isPlaza(p.pb[0],p.pb[1]) && rng()<0.7){ pedEnterPlaza(p); return; }
-  if(rng()<0.42){                                   // cross to the opposite sidewalk at this crosswalk
+  if(!isRoundabout(p.pb[0],p.pb[1]) && rng()<0.42){                                   // cross to the opposite sidewalk at this crosswalk
     p.waitAxis=(p.pb[1]===p.pa[1])?0:1; p._wait=true; p.waitT=0;
     p.pt=clamp(1-(nodeMaxWidth(p.pb[0],p.pb[1])*0.52+8)/Math.max(40,edgeGeom(p.pa[0],p.pa[1],p.pb[0],p.pb[1]).e.len),0.55,0.96);
+    pedSyncPos(p);
     return;
   }
   pedPickTurn(p);
@@ -305,7 +325,7 @@ function pedDecide(p){
 function pedWalkGraph(p,dt){
   if(p.cross){
     p.crossProg += dt*p.speed/Math.max(28,p.crossW);
-    if(p.crossProg>=1){ p.pside=-p.pside; p.cross=0; pedPickTurn(p); return; }
+    if(p.crossProg>=1){ p.pside=-p.pside; p.cross=0; pedSyncPos(p); return; }
     const pos=pedPos(p); p.a=Math.atan2(pos[1]-p.y,pos[0]-p.x)||p.a; p.x=pos[0]; p.y=pos[1]; return;
   }
   if(p._wait){
@@ -318,7 +338,7 @@ function pedWalkGraph(p,dt){
   }
   const B=pedBasis(p);
   p.pt += dt*p.speed/Math.max(24,B.g.e.len);
-  if(p.pt>=1){ p.pt=1; pedDecide(p); return; }
+  if(p.pt>=1){ p.pt=1; pedDecide(p); pedSyncPos(p); return; }
   const pos=pedPos(p,B); p.x=pos[0]; p.y=pos[1]; p.a=Math.atan2(B.fy,B.fx);
 }
 function updateTrafficCar(c,dt){
@@ -372,6 +392,12 @@ function updateTrafficCar(c,dt){
     } else if(c.t>=1){
       const nb=pickExit(c.ai,c.aj,c.bi,c.bj); c.ai=c.bi; c.aj=c.bj; c.bi=nb[0]; c.bj=nb[1]; c.t=0;
       c.laneIdx=null; c.laneSide=null; c._edgeKey=null; c._laneWant=null; c._laneHome=null;
+      const g2=edgeGeom(c.ai,c.aj,c.bi,c.bj);
+      const tn3=bezTan(g2.p0,g2.cp,g2.p1,0), tl3=Math.hypot(tn3[0],tn3[1])||1;
+      const newA=Math.atan2(tn3[1],tn3[0]);
+      c.a+=driveNormAng(newA-c.a)*0.4;
+      const sp=Math.hypot(c.vx,c.vy);
+      c.vx=tn3[0]/tl3*sp; c.vy=tn3[1]/tl3*sp;
     } else {
       const tn2=bezTan(g.p0,g.cp,g.p1,c.t), tl2=Math.hypot(tn2[0],tn2[1])||1, fx2=tn2[0]/tl2, fy2=tn2[1]/tl2;
       const nodeBlend=Math.min(c.t/0.10, (1-c.t)/0.10, 1);
@@ -481,7 +507,7 @@ function updateNpcPed(p,dt){
     if(p.plaza){                                                        // free roam inside a plaza, then rejoin the graph
       p.plazaT-=dt;
       if(p.plazaT<=0){ const nb=neighbors(p.plaza.i,p.plaza.j);
-        if(nb.length){ p.pa=[p.plaza.i,p.plaza.j]; p.pb=nb[(rng()*nb.length)|0]; p.pt=0; p.onGraph=true; p.plaza=null; }
+        if(nb.length){ p.pa=[p.plaza.i,p.plaza.j]; p.pb=nb[(rng()*nb.length)|0]; p.pt=0; p.onGraph=true; p.plaza=null; pedPickSide(p); pedSyncPos(p); }
         else p.plazaT=3; }
     }
     p.repick-=dt;

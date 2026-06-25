@@ -67,20 +67,22 @@ function driveLerpLaneOff(c, targetOff, dt){
   const k=1-Math.exp(-5.2*dt);
   c._laneOff=(c._laneOff||0)+(targetOff-(c._laneOff||0))*k;
 }
-function driveTrafficSteer(c, desiredA, distToTarget, dt){
+function driveTrafficSteer(c, desiredA, distToTarget, dt, laneActive){
   let steer=driveNormAng(desiredA-c.a);
   if(distToTarget>6){
-    const pull=clamp(distToTarget/36, 0, 0.42);
+    const pull=clamp(distToTarget/36, 0, laneActive?0.62:0.42);
     steer*=0.55+pull;
   }
-  return clamp(steer/0.48, -1, 1);
+  return clamp(steer/(laneActive?0.38:0.48), -1, 1);
 }
-function driveHeadingFromMotion(c, desiredA, dt){
+function driveHeadingFromMotion(c, desiredA, dt, laneActive){
   const mv=Math.hypot(c.vx, c.vy);
   if(mv>12){
     const va=Math.atan2(c.vy, c.vx);
     let da=driveNormAng(va-c.a);
-    if(Math.abs(da)<1.15) c.a+=da*Math.min(1, 11*dt);
+    if(laneActive){
+      if(Math.abs(da)<1.65) c.a+=da*Math.min(1, 10*dt);
+    } else if(Math.abs(da)<1.15) c.a+=da*Math.min(1, 11*dt);
     else c.a=desiredA;
   } else c.a=desiredA;
 }
