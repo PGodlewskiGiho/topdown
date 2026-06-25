@@ -305,6 +305,8 @@ function entitySpriteDir(p){
   const opts={};
   const isPlayer=typeof ped!=="undefined"&&p===ped&&typeof mode!=="undefined"&&mode==="foot";
   if(isPlayer&&typeof keys!=="undefined") opts.keys=keys;
+  if((p._attackT>0||p.state==="dying")&&typeof p.a==="number"&&isFinite(p.a))
+    return LivingSprite.dirNameFromAngle(p.a);
   return LivingSprite.spriteDir(p, opts);
 }
 

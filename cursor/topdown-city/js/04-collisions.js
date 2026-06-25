@@ -101,8 +101,13 @@ function carVsPeds(){
     const R=car.R+p.r, dx=p.x-car.x, dy=p.y-car.y, d=Math.hypot(dx,dy);
     if(d>=R) continue;
     const nx=d>0.001?dx/d:Math.cos(car.a), ny=d>0.001?dy/d:Math.sin(car.a);
-    if(psp>40){ p.state="down"; p.vx=nx*(psp*0.7+60)+car.vx*0.4; p.vy=ny*(psp*0.7+60)+car.vy*0.4; p.downT=0;
-      if(typeof enterPedRagdoll==="function") enterPedRagdoll(p, p.vx, p.vy);
+    if(psp>40){
+      p.state="dying"; p._dieT=0;
+      p.vx=nx*(psp*0.7+60)+car.vx*0.4; p.vy=ny*(psp*0.7+60)+car.vy*0.4;
+      if(typeof PeopleSprites!=="undefined"&&PeopleSprites.resolveOutfit){
+        const o=PeopleSprites.resolveOutfit(p);
+        if(o&&PeopleSprites.prefetchCombat) PeopleSprites.prefetchCombat(o);
+      }
       addHeat(0.7);
       stainCharacter(p,1.2);
       const kx=nx*(psp*0.7+60)+car.vx*0.4, ky=ny*(psp*0.7+60)+car.vy*0.4;

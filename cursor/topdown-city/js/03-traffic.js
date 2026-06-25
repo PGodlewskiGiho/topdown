@@ -481,6 +481,10 @@ function updateNpcPed(p,dt){
   if(Math.hypot(p.x-focusX,p.y-focusY)>1900){ respawnPed(p); return; }   // recycle distant peds
   if(p.bloodPulse>0) p.bloodPulse=Math.max(0,p.bloodPulse-dt*2.2);
   if(p.hostile){                                                          // armed & provoked -> shoots back
+    if(!p._combatWarm&&typeof PeopleSprites!=="undefined"&&PeopleSprites.resolveOutfit){
+      const o=PeopleSprites.resolveOutfit(p);
+      if(o&&PeopleSprites.prefetchCombat){ PeopleSprites.prefetchCombat(o); p._combatWarm=true; }
+    }
     const tgx=mode==="car"?car.x:ped.x, tgy=mode==="car"?car.y:ped.y;
     const dxp=tgx-p.x, dyp=tgy-p.y, dd=Math.hypot(dxp,dyp)||1;
     if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,dxp,dyp);

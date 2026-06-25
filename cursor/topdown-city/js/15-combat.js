@@ -40,6 +40,10 @@ function pedHit(p,dmg,kx,ky,bloodAmt,noHeat){
   stainCharacter(p,bloodAmt);
   if(p._hp>0){ spawnBlood(p.x,p.y,kx,ky,0.35,ang); return; }
   p.state="dying"; p._dieT=0; p.vx=kx*0.35; p.vy=ky*0.35;
+  if(typeof PeopleSprites!=="undefined"&&PeopleSprites.resolveOutfit){
+    const o=PeopleSprites.resolveOutfit(p);
+    if(o&&PeopleSprites.prefetchCombat) PeopleSprites.prefetchCombat(o);
+  }
   if(!noHeat) addHeat(p.armed?0.5:0.8);
   const sev=clamp((bloodAmt||0.5)*1.1+(dmg||10)/40, 0.35, 1.5);
   spawnBlood(p.x,p.y,kx,ky,bloodAmt,ang);
@@ -374,6 +378,10 @@ function updateCombat(dt){
       if(typeof LivingSprite!=="undefined"){
         const pmeta=typeof PeopleSprites!=="undefined"?PeopleSprites.meta:null;
         LivingSprite.startAttackClip(ped, w.kind==="melee"?"punch":"shoot", pmeta);
+        if(typeof PeopleSprites!=="undefined"&&PeopleSprites.resolveOutfit){
+          const o=PeopleSprites.resolveOutfit(ped);
+          if(o&&PeopleSprites.prefetchCombat) PeopleSprites.prefetchCombat(o);
+        }
       }
       if(w.kind!=="melee"){
         if(typeof playerConsumeAmmo==="function") playerConsumeAmmo();

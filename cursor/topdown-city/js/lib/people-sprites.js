@@ -128,6 +128,11 @@ function warmDefault(){
   }
 }
 
+function prefetchCombat(o){
+  if(!o) return;
+  for(const clip of ["shoot","punch","die","down","run"]) prefetchClip(o, clip);
+}
+
 function resolveOutfit(p){
   if(p._gta2Outfit) return p._gta2Outfit;
   if(!meta) return null;
@@ -156,6 +161,7 @@ function resolveOutfit(p){
   p._gta2Outfit=o;
   prefetchAllDirections(o, "walk0");
   prefetchAllDirections(o, "idle0");
+  prefetchCombat(o);
   return o;
 }
 
@@ -218,6 +224,8 @@ function gta2SpriteDir(moveDir){
 
 function moveFacingDir(p, forcedDir){
   if(typeof forcedDir==="string"&&forcedDir) return forcedDir;
+  if((p._attackT>0||p.state==="dying")&&typeof p.a==="number"&&isFinite(p.a)&&LS)
+    return LS.dirNameFromAngle(p.a);
   if(LS) return LS.spriteDir(p);
   return p._faceDir||p._spriteDir||"S";
 }
@@ -303,8 +311,16 @@ function drawComposite(c, p, down, forcedDir){
   if(!drew){
     let bakedIm=getBaked(o, wf, dir);
     if(!bakedIm&&allLayersReady(o, wf, dir)) bakedIm=tryBake(o, wf, dir);
-    if(bakedIm) c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
-    else return;
+    if(bakedIm){
+      c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
+      drew=true;
+    }
+  }
+  if(!drew){
+    for(const fb of ["idle0","walk0"]){
+      if(fb===wf) continue;
+      if(drawLayers(c, o, fb, dir, ax, ay, sx, sy, bm)) break;
+    }
   }
 
   if(down){
@@ -330,11 +346,10 @@ function draw(c,p,color,down,forcedDir){
 }
 
 const PeopleSprites={
-  draw, init, warmDefault,
+  draw, init, warmDefault, prefetchCombat, resolveOutfit,
   get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
   get meta(){ return meta; },
-  resolveOutfit,
   dirName(p){ return p._spriteDir||"S"; },
   animClip(p, down){ return LS?LS.animClip(p, down, meta):null; },
   animFrame(p, down){ return LS?LS.animFrameName(p, down, meta):"walk0"; },
