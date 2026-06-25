@@ -302,7 +302,14 @@ function drawSpeech(p){
 }
 function drawPerson(p,color,down,targetCtx){
   if(typeof PeopleSprites!=="undefined"&&PeopleSprites.meta){
-    PeopleSprites.draw(targetCtx||ctx,p,color,down); return;
+    let dirOpts=null;
+    if(typeof LivingSprite!=="undefined"){
+      const isPlayer=typeof ped!=="undefined"&&p===ped&&typeof mode!=="undefined"&&mode==="foot";
+      dirOpts={keys:isPlayer&&typeof keys!=="undefined"?keys:null};
+      p._spriteDir=LivingSprite.spriteDir(p,dirOpts);
+    }
+    PeopleSprites.draw(targetCtx||ctx,p,color,down,p._spriteDir);
+    return;
   }
 }
 

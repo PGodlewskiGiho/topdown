@@ -88,11 +88,23 @@ function syncFacing(entity){
   return setFacingFromDelta(entity, entity.vx||0, entity.vy||0);
 }
 
+/** Resolve 8-dir label for draw; opts: {keys,isPlayer} */
+function spriteDir(entity, opts){
+  opts=opts||{};
+  if(opts.keys){
+    const ix=(opts.keys["d"]||opts.keys["arrowright"]?1:0)-(opts.keys["a"]||opts.keys["arrowleft"]?1:0);
+    const iy=(opts.keys["s"]||opts.keys["arrowdown"]?1:0)-(opts.keys["w"]||opts.keys["arrowup"]?1:0);
+    const kd=dirNameFromDelta(ix,iy);
+    if(kd){ entity._faceDir=kd; entity.a=Math.atan2(iy,ix); return kd; }
+  }
+  return resolveDir(entity, opts);
+}
+
 const LivingSprite={
   DIR,
   snap8Index, snap8Angle, snap8:snap8Angle,
   dirNameFromAngle, dirNameFromDelta, setFacingFromDelta,
-  facingAngle, dirName, resolveDir, walkPhase, walkFrameName,
+  facingAngle, dirName, resolveDir, spriteDir, walkPhase, walkFrameName,
   isMoving, syncFacing,
 };
 global.LivingSprite=LivingSprite;

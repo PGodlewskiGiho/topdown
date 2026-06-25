@@ -2,7 +2,7 @@
 (function(global){
 "use strict";
 
-const BUILD=2026062612;
+const BUILD=2026062618;
 
 function gameBase(){
   const b=global.__GAME_BASE;
@@ -27,10 +27,14 @@ const BUILD_SCALE={
 };
 
 function queueImg(path){
-  if(!path||pending.has(path)||(imgs[path]&&imgs[path].complete)) return;
+  if(!path) return;
+  const cur=imgs[path];
+  if(cur&&cur.complete&&cur.naturalWidth>0) return;
+  if(pending.has(path)) return;
   pending.add(path);
   const im=new Image();
-  im.onload=im.onerror=()=>{ pending.delete(path); };
+  im.onload=()=>{ pending.delete(path); };
+  im.onerror=()=>{ pending.delete(path); };
   im.src=path+"?v="+BUILD;
   imgs[path]=im;
 }
@@ -52,6 +56,7 @@ function init(){
     .then(m=>{
       meta=m;
       ready=true;
+      warmDefault();
     })
     .catch(e=>{
       console.warn("PeopleSprites meta load failed",e);
@@ -62,11 +67,21 @@ function init(){
 
 function pick(arr, seed){ return arr[Math.abs(seed)%arr.length]; }
 
+function warmDefault(){
+  if(!meta) return;
+  const dirs=meta.directions||(LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]);
+  const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
+  for(const d of dirs){
+    prefetchOutfit(sample,"walk0",d);
+    prefetchOutfit(sample,"walk1",d);
+  }
+}
+
 function prefetchAllDirections(o){
   const dirs=meta.directions||(LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]);
   for(const d of dirs){
-    prefetchOutfit(o, "walk0", d);
-    prefetchOutfit(o, "walk1", d);
+    prefetchOutfit(o,"walk0",d);
+    prefetchOutfit(o,"walk1",d);
   }
 }
 
@@ -134,32 +149,27 @@ function buildMul(o, p){
 
 function clamp(v,a,b){ return v<a?a:v>b?b:v; }
 
-function drawDirOpts(p){
-  const opts={};
-  if(typeof ped!=="undefined" && p===ped && typeof mode!=="undefined" && mode==="foot" && typeof keys!=="undefined"){
-    opts.keys=keys;
-  }
-  return opts;
-}
-
-function resolveDrawDir(p){
-  if(LS&&LS.resolveDir) return LS.resolveDir(p, drawDirOpts(p));
-  if(p._faceDir) return p._faceDir;
+function pickDrawDir(p, forced){
+  if(forced&&typeof forced==="string") return forced;
+  if(p._spriteDir) return p._spriteDir;
+  if(LS&&LS.resolveDir) return LS.resolveDir(p);
   return "S";
 }
 
 function drawDirLayers(c, o, wf, dir, ax, ay, sx, sy, bm){
-  let drew=false;
-  for(const path of layerPaths(o, wf, dir)){
+  const paths=layerPaths(o, wf, dir);
+  let drew=false, queued=0;
+  for(const path of paths){
     const im=getImg(path);
-    if(!im) continue;
+    if(!im){ queued++; continue; }
     drew=true;
     c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
   }
+  if(!drew&&queued) for(const path of paths) queueImg(path);
   return drew;
 }
 
-function drawComposite(c, p, down){
+function drawComposite(c, p, down, forcedDir){
   const o=resolveOutfit(p);
   if(!o) return;
   const rad=((p.r||9)/9);
@@ -174,14 +184,9 @@ function drawComposite(c, p, down){
   c.fillRect(-7*sc, 2*sc, 14*sc, 3*sc);
 
   const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down):"walk0";
-  const dir=resolveDrawDir(p);
+  const dir=pickDrawDir(p, forcedDir);
   prefetchOutfit(o, wf, dir);
-  let drew=drawDirLayers(c, o, wf, dir, ax, ay, sx, sy, bm);
-  if(!drew && p._lastSpriteDir && p._lastSpriteDir!==dir){
-    drew=drawDirLayers(c, o, wf, p._lastSpriteDir, ax, ay, sx, sy, bm);
-  }
-  if(!drew) return;
-  if(dir) p._lastSpriteDir=dir;
+  if(!drawDirLayers(c, o, wf, dir, ax, ay, sx, sy, bm)) return;
 
   if(down){
     c.save();
@@ -197,21 +202,21 @@ function drawComposite(c, p, down){
   }
 }
 
-function draw(c,p,color,down){
+function draw(c,p,color,down,forcedDir){
   if(!meta) return;
   c.save();
   c.translate(p.x,p.y);
-  drawComposite(c,p,down);
+  drawComposite(c,p,down,forcedDir);
   c.restore();
 }
 
 const PeopleSprites={
-  draw, init, BUILD,
+  draw, init, BUILD, warmDefault,
   get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
   get meta(){ return meta; },
   resolveOutfit,
-  dirName(p){ return resolveDrawDir(p); },
+  dirName(p){ return pickDrawDir(p, p._spriteDir); },
   walkFrame(p){ return LS?LS.walkPhase(p):0; },
   facingAngle(p){ return LS?LS.facingAngle(p):0; },
 };
