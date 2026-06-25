@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""GTA2 modular pedestrian parts — mask-based extract from bil.sty, preview combos."""
+"""GTA2 modular pedestrian parts — palette-index masks from bil.sty."""
 from __future__ import annotations
 
 import json
@@ -13,10 +13,11 @@ PARTS = os.path.join(ROOT, "parts")
 PREVIEWS = os.path.join(ROOT, "previews")
 SCRIPTS = os.path.dirname(__file__)
 STY = os.environ.get("GTA2_STY", "/tmp/bil.sty")
-CANVAS = (16, 22)
-ANCHOR = (8, 20)
+CANVAS = (22, 22)
+ANCHOR = (11, 21)
 DIR_NAMES = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"]
 
+# bil.sty frame index -> (direction, walk phase)
 FRAME_DIR_WALK = [
     ("N", 0), ("NW", 1),
     ("NW", 0), ("W", 1),
@@ -55,77 +56,77 @@ PREVIEW_COMBOS = [
 ]
 
 BASE_REMAP = 27
-PART_KEYS = ("shoes", "pants", "torso", "skin", "hair", "arms")
+
+# Stable palette-index groups (geometry) from remap 27 analysis
+SHIRT_IDX = {80, 81, 82, 83, 84, 85, 86, 225, 226, 227, 228}
+ARM_IDX = {229, 230, 231, 232}
+PANTS_IDX = {206, 207, 208, 209, 210, 211, 217, 218, 219, 220, 221, 222, 223}
+SHOES_IDX = {193, 242, 244, 245, 246, 247}
+HAIR_IDX = {194, 196}
+SKIN_IDX = {176, 177, 178, 179, 180}
 
 
 def export_frames(remap_id: int, out_dir: str):
     os.makedirs(out_dir, exist_ok=True)
-    export_js = "/tmp/export_gta2_frames.mjs"
+    export_js = "/tmp/export_gta2_indices.mjs"
     if not os.path.isfile(export_js):
         import shutil
-        shutil.copy(os.path.join(SCRIPTS, "export_gta2_frames.mjs"), export_js)
+        shutil.copy(os.path.join(SCRIPTS, "export_gta2_indices.mjs"), export_js)
     subprocess.run(["node", export_js, STY, out_dir, str(remap_id)], check=True, cwd="/tmp")
 
 
-def classify_pixel(r, g, b):
-    if r + g + b < 70:
-        return "shoes"
-    if g > 130 and b > 120 and r < 120:
-        return "shirt"
-    if b > 95 and r < 100 and g < 130:
-        return "pants"
-    if r > 150 and g > 95 and b < 140:
-        return "skin"
-    if r > 90 and g < 110 and b < 80:
+def load_indices(frames_dir: str, idx: int) -> list[list[int]]:
+    with open(os.path.join(frames_dir, f"frame_{idx:02d}.idx.json"), encoding="utf-8") as f:
+        data = json.load(f)
+    return data["indices"]
+
+
+def load_rgba_frame(frames_dir: str, idx: int) -> Image.Image:
+    return Image.open(os.path.join(frames_dir, f"frame_{idx:02d}.png")).convert("RGBA")
+
+
+def part_for_pixel(idx: int, x: int, y: int) -> str | None:
+    if idx in HAIR_IDX:
         return "hair"
-    if r > 80 and g > 120 and b > 140:
-        return "shirt"
+    if idx in SKIN_IDX:
+        return "skin"
+    if idx in SHOES_IDX:
+        return "shoes"
+    if idx in PANTS_IDX:
+        return "pants"
+    if idx in ARM_IDX:
+        return "arms"
+    if idx in SHIRT_IDX:
+        return "arms" if x < 6 or x > 15 else "torso"
     return None
 
 
-def normalize_frame(im: Image.Image) -> Image.Image:
-    out = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
-    ox = (CANVAS[0] - im.width) // 2
-    oy = CANVAS[1] - im.height
-    out.paste(im, (ox, oy), im)
-    return out
-
-
-def load_norm_frame(frames_dir: str, idx: int) -> Image.Image:
-    return normalize_frame(Image.open(os.path.join(frames_dir, f"frame_{idx:02d}.png")).convert("RGBA"))
-
-
-def split_layers(im: Image.Image) -> dict[str, Image.Image]:
-    layers = {k: Image.new("RGBA", CANVAS, (0, 0, 0, 0)) for k in ("shoes", "pants", "torso", "skin", "hair")}
-    px_in = im.load()
+def split_layers(indices: list[list[int]], rgba: Image.Image) -> dict[str, Image.Image]:
+    layers = {k: Image.new("RGBA", CANVAS, (0, 0, 0, 0)) for k in ("shoes", "pants", "torso", "skin", "hair", "arms")}
+    px_in = rgba.load()
     lpx = {k: v.load() for k, v in layers.items()}
     for y in range(CANVAS[1]):
         for x in range(CANVAS[0]):
-            p = px_in[x, y]
-            if p[3] == 0:
+            idx = indices[y][x]
+            if not idx:
                 continue
-            kind = classify_pixel(*p[:3])
-            if kind == "shirt":
-                lpx["torso"][x, y] = p
-            elif kind in lpx:
-                lpx[kind][x, y] = p
-            elif kind is None and y >= 10:
-                r, g, b = p[:3]
-                if g > 100 and b > 90 and r < 140:
-                    lpx["torso"][x, y] = p
-    arms = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
-    apx = arms.load()
-    for y in range(CANVAS[1]):
-        for x in range(CANVAS[0]):
-            if lpx["skin"][x, y][3] and (x < 5 or x > 10):
-                apx[x, y] = lpx["skin"][x, y]
-    layers["arms"] = arms
+            part = part_for_pixel(idx, x, y)
+            if part:
+                lpx[part][x, y] = px_in[x, y]
     return layers
 
 
 def mask_from_layer(layer: Image.Image) -> list[list[bool]]:
     px = layer.load()
     return [[px[x, y][3] > 0 for x in range(CANVAS[0])] for y in range(CANVAS[1])]
+
+
+def build_masks(frames_dir: str) -> dict[int, dict[str, list[list[bool]]]]:
+    masks = {}
+    for i in range(16):
+        layers = split_layers(load_indices(frames_dir, i), load_rgba_frame(frames_dir, i))
+        masks[i] = {k: mask_from_layer(v) for k, v in layers.items()}
+    return masks
 
 
 def apply_mask(src: Image.Image, mask: list[list[bool]]) -> Image.Image:
@@ -136,14 +137,6 @@ def apply_mask(src: Image.Image, mask: list[list[bool]]) -> Image.Image:
             if mask[y][x]:
                 dp[x, y] = sp[x, y]
     return out
-
-
-def build_masks(frames_dir: str) -> dict[int, dict[str, list[list[bool]]]]:
-    masks = {}
-    for i in range(16):
-        layers = split_layers(load_norm_frame(frames_dir, i))
-        masks[i] = {k: mask_from_layer(v) for k, v in layers.items()}
-    return masks
 
 
 def save_part(part: str, variant: str, walk: str, direction: str, layer: Image.Image):
@@ -161,6 +154,7 @@ def extract_all(masks: dict, frame_cache: dict[int, dict[int, Image.Image]]):
         for shirt_id, rid in SHIRT_REMAP.items():
             src = frame_cache[rid][i]
             save_part("torsos", shirt_id, wf, direction, apply_mask(src, m["torso"]))
+            save_part("arms", shirt_id, wf, direction, apply_mask(src, m["arms"]))
 
         for pants_id, rid in PANTS_REMAP.items():
             src = frame_cache[rid][i]
@@ -168,7 +162,6 @@ def extract_all(masks: dict, frame_cache: dict[int, dict[int, Image.Image]]):
             save_part("shoes", pants_id, wf, direction, apply_mask(src, m["shoes"]))
 
         src27 = frame_cache[BASE_REMAP][i]
-        save_part("arms", "default", wf, direction, apply_mask(src27, m["arms"]))
         save_part("skins", "medium", wf, direction, apply_mask(src27, m["skin"]))
         save_part("hairs", "brown", wf, direction, apply_mask(src27, m["hair"]))
 
@@ -222,13 +215,14 @@ def build_variants():
                 ).save(dst)
 
 
-def composite(outfit, direction="S", walk=0, scale=8) -> Image.Image:
-    wf = f"walk{walk}"
+def composite_frame(outfit, frame_i: int, scale: int = 8) -> Image.Image:
+    direction, walk_i = FRAME_DIR_WALK[frame_i]
+    wf = f"walk{walk_i}"
     canvas = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
     for part, key in [
         ("shoes", outfit["pants"]),
         ("pants", outfit["pants"]),
-        ("arms", "default"),
+        ("arms", outfit["shirt"]),
         ("torsos", outfit["shirt"]),
         ("skins", outfit["skin"]),
         ("hairs", outfit["hair"]),
@@ -241,6 +235,13 @@ def composite(outfit, direction="S", walk=0, scale=8) -> Image.Image:
     return canvas
 
 
+def composite(outfit, direction="S", walk=0, scale=8) -> Image.Image:
+    for i, (d, w) in enumerate(FRAME_DIR_WALK):
+        if d == direction and w == walk:
+            return composite_frame(outfit, i, scale)
+    return composite_frame(outfit, 12, scale)
+
+
 def write_meta():
     meta = {
         "version": 2,
@@ -249,11 +250,12 @@ def write_meta():
         "anchor": list(ANCHOR),
         "directions": DIR_NAMES,
         "walk_frames": 2,
+        "total_frames": 16,
         "layer_order": ["shoes", "pants", "arms", "torso", "skin", "hair"],
         "shirts": [{"id": s, "gender": "unisex"} for s in sorted(SHIRT_REMAP)],
         "pants": [{"id": p, "gender": "unisex"} for p in sorted(PANTS_REMAP)],
         "shoes": [{"id": p, "gender": "unisex"} for p in sorted(PANTS_REMAP)],
-        "arms": [{"id": "default", "gender": "unisex"}],
+        "arms": [{"id": s, "gender": "unisex"} for s in sorted(SHIRT_REMAP)],
         "skins": [{"id": s, "gender": "unisex"} for s in SKIN_VARIANTS],
         "hairs": [{"id": h, "gender": "unisex"} for h in HAIR_VARIANTS],
         "combos_preview": PREVIEW_COMBOS,
@@ -266,22 +268,61 @@ def write_meta():
 
 def write_previews():
     os.makedirs(PREVIEWS, exist_ok=True)
-    sheet = Image.new("RGBA", (140 * 3, 200 * 2), (18, 16, 22, 255))
-    for idx, combo in enumerate(PREVIEW_COMBOS):
-        col, row = idx % 3, idx // 3
-        for walk in (0, 1):
-            im = composite(combo, "S", walk, scale=8)
-            x = col * 140 + (140 - im.width) // 2
-            y = row * 200 + (100 if walk else 0) + (90 - im.height) // 2
-            sheet.paste(im, (x, y), im)
-        # side-by-side walk0+walk1 for single preview file
-        w0 = composite(combo, "S", 0, 8)
-        w1 = composite(combo, "S", 1, 8)
-        pair = Image.new("RGBA", (w0.width * 2 + 8, w0.height), (0, 0, 0, 0))
-        pair.paste(w0, (0, 0), w0)
-        pair.paste(w1, (w0.width + 8, 0), w1)
-        pair.save(os.path.join(PREVIEWS, f"{combo['id']}.png"))
+    scale = 6
+    fw, fh = CANVAS[0] * scale, CANVAS[1] * scale
+    pad = 4
+    cols, rows = 8, 2  # 16 frames: 8 directions × 2 walk phases
+
+    sheet = Image.new("RGBA", (cols * (fw + pad) + pad, rows * (len(PREVIEW_COMBOS) * (fh + pad) + pad)), (18, 16, 22, 255))
+
+    for combo_i, combo in enumerate(PREVIEW_COMBOS):
+        frames_row = Image.new("RGBA", (cols * (fw + pad) + pad, 2 * (fh + pad) + pad), (0, 0, 0, 0))
+        for fi in range(16):
+            col = fi % cols
+            row = fi // cols
+            im = composite_frame(combo, fi, scale)
+            x = pad + col * (fw + pad)
+            y = pad + row * (fh + pad)
+            frames_row.paste(im, (x, y), im)
+
+        combo_path = os.path.join(PREVIEWS, f"{combo['id']}.png")
+        frames_row.save(combo_path)
+
+        sy = pad + combo_i * (2 * (fh + pad) + pad)
+        sheet.paste(frames_row, (pad, sy), frames_row)
+
     sheet.save(os.path.join(PREVIEWS, "combinations_sheet.png"))
+
+    # Reference: original vs composite for blue_jeans_brown
+    ref = PREVIEW_COMBOS[0]
+    cmp = Image.new("RGBA", (fw * 2 + pad, fh), (0, 0, 0, 0))
+    orig = load_rgba_frame(os.path.join(PARTS, "_frames", str(BASE_REMAP)), 12).resize((fw, fh), Image.NEAREST)
+    built = composite(ref, "S", 0, scale)
+    cmp.paste(orig, (0, 0), orig)
+    cmp.paste(built, (fw + pad, 0), built)
+    cmp.save(os.path.join(PREVIEWS, "verify_s_walk0.png"))
+
+
+def verify_masks(frames_dir: str, masks: dict):
+    """Ensure recomposed layers match original frame pixels."""
+    for i in range(16):
+        orig = load_rgba_frame(frames_dir, i)
+        m = masks[i]
+        rebuilt = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
+        for key in ("shoes", "pants", "arms", "torso", "skin", "hair"):
+            rebuilt = Image.alpha_composite(rebuilt, apply_mask(orig, m[key]))
+        opx, rpx = orig.load(), rebuilt.load()
+        miss = extra = 0
+        for y in range(CANVAS[1]):
+            for x in range(CANVAS[0]):
+                o = opx[x, y][3] > 0
+                r = rpx[x, y][3] > 0
+                if o and not r:
+                    miss += 1
+                if r and not o:
+                    extra += 1
+        if miss or extra:
+            print(f"frame {i}: unmatched pixels miss={miss} extra={extra}")
 
 
 def main():
@@ -290,9 +331,11 @@ def main():
     for remap_id in set(REMAP_META) | {BASE_REMAP}:
         fd = os.path.join(tmp, str(remap_id))
         export_frames(remap_id, fd)
-        frame_cache[remap_id] = {i: load_norm_frame(fd, i) for i in range(16)}
+        frame_cache[remap_id] = {i: load_rgba_frame(fd, i) for i in range(16)}
 
-    masks = build_masks(os.path.join(tmp, str(BASE_REMAP)))
+    base_dir = os.path.join(tmp, str(BASE_REMAP))
+    masks = build_masks(base_dir)
+    verify_masks(base_dir, masks)
     extract_all(masks, frame_cache)
     build_variants()
     write_meta()

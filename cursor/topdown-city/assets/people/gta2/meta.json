@@ -2,12 +2,12 @@
   "version": 2,
   "style": "gta2",
   "size": [
-    16,
+    22,
     22
   ],
   "anchor": [
-    8,
-    20
+    11,
+    21
   ],
   "directions": [
     "E",
@@ -20,6 +20,7 @@
     "NE"
   ],
   "walk_frames": 2,
+  "total_frames": 16,
   "layer_order": [
     "shoes",
     "pants",
@@ -88,7 +89,31 @@
   ],
   "arms": [
     {
-      "id": "default",
+      "id": "blue",
+      "gender": "unisex"
+    },
+    {
+      "id": "brown",
+      "gender": "unisex"
+    },
+    {
+      "id": "grey",
+      "gender": "unisex"
+    },
+    {
+      "id": "pink",
+      "gender": "unisex"
+    },
+    {
+      "id": "red",
+      "gender": "unisex"
+    },
+    {
+      "id": "white",
+      "gender": "unisex"
+    },
+    {
+      "id": "yellow",
       "gender": "unisex"
     }
   ],

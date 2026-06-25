@@ -2,7 +2,7 @@
 (function(global){
 "use strict";
 
-const BUILD=20260625;
+const BUILD=20260626;
 const BASE="assets/people/gta2/parts/";
 const META_URL="assets/people/gta2/meta.json";
 const imgs={};
@@ -89,7 +89,7 @@ function layerPaths(o, wf, direction){
   const map={
     shoes:"shoes/"+o.pants,
     pants:"pants/"+o.pants,
-    arms:"arms/default",
+    arms:"arms/"+o.shirt,
     torso:"torsos/"+o.shirt,
     skin:"skins/"+o.skin,
     hair:o.hair?"hairs/"+o.hair:null,
@@ -106,8 +106,8 @@ function layerPaths(o, wf, direction){
 function drawComposite(c, p, down){
   const o=resolveOutfit(p);
   const sc=((p.r||9)/9)*2.05;
-  const ax=(meta.anchor||[8,20])[0]*sc;
-  const ay=(meta.anchor||[8,20])[1]*sc;
+  const ax=(meta.anchor||[11,21])[0]*sc;
+  const ay=(meta.anchor||[11,21])[1]*sc;
   c.imageSmoothingEnabled=false;
 
   c.fillStyle="rgba(0,0,0,.28)";
