@@ -1278,15 +1278,34 @@ function forestGrassMeta(key){
   if(v) return v;
   return FOREST_GRASS.meta?.variants?.clump_med||{width:52,height:56,anchorX:26,anchorY:55};
 }
+// Lighter than treeWindAt: same wind field, ~4–6× smaller amplitude.
+function grassWindAt(x,y,s){
+  const ph=((x*0.031+y*0.019)%6.283), ph2=ph*1.618+s*0.07;
+  const local=typeof windFieldAt==="function"?windFieldAt(x,y):null;
+  const gust=(typeof windGust!=="undefined"?windGust:0)*0.4;
+  const strength=local?local.power*0.85:((typeof windAmp!=="undefined"?windAmp:0.12)*0.75+gust*0.18);
+  const h=s*3.2;
+  const amp=h*strength*0.24;
+  const wt=typeof windT!=="undefined"?windT:0;
+  const wa=local?local.angle:wt*0.72+ph*0.1;
+  const wx=Math.cos(wa+Math.sin(wt*1.55+ph)*0.3)*amp+Math.sin(wt*2.4+ph2)*amp*0.16;
+  const wy=Math.sin(wa+Math.sin(wt*1.08+ph)*0.18)*amp*0.22+Math.sin(wt*1.15+ph*0.65)*amp*0.05;
+  return [wx,wy];
+}
 function drawForestGrassClump(x,y,s,v){
   const m=forestGrassMeta(v), img=FOREST_GRASS.img[v]||FOREST_GRASS.img.clump_med;
   if(!img||!img.complete||!img.naturalWidth) return false;
   const sc=s*2.05/(m.height||56), W=(m.width||52)*sc, H=(m.height||56)*sc;
   const ax=(m.anchorX??((m.width||52)*0.5))*sc, ay=(m.anchorY??((m.height||56)-1))*sc;
+  const [gwx,gwy]=grassWindAt(x,y,s);
   const sm=ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled=true;
   try{ ctx.imageSmoothingQuality="high"; }catch(e){}
-  ctx.drawImage(img,x-ax,y-ay,W,H);
+  ctx.save();
+  ctx.translate(x+gwx, y+gwy*0.28);
+  ctx.rotate(gwx*0.014);
+  ctx.drawImage(img,-ax,-ay,W,H);
+  ctx.restore();
   ctx.imageSmoothingEnabled=sm;
   return true;
 }
@@ -1301,13 +1320,14 @@ function grassVariantsForDraw(L){
 const GRASS_TONE=["rgba(26,56,20,.96)","rgba(46,92,36,.96)","rgba(80,146,58,.95)","rgba(120,184,86,.95)"];
 function drawClump(x,y,s){
   const h=(n)=>{ const v=Math.sin(x*12.9898+y*78.233+n*37.17)*43758.5453; return v-(v|0); };
-  const n=5+((h(0)*3)|0);                                            // 5-7 blades per clump
-  ctx.fillStyle="rgba(18,38,14,.38)"; ctx.fillRect(x-s*0.5, y-1.6, s, 2.6);   // grounded base
+  const [gwx,gwy]=grassWindAt(x,y,s);
+  const n=5+((h(0)*3)|0);
+  ctx.fillStyle="rgba(18,38,14,.38)"; ctx.fillRect(x-s*0.5+gwx*0.2, y-1.6+gwy*0.15, s, 2.6);
   for(let k=0;k<n;k++){
-    const dx=(h(k+1)-0.5)*s*1.15, bl=s*(0.72+h(k+9)*0.7), lean=(h(k+5)-0.5)*s*0.75;
-    const wd=0.9+h(k+3)*0.7, bx=x+dx;
+    const dx=(h(k+1)-0.5)*s*1.15, bl=s*(0.72+h(k+9)*0.7), lean=(h(k+5)-0.5)*s*0.75+gwx*(0.42+k*0.04);
+    const wd=0.9+h(k+3)*0.7, bx=x+dx+gwx*0.35;
     ctx.fillStyle=GRASS_TONE[Math.min(3,(h(k+7)*4)|0)];
-    ctx.beginPath(); ctx.moveTo(bx-wd,y); ctx.lineTo(bx+wd,y); ctx.lineTo(bx+lean,y-bl); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx-wd,y); ctx.lineTo(bx+wd,y); ctx.lineTo(bx+lean,y-bl+gwy*0.12); ctx.closePath(); ctx.fill();
   }
 }
 function drawGrassDetail(L){
