@@ -2,16 +2,14 @@
 (function(global){
 "use strict";
 
-const BUILD=2026062618;
+const BUILD=2026062625;
 
 function gameBase(){
   const b=global.__GAME_BASE;
   return (typeof b==="string"&&b.length)?b:"";
 }
 
-function assetsBase(){ return gameBase()+"assets/people/gta2/parts/bodies/"; }
-function metaUrl(){ return gameBase()+"assets/people/gta2/meta.json"; }
-
+let resolvedRoot=null;
 const GO=global.Gta2Outfit;
 const LS=global.LivingSprite;
 const imgs={};
@@ -25,6 +23,33 @@ const BUILD_SCALE={
   stocky:{sx:1.08,sy:1.06},
   hardy:{sx:1.12,sy:1.08},
 };
+
+function candidateRoots(){
+  const roots=[];
+  const gb=gameBase();
+  if(gb) roots.push(gb);
+  if(typeof location!=="undefined"){
+    const path=location.pathname||"";
+    const m=path.match(/^(.*\/cursor\/topdown-city\/)/);
+    if(m) roots.push(m[1]);
+    const m2=path.match(/^(.*\/topdown\/)/);
+    if(m2){
+      roots.push(m2[1]);
+      roots.push(m2[1]+"cursor/topdown-city/");
+    }
+  }
+  roots.push("");
+  const out=[];
+  for(const r of roots){
+    const n=r.endsWith("/")?r:(r?r+"/":"");
+    if(!out.includes(n)) out.push(n);
+  }
+  return out;
+}
+
+function rootPrefix(){ return resolvedRoot!=null?resolvedRoot:gameBase(); }
+function assetsBase(){ return rootPrefix()+"assets/people/gta2/parts/bodies/"; }
+function metaUrl(){ return rootPrefix()+"assets/people/gta2/meta.json"; }
 
 function queueImg(path){
   if(!path) return;
@@ -48,20 +73,28 @@ function getImg(path){
 
 function init(){
   if(loadP) return loadP;
-  loadP=fetch(metaUrl()+"?v="+BUILD)
-    .then(r=>{
-      if(!r.ok) throw new Error("meta:"+r.status);
-      return r.json();
-    })
-    .then(m=>{
-      meta=m;
-      ready=true;
-      warmDefault();
-    })
-    .catch(e=>{
-      console.warn("PeopleSprites meta load failed",e);
-      ready=false;
-    });
+  loadP=(async()=>{
+    let lastErr=null;
+    for(const root of candidateRoots()){
+      try{
+        const url=root+"assets/people/gta2/meta.json?v="+BUILD;
+        const r=await fetch(url);
+        if(!r.ok){ lastErr=new Error("meta:"+r.status+" "+url); continue; }
+        const m=await r.json();
+        if(resolvedRoot!==root){
+          resolvedRoot=root;
+          global.__GAME_BASE=root;
+        }
+        meta=m;
+        ready=true;
+        warmDefault();
+        return m;
+      }catch(e){ lastErr=e; }
+    }
+    console.warn("PeopleSprites meta load failed", lastErr);
+    ready=false;
+    throw lastErr||new Error("meta load failed");
+  })();
   return loadP;
 }
 
@@ -86,7 +119,7 @@ function prefetchAllDirections(o){
 }
 
 function resolveOutfit(p){
-  if(p._gta2Outfit) return p._gta2Outfit;
+  if(p._gta2Outfit&&p._gta2Root===resolvedRoot) return p._gta2Outfit;
   if(!meta) return null;
   if(GO) GO.applyGta2Ids(p);
   const seed=p._visSeed!=null?p._visSeed:((p.x|0)*7919+(p.y|0)*6151)|0;
@@ -111,6 +144,7 @@ function resolveOutfit(p){
   if(p.hairId) o.hair=p.hairId;
   if(p.hairStyle==="bald"||p.hair==null) o.hair=null;
   p._gta2Outfit=o;
+  p._gta2Root=resolvedRoot;
   prefetchAllDirections(o);
   return o;
 }
@@ -212,6 +246,7 @@ function draw(c,p,color,down,forcedDir){
 
 const PeopleSprites={
   draw, init, BUILD, warmDefault,
+  get assetRoot(){ return resolvedRoot; },
   get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
   get meta(){ return meta; },

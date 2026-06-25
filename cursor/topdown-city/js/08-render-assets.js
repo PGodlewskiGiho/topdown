@@ -302,11 +302,19 @@ function drawSpeech(p){
 }
 function drawPerson(p,color,down,targetCtx){
   if(typeof PeopleSprites!=="undefined"&&PeopleSprites.meta){
-    let dirOpts=null;
     if(typeof LivingSprite!=="undefined"){
       const isPlayer=typeof ped!=="undefined"&&p===ped&&typeof mode!=="undefined"&&mode==="foot";
-      dirOpts={keys:isPlayer&&typeof keys!=="undefined"?keys:null};
-      p._spriteDir=LivingSprite.spriteDir(p,dirOpts);
+      let dir=null;
+      const vx=p.vx||0, vy=p.vy||0;
+      if(Math.hypot(vx,vy)>0.35) dir=LivingSprite.dirNameFromDelta(vx,vy);
+      if(!dir&&isPlayer&&typeof keys!=="undefined"){
+        const ix=(keys["d"]||keys["arrowright"]?1:0)-(keys["a"]||keys["arrowleft"]?1:0);
+        const iy=(keys["s"]||keys["arrowdown"]?1:0)-(keys["w"]||keys["arrowup"]?1:0);
+        dir=LivingSprite.dirNameFromDelta(ix,iy);
+      }
+      if(!dir) dir=LivingSprite.dirNameFromAngle(p.a||0);
+      p._spriteDir=dir;
+      p._faceDir=dir;
     }
     PeopleSprites.draw(targetCtx||ctx,p,color,down,p._spriteDir);
     return;
