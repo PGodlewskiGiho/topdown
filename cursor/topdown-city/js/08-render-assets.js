@@ -61,6 +61,33 @@ function _bodyPathC(P, L, W, era){
   ctx.closePath();
 }
 
+function drawVehicleDoors(v, color, dark, mid, hw, hl, L, W, pOk){
+  if(!v||v.kind==="moto"||v.kind==="bike") return;
+  const openL=v._doorL||0, openR=v._doorR||0;
+  if(openL<0.02&&openR<0.02) return;
+  const drawSide=(side, open, partId)=>{
+    if(open<0.02||!pOk(partId)) return;
+    const sign=side==="left"?-1:1;
+    const dw=W*0.34, dh=L*0.19;
+    const cx=sign*hw*0.70, cy=-hl*0.04;
+    const hingeX=sign*hw*0.86, hingeY=cy-dh*0.12;
+    ctx.save();
+    ctx.translate(hingeX, hingeY);
+    ctx.rotate(-sign*open*0.82);
+    ctx.translate(-hingeX, -hingeY);
+    ctx.fillStyle=shade(color,-12);
+    rrect(cx-dw/2, cy-dh/2, dw, dh, 1.4); ctx.fill();
+    ctx.strokeStyle=dark; ctx.lineWidth=0.85; ctx.strokeRect(cx-dw/2, cy-dh/2, dw, dh);
+    ctx.fillStyle="rgba(130,168,190,0.5)";
+    ctx.fillRect(cx-sign*dw*0.12, cy-dh*0.28, dw*0.32, dh*0.32);
+    ctx.fillStyle=mid;
+    ctx.fillRect(hingeX-sign*1.2, hingeY-1.5, 2.4, dh*0.22);
+    ctx.restore();
+  };
+  drawSide("left", openL, "doorFL");
+  drawSide("right", openR, "doorFR");
+}
+
 function carBodyDesign(v, color){
   const L=v.L, W=v.W, hl=L/2, hw=W/2;
   const type=v.type||"sedan", era=v.era||"modern", brand=v.brand||"";
@@ -114,6 +141,8 @@ function carBodyDesign(v, color){
   _bodyPathC(P,L,W,era); ctx.fillStyle=grad; ctx.fill();
   // outline
   _bodyPathC(P,L,W,era); ctx.strokeStyle="rgba(0,0,0,0.45)"; ctx.lineWidth=1.2; ctx.stroke();
+
+  drawVehicleDoors(v, color, dark, mid, hw, hl, L, W, pOk);
 
   // character lines
   ctx.strokeStyle=dark; ctx.globalAlpha=0.4; ctx.lineWidth=0.8;

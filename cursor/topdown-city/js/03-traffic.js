@@ -514,6 +514,7 @@ function pedWalkGraph(p,dt){
   else p.a=Math.atan2(B.fy,B.fx);
 }
 function updateTrafficCar(c,dt){
+  if(c._entryLock){ c.vx=0; c.vy=0; return; }
   if(typeof perfShouldUpdateEntity==="function" && !perfShouldUpdateEntity(c.x,c.y)) return;
   if(c.maxHp && !c.dead && c.hp>0 && c.hp<c.maxHp*0.08) damageCar(c, 1.4*dt, c.x, c.y, "burn");   // burning -> burns down
   if(c.state==="loose"){ updateLooseCar(c,dt); return; }
