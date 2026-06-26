@@ -26,6 +26,7 @@ Smoke-check waliduje lokalne referencje HTML i listę skryptów ładowanych prze
 .github/workflows/deploy-pages.yml  GitHub Pages deploy
 .github/workflows/ci.yml            smoke-check na każdym pushu
 AGENTS.md                           reguły dla agentów AI (czytaj przed edycją)
+RETROSPECTIVE.md                    wnioski z projektu — checklisty na przyszłość
 cursor/topdown-city/                gra: HTML, CSS, JS, assety
 cursor/topdown-city/docs/           mapa modułów i architektura
 cursor/topdown-city/scripts/        generatory assetów i smoke-check
