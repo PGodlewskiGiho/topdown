@@ -147,7 +147,7 @@ function maintainPeds(){
 }
 const awayFromCam=(x,y)=>Math.hypot(x-cam.x,y-cam.y) > 720;
 function respawnTraffic(c){ let n; for(let k=0;k<24;k++){ n=spawnTrafficCar(); if(awayFromCam(n.x,n.y)) break; } Object.assign(c,n); }
-function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); delete p._faceDir; delete p._lastSpriteDir; delete p._gta2Outfit; delete p._psLayerCache; delete p._psWalkReq; delete p._psWarmSig; delete p.ring; }
+function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); delete p._faceDir; delete p._lastSpriteDir; delete p._gta2Outfit; delete p._psLayerCache; delete p._psWalkReq; delete p._psWarmSig; delete p._psClipReq; delete p._psCombatSig; delete p.ring; }
 
 function isAhead(c,dx,dy,ox,oy,dist,lat){
   const rx=ox-c.x, ry=oy-c.y, fwd=rx*dx+ry*dy, side=Math.abs(rx*(-dy)+ry*dx);
@@ -669,6 +669,8 @@ function updateNpcPed(p,dt){
       if(typeof LivingSprite!=="undefined"){
         const pmeta=typeof PeopleSprites!=="undefined"?PeopleSprites.meta:null;
         LivingSprite.startAttackClip(p, "shoot", pmeta);
+        if(typeof PeopleSprites!=="undefined"&&PeopleSprites.beginPedCombat)
+          PeopleSprites.beginPedCombat(p, "shoot");
       }
     }
     { const ci=Math.floor((p.x-ROAD)/GAP), cj=Math.floor((p.y-ROAD)/GAP);
