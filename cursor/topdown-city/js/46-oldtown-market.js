@@ -1,6 +1,5 @@
 /* TOPDOWN CITY — 46-oldtown-market.js — Starówka + Rynek (old town market square) */
 
-const MARKET_NODE={i:4,j:3};
 const MARKET_NAME="Rynek Vesper";
 let _marketStalls=null;
 
@@ -19,8 +18,31 @@ function isOldTownCell(i,j){
   return di+dj>=1 && di+dj<=9;
 }
 
+let _resolvedMarketNode=null;
+
+function getMarketNode(){
+  if(_resolvedMarketNode) return _resolvedMarketNode;
+  let best=null, score=-1e9;
+  for(let i=2;i<=8;i++) for(let j=2;j<=8;j++){
+    if(!isOldTownCell(i,j)) continue;
+    const mw=typeof nodeMaxWidth==="function"?nodeMaxWidth(i,j):0;
+    if(!mw||mw<36) continue;
+    const deg=typeof nodeDegree==="function"?nodeDegree(i,j):0;
+    if(deg<3) continue;
+    const c=nearestCity(i,j);
+    const f=(c.dist+(hsh(i,j,303)-0.5)*1.6)/c.R;
+    const s=deg*15-Math.abs(f-0.56)*30+(mw>50?6:0);
+    if(s>score){ score=s; best={i,j}; }
+  }
+  _resolvedMarketNode=best||{i:5,j:4};
+  return _resolvedMarketNode;
+}
+window.getMarketNode=getMarketNode;
+
 function isMarketNode(i,j){
-  return inSpawnCity(i,j)&&i===MARKET_NODE.i&&j===MARKET_NODE.j;
+  if(!inSpawnCity(i,j)) return false;
+  const m=getMarketNode();
+  return i===m.i&&j===m.j;
 }
 
 function rynekR(i,j){
@@ -29,13 +51,15 @@ function rynekR(i,j){
 
 function inRynek(x,y){
   if(!inSpawnCity(Math.round(x/GAP),Math.round(y/GAP))) return false;
-  const A=node(MARKET_NODE.i,MARKET_NODE.j), R=rynekR(MARKET_NODE.i,MARKET_NODE.j);
+  const m=getMarketNode();
+  const A=node(m.i,m.j), R=rynekR(m.i,m.j);
   return (x-A[0])**2+(y-A[1])**2<R*R;
 }
 
 function ensureMarketStalls(){
   if(_marketStalls) return _marketStalls;
-  const A=node(MARKET_NODE.i,MARKET_NODE.j), R=rynekR(MARKET_NODE.i,MARKET_NODE.j);
+  const m=getMarketNode();
+  const A=node(m.i,m.j), R=rynekR(m.i,m.j);
   const kinds=[
     {id:"produce",col:"#5a8a38",top:"#e05040",label:"WARZYWA"},
     {id:"fish",col:"#4a6878",top:"#88b8d8",label:"RYBY"},
@@ -142,7 +166,7 @@ function drawRynekFountain(cx,cy,t){
 
 function drawRynek(ox,oy){
   if(!inSpawnCity(Math.round((ox+VW*0.5)/GAP),Math.round((oy+VH*0.5)/GAP))) return;
-  const i=MARKET_NODE.i, j=MARKET_NODE.j;
+  const m=getMarketNode(), i=m.i, j=m.j;
   const cx=nX(i,j), cy=nY(i,j);
   if(cx<ox-200||cx>ox+VW+200||cy<oy-200||cy>oy+VH+200) return;
   const R=rynekR(i,j), t=performance.now()/1000;
@@ -193,8 +217,9 @@ function drawHistoricFacade(b,a,cc,ar,P,fillPoly){
 }
 
 function pedEnterRynek(p){
-  const A=node(MARKET_NODE.i,MARKET_NODE.j);
-  p.plaza={i:MARKET_NODE.i,j:MARKET_NODE.j,cx:A[0],cy:A[1],r:Math.max(36,rynekR(MARKET_NODE.i,MARKET_NODE.j)-22),market:true};
+  const m=getMarketNode();
+  const A=node(m.i,m.j);
+  p.plaza={i:m.i,j:m.j,cx:A[0],cy:A[1],r:Math.max(36,rynekR(m.i,m.j)-22),market:true};
   p.onGraph=false; p.plazaT=rand(8,18); p.repick=0; p._wait=false; p.cross=0;
 }
 
@@ -212,7 +237,8 @@ Game.register({
   },
   drawMap(mctx,opts){
     if(!opts||!opts.world) return;
-    const A=node(MARKET_NODE.i,MARKET_NODE.j);
+    const m=getMarketNode();
+    const A=node(m.i,m.j);
     const ms=opts.mapScale||1, ox=opts.ox||0, oy=opts.oy||0;
     const x=(A[0]-ox)*ms, y=(A[1]-oy)*ms;
     mctx.fillStyle="#c87838";

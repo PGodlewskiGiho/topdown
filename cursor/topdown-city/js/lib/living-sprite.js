@@ -10,7 +10,7 @@ const DEFAULT_CLIPS={
   run:{count:8,step_sec:0.08,speed_min:55},
   idle:{count:6,step_sec:0.2},
   shoot:{count:8,step_sec:0.09},
-  punch:{count:4,step_sec:0.12},
+  punch:{count:4,step_sec:0.1},
   down:{count:10,step_sec:0.12,hold_last:true},
   die:{count:5,step_sec:0.14,hold_last:true},
 };
@@ -123,6 +123,7 @@ function animClip(entity, down, meta){
   if(down||entity.state==="down") return "down";
   if(entity._attackT>0&&entity._attackClip) return entity._attackClip;
   const clips=clipDefs(meta);
+  if(entity.swimming) return clips.idle?"idle":"walk";
   const spd=moveSpeed(entity);
   if(entity.hostile){
     if(spd<36) return "shoot";
@@ -146,6 +147,12 @@ function animFrameIndex(entity, clipId, meta, down){
     const total=clipDuration(clipId, meta);
     const elapsed=total-entity._attackT;
     return Math.min(n-1, Math.floor(elapsed/step));
+  }
+  if(entity.swimming&&(clipId==="idle"||clipId==="walk")){
+    const spec=clipSpec("idle", meta);
+    const n=spec.count||6;
+    const time=entity.previewT!=null?entity.previewT:performance.now()*0.001;
+    return Math.floor(time/0.22)%n;
   }
   if((clipId==="down"||down)&&entity.downT!=null){
     const i=Math.floor(entity.downT/step);

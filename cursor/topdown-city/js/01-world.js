@@ -289,6 +289,7 @@ function softenWaterEdge(s, gain){
   const t=clamp(s*(gain||1.25),0,1);
   return t*t*(3-2*t);
 }
+const WATER_SWIM_DEPTH=0.16;
 function lakeScore(x,y){
   const fx=x/GAP-0.5, fy=y/GAP-0.5, xi=Math.floor(fx), yi=Math.floor(fy);
   if(!lakeAllowed(xi,yi)) return 0;
@@ -301,8 +302,15 @@ function riverScore(x,y){
   const fx=x/GAP-0.5, fy=y/GAP-0.5, xi=Math.floor(fx), yi=Math.floor(fy), xf=fx-xi, yf=fy-yi, u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
   const a=riverCellSigned(xi,yi), b=riverCellSigned(xi+1,yi), cc=riverCellSigned(xi,yi+1), d=riverCellSigned(xi+1,yi+1);
   const raw=a+(b-a)*u+(cc-a)*v+(a-b-cc+d)*u*v;
-  return softenWaterEdge(raw,1.15);
+  const s=softenWaterEdge(raw,1.15);
+  if(s<=0) return 0;
+  const[ci,cj]=cellAt(x,y);
+  if(biomeOf(ci,cj)!=="forest") return 0;
+  return s;
 }
+function lakeDepthAt(x,y){ const s=lakeScore(x,y); return s>=WATER_SWIM_DEPTH?s:0; }
+function riverDepthAt(x,y){ const s=riverScore(x,y); return s>=WATER_SWIM_DEPTH?s:0; }
+function canalDepthAt(x,y){ const s=typeof canalScore==="function"?canalScore(x,y):0; return s>=WATER_SWIM_DEPTH?s:0; }
 function waterScore(x,y){ return Math.max(lakeScore(x,y), riverScore(x,y), typeof canalScore==="function"?canalScore(x,y):0); }
 function isLakeCell(i,j){ return lakeAllowed(i,j)&&lakeCellSigned(i,j)>0; }
 function isLakeLot(i,j){
@@ -312,18 +320,22 @@ function isLakeLot(i,j){
   return lakeScore(cx,cy)>0.06;
 }
 function isRiverCell(i,j){ return riverCellSigned(i,j)>0; }
-function isRiverAt(x,y){ return riverScore(x,y)>0; }
-function isLakeAt(x,y){ return lakeScore(x,y)>0; }
+function isRiverAt(x,y){ return riverDepthAt(x,y)>0; }
+function isLakeAt(x,y){ return lakeDepthAt(x,y)>0; }
 function coastalLot(i,j){ for(let di=-1;di<=1;di++)for(let dj=-1;dj<=1;dj++){ if(isWaterCell(i+di,j+dj)) return true; } return false; }
 function waterDepthAt(x,y){
   if(_getEdgeDepth===0 && typeof onForestBridgeAt==="function"&&onForestBridgeAt(x,y)) return 0;
   if(typeof onCanalBridgeAt==="function"&&onCanalBridgeAt(x,y)) return 0;
-  const lake=lakeScore(x,y), river=riverScore(x,y);
-  const canal=typeof canalScore==="function"?canalScore(x,y):0;
-  return Math.max(lake, river>0?river:0, canal);
+  return Math.max(lakeDepthAt(x,y), riverDepthAt(x,y), canalDepthAt(x,y));
 }
-function inWater(x,y){ return waterDepthAt(x,y)>=0.16; }          // swim — ignore shallow edge bleed
-function inDeepWater(x,y){ return waterDepthAt(x,y)>=0.30; }      // vehicles sink only in real depth
+function inWater(x,y){ return waterDepthAt(x,y)>=WATER_SWIM_DEPTH; }
+function inDeepWater(x,y){ return waterDepthAt(x,y)>=0.30; }
+function nodePedZone(i,j){
+  if(isRoundabout(i,j)) return true;
+  if(typeof isMarketNode==="function"&&isMarketNode(i,j)) return true;
+  if(isPlaza(i,j)) return true;
+  return false;
+}
 
 // ---- terrain elevation (multi-scale hills; render == physics via terrainScore) ----
 function terrainBaseNoise(i,j){
@@ -689,6 +701,7 @@ function drawLaneMarkings(i0,i1,j0,j1){
   ctx.setLineDash(dash);
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
     for(const[di,dj]of[[1,0],[0,1]]){
+      if(nodePedZone(i,j)||nodePedZone(i+di,j+dj)) continue;
       const e=getEdge(i,j,di,dj);
       if(!e.exists||e.bridge||!e.markings||e.klass==="dirt"||e.klass==="rural"||e.klass==="trail") continue;
       const lanes=roadLanesPerSide(e.width);
@@ -728,6 +741,8 @@ function drawRoads(ox,oy){
     const mw=nodeMaxWidth(i,j); if(!mw) continue; const A=node(i,j);
     if(isRoundabout(i,j)){
       drawRoundabout(i,j,A,mw);
+    } else if(nodePedZone(i,j)){
+      /* pedestrian square — cobble drawn in drawAfterRoads / drawPlazas */
     } else if(typeof fieldRoadNode==="function" ? fieldRoadNode(i,j) : forestTrailNode(i,j)){
       /* organic field-road junction drawn in drawFieldRoads */
     } else {
@@ -813,11 +828,13 @@ const CITY_SPAWN_PRESETS=[
 function findBiomeSpawn(biome, variant=0){
   if(biome==="city"){
     const p=CITY_SPAWN_PRESETS[((variant%CITY_SPAWN_PRESETS.length)+CITY_SPAWN_PRESETS.length)%CITY_SPAWN_PRESETS.length];
+    const si=(p.label&&p.label.indexOf("Rynek")>=0&&typeof getMarketNode==="function")?getMarketNode().i:p.i;
+    const sj=(p.label&&p.label.indexOf("Rynek")>=0&&typeof getMarketNode==="function")?getMarketNode().j:p.j;
     if(p.canal && typeof canalSpawnPoint==="function"){
       const cp=canalSpawnPoint();
       if(cp) return Object.assign(cp, {label:p.label, biome:"city"});
     }
-    const pt=roadJunctionAtCell(p.i, p.j);
+    const pt=roadJunctionAtCell(si, sj);
     return Object.assign(pt, {label:p.label, biome:"city"});
   }
   const found=[];
@@ -918,8 +935,9 @@ const plotCache=new Map();
 const megaCellCache=new Map();
 // is this exact cell eligible to carry a landmark?
 function landmarkCell(i,j){
-  if(i===1&&j===1) return false; if(i===1&&j===2) return false;          // spawn + salon
-  if(i===2&&j===1) return false; if(i===2&&j===2) return false;          // gun shop + moto dealer
+  if(i===1&&j===1) return false; if(i===1&&j===2) return false;
+  if(i===2&&j===1) return false; if(i===2&&j===2) return false;
+  if(typeof isMarketNode==="function"&&isMarketNode(i,j)) return false;
   if(typeof isOldTownCell==="function"&&isOldTownCell(i,j)) return false;
   if(biomeOf(i,j)!=="city") return false;
   const z=cityZone(i,j);
@@ -1337,7 +1355,8 @@ function addCurbside(lot,i,j,r){
   for(const e of edges){ if(!e.ex.exists||e.ex.bridge) continue;
     const dx=e.P1[0]-e.P0[0], dy=e.P1[1]-e.P0[1], ang=Math.atan2(dy,dx), off=e.ex.width/2+13;
     for(let t=0.2; t<0.86; t+=step){ if(r()>dens) continue;
-      const cx=e.P0[0]+dx*t+e.nx*off, cy=e.P0[1]+dy*t+e.ny*off; if(inRoundabout(cx,cy)) continue;
+      const cx=e.P0[0]+dx*t+e.nx*off, cy=e.P0[1]+dy*t+e.ny*off;
+      if(inRoundabout(cx,cy)||(typeof inRynek==="function"&&inRynek(cx,cy))) continue;
       const rk=r();
       if(rk<0.09) lot.parked.push({x:cx, y:cy, a:ang, kind:"moto", W:16, L:42, color:pick(CARCOL), cr:12, hp:72, maxHp:72, dmgSeed:(r()*1e9)|0, dead:false, rider:false});
       else if(rk<0.19) lot.parked.push({x:cx, y:cy, a:ang, kind:"bike", W:14, L:36, color:pick(["#c0392b","#2980b9","#27ae60","#e67e22","#34404a","#d6d6d6"]), cr:11, hp:44, maxHp:44, dmgSeed:(r()*1e9)|0, dead:false, rider:false});
@@ -1359,7 +1378,7 @@ function addStreetTrees(lot,i,j,r){
     const dx=e.P1[0]-e.P0[0], dy=e.P1[1]-e.P0[1], off=e.ex.width/2+15;
     for(let t=0.18;t<0.9;t+=step){ if(r()>dens) continue;
       const cx=e.P0[0]+dx*t+e.nx*off, cy=e.P0[1]+dy*t+e.ny*off;
-      if(inRoundabout(cx,cy)||inPlaza(cx,cy)||nearRoundabout(cx,cy,12)) continue;
+      if(inRoundabout(cx,cy)||inPlaza(cx,cy)||(typeof inRynek==="function"&&inRynek(cx,cy))||nearRoundabout(cx,cy,12)) continue;
       let blocked=false; for(const b of lot.buildings){ if(cx>b.x-12&&cx<b.x+b.w+12&&cy>b.y-12&&cy<b.y+b.h+12){ blocked=true; break; } }
       if(blocked) continue;
       const s=118+r()*72, kd=r()<0.70?"deciduous":(r()<0.55?"oak":"bush");
@@ -1384,7 +1403,7 @@ function addLamps(lot,i,j,r){
     const dx=e.P1[0]-e.P0[0], dy=e.P1[1]-e.P0[1], off=e.ex.width/2+9, arm=20;
     for(const t of ts){ if(r()>dens) continue;
       const bx=e.P0[0]+dx*t+e.nx*off, by=e.P0[1]+dy*t+e.ny*off;
-      if(inRoundabout(bx,by)||inPlaza(bx,by)||nearRoundabout(bx,by,14)) continue;
+      if(inRoundabout(bx,by)||inPlaza(bx,by)||(typeof inRynek==="function"&&inRynek(bx,by))||nearRoundabout(bx,by,14)) continue;
       lot.lamps.push({x:bx, y:by, hx:bx-e.nx*arm, hy:by-e.ny*arm, dead:false, fall:null, fdx:0, fdy:0});
     }
   }
@@ -2048,8 +2067,10 @@ function getLot(i,j){
   const eTop=getEdge(i,j,1,0), eBot=getEdge(i,j+1,1,0), eLeft=getEdge(i,j,0,1), eRight=getEdge(i+1,j,0,1);
   let left =Math.max(A[0],D[0])+eLeft.width/2 +SW+eLeft.bulge, right=Math.min(Bn[0],C[0])-eRight.width/2-SW-eRight.bulge;
   let top  =Math.max(A[1],Bn[1])+eTop.width/2 +SW+eTop.bulge,  bot  =Math.min(D[1],C[1])-eBot.width/2 -SW-eBot.bulge;
-  const rbc=(ni,nj)=> isRoundabout(ni,nj)? roundaboutR(ni,nj)+16 : 0;        // push lots out of roundabout circles at their corners
-  const cA=rbc(i,j), cB=rbc(i+1,j), cC=rbc(i+1,j+1), cD=rbc(i,j+1);
+  const rbc=(ni,nj)=> isRoundabout(ni,nj)? roundaboutR(ni,nj)+16 : 0;
+  const ryk=(ni,nj)=> (typeof isMarketNode==="function"&&isMarketNode(ni,nj)&&typeof rynekR==="function")? rynekR(ni,nj)+10 : 0;
+  const cA=Math.max(rbc(i,j), ryk(i,j)), cB=Math.max(rbc(i+1,j), ryk(i+1,j));
+  const cC=Math.max(rbc(i+1,j+1), ryk(i+1,j+1)), cD=Math.max(rbc(i,j+1), ryk(i,j+1));
   if(cA||cD) left =Math.max(left,  A[0]+cA, D[0]+cD);
   if(cB||cC) right=Math.min(right, Bn[0]-cB, C[0]-cC);
   if(cA||cB) top  =Math.max(top,   A[1]+cA, Bn[1]+cB);
@@ -2067,6 +2088,9 @@ function getLot(i,j){
   else if(i===1 && j===2){ lot.salon=true; lot.empty=true; lot.zone=zone; if(!tiny) buildSalonLot(lot); }
   else if(i===2 && j===1){ lot.gunshop=true; lot.empty=true; lot.zone=zone; if(!tiny) buildGunShop(lot); }
   else if(i===2 && j===2){ lot.motodealer=true; lot.empty=true; lot.zone=zone; if(!tiny) buildMotoDealer(lot); }
+  else if(typeof isMarketNode==="function"&&isMarketNode(i,j)){
+    lot.oldtown=true; lot.zone="oldtown"; lot.empty=true;
+  }
   else if(tiny){
     if(denseCore){ lot.zone=zone; fillDenseCoreLot(lot, zone, r, biome); }
     else { lot.empty=true; lot.zone=zone; }
@@ -2152,8 +2176,10 @@ function getLot(i,j){
   if(!lot.mega && !lot.water && !lot.mountain) addLamps(lot,i,j,r);
   if(!lot.mega) addSignals(lot,i,j);
   if(lot.buildings.length) lot.buildings=lot.buildings.filter(b=>{
-    const mx=b.x+b.w/2, my=b.y+b.h/2;
-    return !inPlaza(mx,my) && !(typeof inRynek==="function"&&inRynek(mx,my));
+    const pts=[[b.x,b.y],[b.x+b.w,b.y],[b.x,b.y+b.h],[b.x+b.w,b.y+b.h],[b.x+b.w/2,b.y+b.h/2]];
+    if(pts.some(([px,py])=>inPlaza(px,py))) return false;
+    if(typeof inRynek==="function"&&pts.some(([px,py])=>inRynek(px,py))) return false;
+    return true;
   });
   // ---- surface detail (visual only; stable per lot) ----
   lot.tufts=[]; lot.flowers=[]; lot.ripples=[]; lot.pebbles=[];

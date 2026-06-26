@@ -134,8 +134,9 @@ function buildCanalNetwork(){
       addCanalStrip(lot, (i + j) % 2 === 0);
     }
   }
+  const mk=typeof getMarketNode==="function"?getMarketNode():{i:5,j:4};
   const spine = [
-    [3, 2, 5, 2], [5, 2, 5, 5], [5, 5, 3, 5], [3, 5, 3, 3], [3, 3, 4, 3],
+    [3, 2, 5, 2], [5, 2, 5, 5], [5, 5, 3, 5], [3, 5, 3, 3], [3, 3, mk.i, mk.j],
   ];
   for(const[i0, j0, i1, j1] of spine){
     if(!inCanalCity(i0, j0)) continue;
@@ -280,13 +281,7 @@ function canalScore(x, y){
   ensureCanals();
   const[ci, cj] = cellAt(x, y);
   if(!inCanalCity(ci, cj)) return 0;
-  if(typeof isOldTownCell === "function" && !isOldTownCell(ci, cj)){
-    let near = false;
-    for(let di = -1; di <= 1; di++) for(let dj = -1; dj <= 1; dj++){
-      if(isOldTownCell(ci + di, cj + dj)){ near = true; break; }
-    }
-    if(!near) return 0;
-  }
+  if(typeof isOldTownCell === "function" && !isOldTownCell(ci, cj)) return 0;
   let best = 0;
   for(const s of CANAL_SEGMENTS){
     const ds = distToSeg(x, y, s.x1, s.y1, s.x2, s.y2);
@@ -299,16 +294,16 @@ function canalScore(x, y){
     const lx = x - e.x, ly = y - e.y;
     const ca = Math.cos(e.a), sa = Math.sin(e.a);
     const along = lx * ca + ly * sa, across = -lx * sa + ly * ca;
-    if(along > -6 && along < e.len + 8 && Math.abs(across) < e.w * 0.5){
-      const ramp = clamp(1 - along / (e.len + 8), 0, 1);
-      best = Math.max(best, ramp * 0.55);
+    if(along > e.len - 14 && along < e.len + 6 && Math.abs(across) < e.w * 0.42){
+      const depth = clamp((along - (e.len - 14)) / 14, 0, 1);
+      best = Math.max(best, depth * 0.88);
     }
   }
   return best;
 }
 
 function inCanalWater(x, y){
-  return canalScore(x, y) > 0.08;
+  return canalDepthAt(x, y) > 0;
 }
 
 function inCanalZone(x, y){
@@ -447,7 +442,7 @@ function drawCanalWaterSeg(s, ox, oy, t){
   ctx.strokeStyle = "rgba(120,150,130,.12)"; ctx.lineWidth = 1.2;
   for(let u = 0; u < 1; u += 0.14){
     const px = s.x1 + dx * u, py = s.y1 + dy * u;
-    const wob = Math.sin(t * 1.8 + u * 12) * 2;
+    const wob = Math.sin(t * 1.8 + u * 12) * 1.2;
     ctx.beginPath();
     ctx.moveTo(px + nx * wob, py + ny * wob);
     ctx.lineTo(px + fx * 16 + nx * wob, py + fy * 16 + ny * wob);
