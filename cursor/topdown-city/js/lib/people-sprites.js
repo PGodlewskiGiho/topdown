@@ -8,8 +8,10 @@ const imgs={};
 const pending=new Set();
 const failed=new Set();
 const baked={};
+const lastHold={}; // ped uid -> {wf, dir, canvas}
 let meta=null, loadP=null, ready=false;
 let resolvedRoot=null;
+let warmStarted=false;
 
 const BUILD_SCALE={
   slim:{sx:0.88,sy:1.02},
@@ -112,28 +114,53 @@ function init(){
 
 function pick(arr, seed){ return arr[Math.abs(seed)%arr.length]; }
 
-function prefetchAllDirections(o, folder){
-  const dirs=LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
-  for(const d of dirs){
-    prefetchOutfit(o, folder, d);
+function clipSpec(clipId){
+  return (meta&&meta.clips&&meta.clips[clipId])||(LS&&LS.DEFAULT_CLIPS&&LS.DEFAULT_CLIPS[clipId])||{count:2,step_sec:0.11};
+}
+
+function pedUid(p){
+  if(p._psUid==null) p._psUid=((Math.random()*0x7fffffff)|0)>>>0;
+  return p._psUid;
+}
+
+function prefetchOutfit(o, wf, direction, altWalk){
+  for(const path of layerPaths(o, wf, direction)) queueImg(path, ()=>tryBake(o, wf, direction));
+  if(altWalk!==false){
+    const alt=wf.startsWith("walk")?(wf==="walk0"?"walk1":"walk0"):null;
+    if(alt) for(const path of layerPaths(o, alt, direction)) queueImg(path, ()=>tryBake(o, alt, direction));
   }
 }
 
+function prefetchClipDir(o, clipId, direction){
+  const spec=clipSpec(clipId);
+  const n=spec.count!=null?spec.count:2;
+  for(let i=0;i<n;i++) prefetchOutfit(o, clipId+i, direction, false);
+}
+
+/** Lazy: one facing only — avoids 8× frame storm per clip. */
+function ensureClipForPed(p, clipId){
+  const o=resolveOutfit(p, true);
+  if(!o) return;
+  const moveDir=moveFacingDir(p);
+  const dir=gta2SpriteDir(moveDir);
+  prefetchClipDir(o, clipId, dir);
+  const opp=LS&&LS.DIR?LS.DIR[(LS.DIR.indexOf(dir)+4)%8]:null;
+  if(opp) prefetchClipDir(o, clipId, opp);
+}
+
 function warmDefault(){
-  if(!meta) return;
+  if(!meta||warmStarted) return;
+  warmStarted=true;
   const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
-  const warmFolders=["idle0","walk0","walk1","run0","shoot0","shoot1","punch0","punch1","down0","down1","die0","die1"];
-  for(const f of warmFolders){
-    prefetchAllDirections(sample, f);
-  }
+  for(const f of ["walk0","walk1","idle0"]) prefetchOutfit(sample, f, "S");
 }
 
 function prefetchCombat(o){
   if(!o) return;
-  for(const clip of ["shoot","punch","die","down","run"]) prefetchClip(o, clip);
+  for(const clip of ["shoot","punch"]) prefetchClipDir(o, clip, "S");
 }
 
-function resolveOutfit(p){
+function resolveOutfit(p, skipPrefetch){
   if(p._gta2Outfit) return p._gta2Outfit;
   if(!meta) return null;
   if(GO) GO.applyGta2Ids(p);
@@ -159,9 +186,11 @@ function resolveOutfit(p){
   if(p.hairId) o.hair=p.hairId;
   if(p.hairStyle==="bald"||p.hair==null) o.hair=null;
   p._gta2Outfit=o;
-  prefetchAllDirections(o, "walk0");
-  prefetchAllDirections(o, "idle0");
-  prefetchCombat(o);
+  if(!skipPrefetch){
+    const dir=gta2SpriteDir(p._faceDir||"S");
+    prefetchOutfit(o, "walk0", dir);
+    prefetchOutfit(o, "idle0", dir);
+  }
   return o;
 }
 
@@ -186,33 +215,104 @@ function layerPaths(o, wf, direction){
   return out;
 }
 
-function prefetchClip(o, clipId){
-  const spec=(meta&&meta.clips&&meta.clips[clipId])||(LS&&LS.DEFAULT_CLIPS&&LS.DEFAULT_CLIPS[clipId]);
-  const n=spec&&spec.count!=null?spec.count:8;
-  for(let i=0;i<n;i++) prefetchAllDirections(o, clipId+i);
+function prefetchClip(o, clipId, direction){
+  prefetchClipDir(o, clipId, direction||"S");
 }
 
-function prefetchOutfit(o, wf, direction){
-  for(const path of layerPaths(o, wf, direction)) queueImg(path, ()=>tryBake(o, wf, direction));
-  const alt=wf==="walk0"?"walk1":"walk0";
-  for(const path of layerPaths(o, alt, direction)) queueImg(path, ()=>tryBake(o, alt, direction));
+function layersReadyCount(o, wf, dir){
+  let n=0, total=0;
+  for(const path of layerPaths(o, wf, dir)){
+    total++;
+    if(getImg(path)) n++;
+  }
+  return {n, total};
 }
 
 function allLayersReady(o, wf, dir){
-  for(const path of layerPaths(o, wf, dir)){
-    const im=getImg(path);
-    if(!im) return false;
+  const c=layersReadyCount(o, wf, dir);
+  return c.total>0 && c.n===c.total;
+}
+
+function facingDirs(dir){
+  const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
+  const i=dirs.indexOf(dir);
+  if(i<0) return [dir||"S"];
+  return [dir, dirs[(i+1)%8], dirs[(i+7)%8], dirs[(i+4)%8]];
+}
+
+/** Nearest loaded frame + clip/direction fallback (die→down→walk). Heuristic borrow, no ML. */
+function resolveAnimPose(o, wf, dir){
+  const m=wf.match(/^([a-z]+)(\d+)$/);
+  const clipId=m?m[1]:wf.replace(/\d+$/,"");
+  const frameIdx=m?parseInt(m[2],10):0;
+  const spec=clipSpec(clipId);
+  const count=spec.count||1;
+  const dirs=facingDirs(dir);
+  const tryFolder=(folder, d)=>allLayersReady(o, folder, d)?{wf:folder, dir:d}:null;
+  const scan=(folder)=>{
+    for(const d of dirs){
+      const hit=tryFolder(folder, d);
+      if(hit) return hit;
+    }
+    return null;
+  };
+
+  for(let d=0; d<count; d++){
+    const fi=frameIdx-d;
+    if(fi<0) break;
+    const hit=scan(clipId+fi);
+    if(hit) return hit;
   }
-  return true;
+  for(let d=1; d<count; d++){
+    const fi=frameIdx+d;
+    if(fi>=count) break;
+    const hit=scan(clipId+fi);
+    if(hit) return hit;
+  }
+  const fallbacks=clipId==="die"?["down","walk","idle"]:clipId==="down"?["walk","idle"]:["walk","idle"];
+  for(const fb of fallbacks){
+    const fbSpec=clipSpec(fb);
+    const fn=Math.min(fbSpec.count||1, 3);
+    for(let fi=0; fi<fn; fi++){
+      const hit=scan(fb+fi);
+      if(hit) return hit;
+    }
+  }
+  for(const fb of ["walk0","idle0"]){
+    const hit=scan(fb);
+    if(hit) return hit;
+  }
+  return {wf, dir};
+}
+
+function ensureWalkPrefetch(p, o, wf, dir){
+  const key=wf+"|"+dir;
+  if(p._psWalkReq===key) return;
+  p._psWalkReq=key;
+  prefetchOutfit(o, wf, dir);
 }
 
 function drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm){
+  let drew=0, need=0;
+  for(const path of layerPaths(o, wf, dir)){
+    need++;
+    const im=getImg(path);
+    if(!im) continue;
+    c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
+    drew++;
+  }
+  return drew>0 && drew===need;
+}
+
+function drawLayersPartial(c, o, wf, dir, ax, ay, sx, sy, bm){
+  let drew=0;
   for(const path of layerPaths(o, wf, dir)){
     const im=getImg(path);
-    if(!im) return false;
+    if(!im) continue;
     c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
+    drew++;
   }
-  return true;
+  return drew>0;
 }
 
 /** Baked GTA2 dirs are 180° off screen movement (base sprite faces N). */
@@ -291,39 +391,62 @@ function drawComposite(c, p, down, forcedDir){
   const ay=(meta.anchor||[11,21])[1]*sc;
   c.imageSmoothingEnabled=false;
 
-  const wf=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down,meta):"walk0";
+  const wfRaw=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down,meta):"walk0";
   const moveDir=moveFacingDir(p, forcedDir);
   const dir=gta2SpriteDir(moveDir);
   p._faceDir=moveDir;
   p._spriteDir=dir;
   p._animClip=LS&&LS.animClip?LS.animClip(p,down,meta):null;
-  prefetchOutfit(o, wf, dir);
-  if(p._animClip) prefetchClip(o, p._animClip);
 
-  const ang=dirAngle(dir);
+  if(p._animClip==="die"||p._animClip==="down"||p.state==="dying"||down)
+    ensureClipForPed(p, p._animClip|| (p.state==="dying"?"die":"down"));
+  else if(p._animClip&&p._animClip!=="walk"&&p._animClip!=="idle")
+    ensureClipForPed(p, p._animClip);
+  else ensureWalkPrefetch(p, o, wfRaw, dir);
+
+  const pose=resolveAnimPose(o, wfRaw, dir);
+  const wf=pose.wf;
+  const drawDir=pose.dir;
+  const uid=pedUid(p);
+
+  const ang=dirAngle(drawDir);
   c.save();
   c.rotate(ang-Math.PI/2);
   c.fillStyle="rgba(0,0,0,.30)";
   c.fillRect(-8*sc, 3*sc, 16*sc, 4*sc);
   c.restore();
 
-  let drew=drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm);
+  let drew=drawLayers(c, o, wf, drawDir, ax, ay, sx, sy, bm);
+  if(!drew) drew=drawLayersPartial(c, o, wf, drawDir, ax, ay, sx, sy, bm);
   if(!drew){
-    let bakedIm=getBaked(o, wf, dir);
-    if(!bakedIm&&allLayersReady(o, wf, dir)) bakedIm=tryBake(o, wf, dir);
+    let bakedIm=getBaked(o, wf, drawDir);
+    if(!bakedIm&&allLayersReady(o, wf, drawDir)) bakedIm=tryBake(o, wf, drawDir);
     if(bakedIm){
       c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
+      drew=true;
+      lastHold[uid]={wf, dir:drawDir, canvas:bakedIm};
+    }
+  }
+  if(drew && allLayersReady(o, wf, drawDir)){
+    const bakedIm=tryBake(o, wf, drawDir);
+    if(bakedIm) lastHold[uid]={wf, dir:drawDir, canvas:bakedIm};
+  }
+  if(!drew){
+    const hold=lastHold[uid];
+    if(hold&&hold.canvas){
+      c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
       drew=true;
     }
   }
   if(!drew){
-    for(const fb of ["idle0","walk0"]){
+    for(const fb of ["idle0","walk0","walk1"]){
       if(fb===wf) continue;
-      if(drawLayers(c, o, fb, dir, ax, ay, sx, sy, bm)) break;
+      const fbp=resolveAnimPose(o, fb, dir);
+      if(drawLayersPartial(c, o, fbp.wf, fbp.dir, ax, ay, sx, sy, bm)){ drew=true; break; }
     }
   }
 
-  if(down){
+  if(down||p.state==="dying"){
     c.save();
     c.rotate(Math.PI/2);
     c.fillStyle="rgba(0,0,0,.2)";
@@ -346,7 +469,7 @@ function draw(c,p,color,down,forcedDir){
 }
 
 const PeopleSprites={
-  draw, init, warmDefault, prefetchCombat, resolveOutfit,
+  draw, init, warmDefault, prefetchCombat, resolveOutfit, ensureClipForPed, prefetchClipDir,
   get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
   get meta(){ return meta; },

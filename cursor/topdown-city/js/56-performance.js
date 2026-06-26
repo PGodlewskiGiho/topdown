@@ -30,7 +30,13 @@ function perfSkipTreeGhost(){ return perfTier() === 1; }
 function perfSkipCanopyShades(){ return perfTier() === 1; }
 function perfSimpleTrees(){ return perfTier() === 1; }
 function perfVehicleLodDist(){ return perfTier() === 1 ? 200 : perfTier() === 2 ? 460 : 1e9; }
-function perfPedLodDist(){ return perfTier() === 1 ? 240 : perfTier() === 2 ? 380 : 1e9; }
+function perfPedLodDist(){ return perfTier() === 1 ? 720 : perfTier() === 2 ? 520 : 1e9; }
+function perfPedKeepGta2(p){
+  if(typeof ped!=="undefined" && p===ped) return true;
+  if(p.state==="dying"||p.state==="down"||p.hostile) return true;
+  if(p._attackT>0) return true;
+  return false;
+}
 function perfTrafficScanDist(){ return perfTier() === 1 ? 160 : perfTier() === 2 ? 260 : 1e9; }
 function perfRainScale(){ return perfTier() === 1 ? 0.35 : perfTier() === 2 ? 0.62 : 1; }
 function perfMinimapEvery(){ return perfTier() === 1 ? 3 : perfTier() === 2 ? 2 : 1; }
