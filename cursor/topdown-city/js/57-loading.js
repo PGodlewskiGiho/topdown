@@ -149,10 +149,21 @@ const LoadingScreen={
         for(const k of TEX_KEYS) getTex(k);
         await wait(80);
       }},
-      {w:22, label:"Postacie i animacje", run:async()=>{
+      {w:30, label:"Postacie i animacje", run:async(ctx)=>{
         if(typeof PeopleSprites==="undefined"||!PeopleSprites.whenBootReady) return;
-        const ok=await PeopleSprites.whenBootReady(16000);
-        if(!ok) throw new Error("sprites");
+        const poll=setInterval(()=>{
+          if(ctx&&typeof ctx.onSubProgress==="function"){
+            const r=PeopleSprites.getBootLoadRatio?PeopleSprites.getBootLoadRatio():0;
+            ctx.onSubProgress(r);
+          }
+          if(PeopleSprites.tickLoadQueue) PeopleSprites.tickLoadQueue();
+        }, 60);
+        try{
+          const ok=await PeopleSprites.whenBootReady(32000);
+          if(!ok) throw new Error("sprites");
+        }finally{
+          clearInterval(poll);
+        }
       }},
       {w:14, label:"Roślinność leśna", run:async()=>{
         await waitUntilOptional("forest-grass", ()=>window.FOREST_GRASS&&FOREST_GRASS.ready, 18000);
@@ -173,9 +184,17 @@ const LoadingScreen={
         if(document.fonts&&document.fonts.ready) await document.fonts.ready;
         await wait(120);
       }},
-      {w:8,  label:"Finalizacja", run:async()=>{
-        if(typeof PeopleSprites!=="undefined"&&PeopleSprites.tickLoadQueue) PeopleSprites.tickLoadQueue();
-        await wait(280);
+      {w:10, label:"Finalizacja", run:async()=>{
+        if(typeof PeopleSprites!=="undefined"&&PeopleSprites.tickLoadQueue){
+          const t0=performance.now();
+          while(performance.now()-t0<5000){
+            PeopleSprites.tickLoadQueue();
+            const r=PeopleSprites.getBootLoadRatio?PeopleSprites.getBootLoadRatio():1;
+            if(r>=0.97) break;
+            await wait(80);
+          }
+        }
+        await wait(160);
       }},
     ];
 
@@ -187,7 +206,13 @@ const LoadingScreen={
     try{
       for(const task of tasks){
         setStatus(task.label);
-        await task.run();
+        const taskStartW=doneW;
+        const ctx={
+          onSubProgress(sub){
+            setProgress((taskStartW+task.w*clamp(sub,0,1))/totalW);
+          },
+        };
+        await task.run(ctx);
         doneW+=task.w;
         setProgress(doneW/totalW);
       }
