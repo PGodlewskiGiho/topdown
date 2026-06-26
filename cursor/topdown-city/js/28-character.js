@@ -48,7 +48,9 @@ function applyCharacterToPed(ch){
   delete ped._psLayerCache;
   delete ped._psWarmSig;
   delete ped._psClipReq;
+  delete ped._psCombatWarm;
   if(typeof Gta2Outfit!=="undefined") Gta2Outfit.applyGta2Ids(ped);
+  if(typeof PeopleSprites!=="undefined"&&PeopleSprites.warmPed) PeopleSprites.warmPed(ped, 16);
   car.riderShirt=ped.shirt;
   car.riderSkin=ped.skin;
   car.riderHair=ped.hair;

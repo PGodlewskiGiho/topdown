@@ -369,8 +369,10 @@ function updateCombat(dt){
   if(typeof invOpen!=="undefined"&&invOpen) return;
   playerFireCd-=dt;
   if(mode==="foot" && (firing||keys[" "]) && playerFireCd<=0){
-    const w=WEAPONS[curWeapon];
-    const canFire=typeof playerCanFire==="function"?playerCanFire():(w.kind==="melee"||ammo[curWeapon]>0);
+    const wIdx=typeof getEquippedWeaponIdx==="function"?getEquippedWeaponIdx():curWeapon;
+    const w=WEAPONS[wIdx];
+    if(wIdx!==curWeapon) curWeapon=wIdx;
+    const canFire=typeof playerCanFire==="function"?playerCanFire():(w.kind==="melee"||ammo[wIdx]>0);
     if(canFire){
       const ang=playerAim(); ped.a=ang;
       fireWeapon(w, ped.x, ped.y, ang, "player");
