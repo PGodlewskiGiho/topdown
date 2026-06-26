@@ -46,6 +46,12 @@ jobs:
           pip install pillow
           npm run gen:gta2
 
+      - name: Generate bear sprites (enhanced attack)
+        run: |
+          pip install pillow
+          cd cursor/topdown-city
+          npm run gen:bears:attack
+
       - name: Generate tree sprites
         run: |
           pip install pillow

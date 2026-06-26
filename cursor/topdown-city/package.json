@@ -4,10 +4,14 @@
   "description": "TOPDOWN CITY static browser game",
   "scripts": {
     "dev": "python3 -m http.server 8080",
+    "dev:anim": "python3 -m http.server 8090",
     "smoke": "node scripts/smoke-check.mjs",
     "check": "npm run smoke",
     "gen:people": "python3 scripts/gen_topdown_people.py",
-    "gen:gta2": "python3 scripts/gen_gta2_people_parts.py",
+    "gen:gta2": "python3 scripts/gen_gta2_people_parts.py && python3 scripts/anim_studio.py enhance-punch",
+    "gen:punch": "python3 scripts/anim_studio.py enhance-punch",
+    "gen:bears": "python3 ../scripts/generate-bears.py",
+    "gen:bears:attack": "python3 ../scripts/generate-bears.py && python3 scripts/anim_studio.py enhance-strip assets/bears/bear-brown.png assets/bears/meta.json && python3 scripts/anim_studio.py enhance-strip assets/bears/bear-grizzly.png assets/bears/meta.json && python3 scripts/anim_studio.py enhance-strip assets/bears/bear-dark.png assets/bears/meta.json && python3 scripts/anim_studio.py enhance-strip assets/bears/bear-cinnamon.png assets/bears/meta.json",
     "gen:trees": "python3 ../scripts/generate-trees.py --hd-all"
   },
   "devDependencies": {
