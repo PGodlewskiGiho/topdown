@@ -44,6 +44,10 @@ function applyCharacterToPed(ch){
   ped.hatColor=ch.hatColor;
   ped.height=ch.height||1;
   ped.r=bodyRadius(ped.body);
+  delete ped._gta2Outfit;
+  delete ped._psLayerCache;
+  delete ped._psWarmSig;
+  delete ped._psClipReq;
   if(typeof Gta2Outfit!=="undefined") Gta2Outfit.applyGta2Ids(ped);
   car.riderShirt=ped.shirt;
   car.riderSkin=ped.skin;

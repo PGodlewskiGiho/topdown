@@ -88,13 +88,15 @@ function bodyType(p){
 function applyGta2Ids(p){
   const body=bodyType(p);
   p.body=body;
-  if(!p.shirtId) p.shirtId=shirtIdFromHex(p.shirt||p.color);
+  p.shirtId=shirtIdFromHex(p.shirt||p.color);
   p.skinId=skinIdFromHex(p.skin);
   p.hairId=(p.hairStyle==="bald"||p.hair==null)?null:hairIdFromHex(p.hair);
-  if(p.shorts) p.pantsId="shorts_blue";
-  else if(!p.pantsId) p.pantsId=pantsIdFromHex(p.pants);
+  p.pantsId=p.shorts?"shorts_blue":pantsIdFromHex(p.pants);
   p.build=buildForBody(body, p.build);
   delete p._gta2Outfit;
+  delete p._psLayerCache;
+  delete p._psWarmSig;
+  delete p._psClipReq;
   return p;
 }
 
