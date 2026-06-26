@@ -57,7 +57,6 @@ function draw(){
   drawRoads(ox,oy);
   Game.drawAfterRoads(ox,oy);
   drawPlazas(ox,oy);
-  drawCrosswalks(ox,oy);
   if(typeof perfEnd==="function") perfEnd("roads");
 
   // skid marks
