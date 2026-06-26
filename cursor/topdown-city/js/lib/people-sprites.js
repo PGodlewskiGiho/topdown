@@ -663,7 +663,7 @@ function drawComposite(c, p, down, forcedDir){
     ensureClipForPed(p, p._animClip, moveDir);
   else ensureWalkPrefetch(p, o, wfRaw, dir);
 
-  const loadPri=p===global.ped?12:(p.state==="dying"||down?11:7);
+  let loadPri=p===global.ped?12:(p.state==="dying"||down?11:7);
   if(p._attackT>0) loadPri=16;
   const uid=pedUid(p);
   const combatDraw=isCombatClip(p._animClip)||(p._attackT>0&&isCombatClip(p._attackClip));
