@@ -11,7 +11,10 @@ const baked={};
 const lastHold={}; // ped uid -> {wf, dir, canvas}
 const loadQueue=[];
 let inflight=0;
-let maxInflight=12;
+let maxInflight=10;
+const BOOT_MAX_INFLIGHT=6;
+const MAX_IMG_RETRIES=5;
+const retryCount={};
 const bootPaths=new Set();
 let bootPrefetching=false;
 let bootOutfit=null;
@@ -62,6 +65,53 @@ function outfitKey(o){
 
 function bakeKey(o,wf,dir){ return outfitKey(o)+"|"+wf+"|"+dir; }
 
+function requeueImageLoad(item, delayMs){
+  const path=item.path;
+  delete imgs[path];
+  pending.delete(path);
+  setTimeout(()=>{
+    if(failed.has(path)) return;
+    loadQueue.push({
+      path,
+      priority:item.priority,
+      callbacks:item.callbacks.slice(),
+    });
+    loadQueue.sort((a,b)=>b.priority-a.priority);
+    pumpLoadQueue();
+  }, delayMs);
+}
+
+function startImageLoad(item){
+  const path=item.path;
+  pending.add(path);
+  inflight++;
+  const im=new Image();
+  im.onload=()=>{
+    pending.delete(path);
+    inflight--;
+    delete retryCount[path];
+    for(const cb of item.callbacks) try{ cb(); }catch(e){}
+    pumpLoadQueue();
+  };
+  im.onerror=()=>{
+    pending.delete(path);
+    inflight--;
+    delete imgs[path];
+    const tries=(retryCount[path]||0)+1;
+    retryCount[path]=tries;
+    if(tries<MAX_IMG_RETRIES){
+      const delay=Math.min(12000, 350*Math.pow(2, tries-1)+(Math.random()*120|0));
+      requeueImageLoad(item, delay);
+    }else{
+      failed.add(path);
+      console.warn("PeopleSprites layer failed after retries:", path);
+    }
+    pumpLoadQueue();
+  };
+  im.src=path;
+  imgs[path]=im;
+}
+
 function pumpLoadQueue(){
   while(inflight<maxInflight&&loadQueue.length){
     const item=loadQueue.shift();
@@ -78,26 +128,7 @@ function pumpLoadQueue(){
       }
       continue;
     }
-    pending.add(item.path);
-    inflight++;
-    const im=new Image();
-    im.onload=()=>{
-      pending.delete(item.path);
-      inflight--;
-      for(const cb of item.callbacks) try{ cb(); }catch(e){}
-      pumpLoadQueue();
-    };
-    im.onerror=()=>{
-      pending.delete(item.path);
-      inflight--;
-      if(!failed.has(item.path)){
-        failed.add(item.path);
-        console.warn("PeopleSprites missing layer:", item.path);
-      }
-      pumpLoadQueue();
-    };
-    im.src=item.path;
-    imgs[item.path]=im;
+    startImageLoad(item);
   }
 }
 
@@ -257,12 +288,9 @@ function warmPed(p, priority){
   p._psWarmSig=sig;
   const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
   if(p===global.ped){
-    const clips=["walk","run","idle","punch","shoot"];
+    const frames=bootClipFrames();
     for(const d of dirs){
-      for(const clipId of clips){
-        const n=clipSpec(clipId).count||1;
-        for(let fi=0; fi<n; fi++) prefetchOutfit(o, clipId+fi, d, false, pri);
-      }
+      for(const wf of frames) prefetchOutfit(o, wf, d, false, pri);
     }
     return;
   }
@@ -312,7 +340,7 @@ function warmVisiblePeds(){
 function warmDefault(){
   if(!meta||warmStarted) return;
   warmStarted=true;
-  maxInflight=28;
+  maxInflight=BOOT_MAX_INFLIGHT;
   const o=resolveBootPlayerOutfit();
   if(o) bootPrefetchOutfit(o, 18, true);
 }
@@ -907,12 +935,9 @@ function bootPrefetchOutfit(o, priority, resetPaths){
   const pri=priority!=null?priority:16;
   const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
   bootPrefetching=true;
-  const clips=["walk","run","idle","punch","shoot"];
+  const frames=bootClipFrames();
   for(const d of dirs){
-    for(const clipId of clips){
-      const n=clipSpec(clipId).count||1;
-      for(let fi=0; fi<n; fi++) bootQueueLayer(o, clipId+fi, d, pri);
-    }
+    for(const wf of frames) bootQueueLayer(o, wf, d, pri);
   }
   pumpLoadQueue();
 }
@@ -928,12 +953,17 @@ function prefetchPlayerOutfit(source, resetPaths){
 }
 
 function bootClipFrames(){
-  const clips=["walk","run","idle","punch","shoot"];
   const out=[];
-  for(const clipId of clips){
-    const n=clipSpec(clipId).count||1;
+  const addClip=(clipId, maxFrames)=>{
+    const cap=maxFrames!=null?maxFrames:(clipSpec(clipId).count||1);
+    const n=Math.min(cap, clipSpec(clipId).count||1);
     for(let fi=0; fi<n; fi++) out.push(clipId+fi);
-  }
+  };
+  addClip("walk");
+  addClip("run");
+  addClip("punch");
+  addClip("idle", 1);
+  addClip("shoot", Math.min(4, clipSpec("shoot").count||8));
   return out;
 }
 
@@ -973,18 +1003,18 @@ function bootLoadRatio(){
 function waitForOutfit(o, timeoutMs){
   const timeout=timeoutMs!=null?timeoutMs:90000;
   if(!o) return Promise.resolve(false);
-  maxInflight=28;
+  maxInflight=BOOT_MAX_INFLIGHT;
   bootPrefetchOutfit(o, 20, true);
   return new Promise(resolve=>{
     const t0=performance.now();
     const tick=()=>{
       tickLoadQueue();
       if(outfitFullyReady(o)){
-        maxInflight=12;
+        maxInflight=10;
         bootPrefetching=false;
         resolve(true);
       }else if(performance.now()-t0>=timeout){
-        maxInflight=12;
+        maxInflight=10;
         bootPrefetching=false;
         console.warn("PeopleSprites outfit prefetch timeout", outfitLoadRatio(o).toFixed(3));
         resolve(false);
