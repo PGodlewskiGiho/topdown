@@ -332,6 +332,7 @@ function drawPoliceMarkings(v, L, W, accent){
     ctx.fillRect(-1.5,-hl*0.3,3,hl*0.6);
     ctx.strokeStyle="rgba(0,0,0,0.35)"; ctx.lineWidth=0.8;
     ctx.strokeRect(-hw*0.38,-hl*0.18,hw*0.76,hl*0.36);
+    drawPoliceLightbar(v, L, W, mk);
     ctx.restore();
     return;
   }
@@ -352,7 +353,24 @@ function drawPoliceMarkings(v, L, W, accent){
     ctx.fillStyle="rgba(255,255,255,0.55)";
     for(let i=0;i<5;i++) if(i%2===0) ctx.fillRect(-rw*0.48+i*rw*0.2, ry-rh*0.45, rw*0.1, rh*0.9);
   }
+  drawPoliceLightbar(v, L, W, mk);
   ctx.restore();
+}
+
+function drawPoliceLightbar(v, L, W, mk){
+  const on=(v.flash!=null?v.flash:0)<1;
+  const hl=L/2;
+  if(mk==="apc"){
+    ctx.fillStyle="#1a2030"; ctx.fillRect(-6,-hl*0.28,12,7);
+    ctx.fillStyle=on?"#a8c060":"#506838"; ctx.fillRect(-5,-hl*0.26,5,5);
+    ctx.fillStyle=on?"#506838":"#a8c060"; ctx.fillRect(0,-hl*0.26,5,5);
+    return;
+  }
+  const bw=Math.min(W*0.62,24), bh=5.5, by=-hl*0.86;
+  ctx.fillStyle="#141a28"; ctx.fillRect(-bw*0.5,by,bw,bh);
+  ctx.fillStyle=on?"#ff3b3b":"#3b6bff"; ctx.fillRect(-bw*0.5+1,by+1,bw*0.5-2,bh-2);
+  ctx.fillStyle=on?"#3b6bff":"#ff3b3b"; ctx.fillRect(1,by+1,bw*0.5-2,bh-2);
+  ctx.fillStyle="rgba(255,255,255,0.35)"; ctx.fillRect(-bw*0.08,by+1.2,bw*0.16,bh-2.4);
 }
 
 // continuous greenhouse canopy path (front=up). topInset/botInset are

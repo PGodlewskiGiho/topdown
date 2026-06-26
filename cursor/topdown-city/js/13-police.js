@@ -485,24 +485,14 @@ function showBigMsg(t){ const el=document.getElementById("bigmsg"); el.textConte
 
 function drawCop(c){
   if(c.kind==="moto"||c.kind==="bike") drawBike(c); else drawVehicle(c, c.color);
-  ctx.save(); ctx.translate(c.x,c.y); ctx.rotate(c.a);
-  const on=c.flash<1;
-  if(c.unit==="apc"){
-    ctx.fillStyle="#1a2030"; ctx.fillRect(-6,-12,12,7);
-    ctx.fillStyle=on?"#a8c060":"#506838"; ctx.fillRect(-5,-11,5,5);
-    ctx.fillStyle=on?"#506838":"#a8c060"; ctx.fillRect(0,-11,5,5);
-  } else if(c.kind==="moto"){
+  if(c.kind==="moto"){
+    ctx.save(); ctx.translate(c.x,c.y); ctx.rotate(c.a);
+    const on=c.flash<1;
     ctx.fillStyle="#1a2030"; ctx.fillRect(-c.L*0.48,-4,5,3.2);
     ctx.fillStyle=on?"#ff3b3b":"#3b6bff"; ctx.fillRect(-c.L*0.47,-3.6,2.2,2.4);
     ctx.fillStyle=on?"#3b6bff":"#ff3b3b"; ctx.fillRect(-c.L*0.47,-0.8,2.2,2.4);
-  } else {
-    const bw=Math.min(c.W*0.62,24), bh=5.5, by=-c.L*0.43;
-    ctx.fillStyle="#141a28"; ctx.fillRect(-bw*0.5,by,bw,bh);
-    ctx.fillStyle=on?"#ff3b3b":"#3b6bff"; ctx.fillRect(-bw*0.5+1,by+1,bw*0.5-2,bh-2);
-    ctx.fillStyle=on?"#3b6bff":"#ff3b3b"; ctx.fillRect(1,by+1,bw*0.5-2,bh-2);
-    ctx.fillStyle="rgba(255,255,255,0.35)"; ctx.fillRect(-bw*0.08,by+1.2,bw*0.16,bh-2.4);
+    ctx.restore();
   }
-  ctx.restore();
 }
 
 function drawHeli(h){
