@@ -165,6 +165,7 @@ function inBuilding(x,y,r){
   return false;
 }
 function toggleVehicle(){
+  if(typeof vehicleEntryBusy==="function"&&vehicleEntryBusy()) return;
   if(mode==="inside"){
     if(toggleInteriorVehicle()) return;
     exitBuilding();
@@ -194,9 +195,18 @@ function toggleVehicle(){
     let boardBoat=null;
     for(const b of boats){ if(b.player) continue; const d=Math.hypot(ped.x-b.x,ped.y-b.y); if(d<R+(b.L?b.L*0.45:14) && d<bestD){ bestD=d; boardBoat=b; target=null; jackpc=null; own=false; } }
     if(boardBoat) enterBoat(boardBoat);
-    else if(jackpc) jackParked(jackpc,jacklot);
-    else if(target) jackCar(target);
-    else if(own) mode="car";
+    else if(jackpc){
+      if(typeof startVehicleEntry==="function") startVehicleEntry({vehicle:jackpc, lot:jacklot, finish(){ jackParked(jackpc,jacklot); }});
+      else jackParked(jackpc,jacklot);
+    }
+    else if(target){
+      if(typeof startVehicleEntry==="function") startVehicleEntry({vehicle:target, finish(){ jackCar(target); }});
+      else jackCar(target);
+    }
+    else if(own){
+      if(typeof startVehicleEntry==="function") startVehicleEntry({vehicle:car, finish(){ mode="car"; }});
+      else mode="car";
+    }
     else {
       const shed=typeof nearestCanalShed==="function"?nearestCanalShed(ped.x,ped.y,34):null;
       if(shed){ enterCanalShed(shed); return; }
