@@ -550,6 +550,32 @@ function dirAngle(dir){
   return (i>=0?i:2)*(Math.PI/4);
 }
 
+/** Soft contact shadow — radial ellipse blob, not a flat rectangle. */
+function drawPedShadowBlob(c, sc, opts){
+  opts=opts||{};
+  const down=!!opts.down;
+  const cx=opts.x!=null?opts.x:sc*0.4;
+  const cy=opts.y!=null?opts.y:(down?2.1*sc:3.3*sc);
+  const rx=down?9.5*sc:7.8*sc;
+  const ry=down?3.4*sc:2.7*sc;
+  const a=down?0.19:0.25;
+  c.save();
+  c.translate(cx, cy);
+  const g=c.createRadialGradient(0,0,0, 0,0, Math.max(rx,ry));
+  g.addColorStop(0, "rgba(0,0,0,"+a+")");
+  g.addColorStop(0.62, "rgba(0,0,0,"+(a*0.42).toFixed(3)+")");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  c.fillStyle=g;
+  c.beginPath();
+  c.ellipse(0, 0, rx, ry, 0, 0, Math.PI*2);
+  c.fill();
+  c.fillStyle="rgba(0,0,0,"+(a*0.32).toFixed(3)+")";
+  c.beginPath();
+  c.ellipse(0, 0, rx*0.48, ry*0.48, 0, 0, Math.PI*2);
+  c.fill();
+  c.restore();
+}
+
 function drawComposite(c, p, down, forcedDir){
   const o=resolveOutfit(p);
   if(!o) return;
@@ -578,12 +604,8 @@ function drawComposite(c, p, down, forcedDir){
   const loadPri=p===global.ped?12:(p.state==="dying"||down?11:7);
   const uid=pedUid(p);
 
-  const ang=dirAngle(dir);
-  c.save();
-  c.rotate(ang-Math.PI/2);
-  c.fillStyle="rgba(0,0,0,.30)";
-  c.fillRect(-8*sc, 3*sc, 16*sc, 4*sc);
-  c.restore();
+  const isDown=down||p.state==="dying";
+  drawPedShadowBlob(c, sc, {down:isDown});
 
   const smart=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri);
   let drew=smart.complete||smart.drew>0;
@@ -603,14 +625,6 @@ function drawComposite(c, p, down, forcedDir){
     if(drawLayersSmart(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri).drew>0) drew=true;
   }
 
-  if(down||p.state==="dying"){
-    c.save();
-    c.rotate(Math.PI/2);
-    c.fillStyle="rgba(0,0,0,.2)";
-    c.fillRect(-5*sc, 0, 10*sc, 4*sc);
-    c.restore();
-  }
-
   if(p.hostile){
     c.strokeStyle="rgba(255,60,40,.85)"; c.lineWidth=1.5;
     c.strokeRect(-10*sc,-12*sc,20*sc,22*sc);
@@ -626,7 +640,7 @@ function draw(c,p,color,down,forcedDir){
 }
 
 const PeopleSprites={
-  draw, init, warmDefault, warmPed, warmVisiblePeds, tickLoadQueue,
+  draw, drawShadow:drawPedShadowBlob, init, warmDefault, warmPed, warmVisiblePeds, tickLoadQueue,
   prefetchCombat, resolveOutfit, ensureClipForPed, prefetchClipDir,
   get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
