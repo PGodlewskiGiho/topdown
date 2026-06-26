@@ -25,6 +25,14 @@ function waitUntil(label, test, timeoutMs){
   });
 }
 
+async function waitUntilOptional(label, test, timeoutMs){
+  try{
+    await waitUntil(label, test, timeoutMs);
+  }catch(err){
+    console.warn("LoadingScreen optional:", label, err&&err.message||err);
+  }
+}
+
 function setStatus(text){
   const el=document.getElementById("load-status");
   if(el) el.textContent=text;
@@ -147,19 +155,19 @@ const LoadingScreen={
         if(!ok) throw new Error("sprites");
       }},
       {w:14, label:"Roślinność leśna", run:async()=>{
-        await waitUntil("forest-grass", ()=>window.FOREST_GRASS&&FOREST_GRASS.ready, 18000);
+        await waitUntilOptional("forest-grass", ()=>window.FOREST_GRASS&&FOREST_GRASS.ready, 18000);
       }},
       {w:10, label:"Pustynne podłoże", run:async()=>{
-        await waitUntil("desert-floor", ()=>window.DESERT_FLOOR&&DESERT_FLOOR.ready, 16000);
+        await waitUntilOptional("desert-floor", ()=>window.DESERT_FLOOR&&DESERT_FLOOR.ready, 16000);
       }},
       {w:14, label:"Drzewa i rośliny", run:async()=>{
-        await waitUntil("trees", ()=>window.TREE_SPRITE&&TREE_SPRITE.ready, 18000);
+        await waitUntilOptional("trees", ()=>window.TREE_SPRITE&&TREE_SPRITE.ready, 18000);
       }},
       {w:10, label:"Dzika fauna", run:async()=>{
-        await waitUntil("wildlife", ()=>window.WILD_SPRITE&&WILD_SPRITE.ready, 16000);
+        await waitUntilOptional("wildlife", ()=>window.WILD_SPRITE&&WILD_SPRITE.ready, 16000);
       }},
       {w:6,  label:"Niedźwiedzie", run:async()=>{
-        await waitUntil("bears", ()=>window.BEAR_SPRITE&&BEAR_SPRITE.ready, 14000);
+        await waitUntilOptional("bears", ()=>window.BEAR_SPRITE&&BEAR_SPRITE.ready, 14000);
       }},
       {w:6,  label:"Czcionki", run:async()=>{
         if(document.fonts&&document.fonts.ready) await document.fonts.ready;

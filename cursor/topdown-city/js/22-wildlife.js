@@ -30,40 +30,28 @@ const CRITTER_DEF={
   mouse:   {r:5, speed:28, run:92, flee:78, nightish:false},
 };
 
-(function loadBearSprites(){
-  fetch("assets/bears/meta.json").then(r=>r.json()).then(meta=>{
-    BEAR_SPRITE.meta=meta;
-    const kinds=Object.keys(meta.variants||{}); let left=kinds.length||0;
-    if(!left){ BEAR_SPRITE.ready=true; return; }
-    for(const k of kinds){
-      const im=new Image();
-      im.onload=im.onerror=()=>{ if(--left<=0) BEAR_SPRITE.ready=true; };
-      im.src="assets/bears/"+meta.variants[k].file;
-      BEAR_SPRITE.img[k]=im;
-    }
-  }).catch(()=>{ BEAR_SPRITE.ready=true; });
-})();
+bootSpritePack(BEAR_SPRITE, "assets/bears/meta.json", meta=>
+  Object.keys(meta.variants||{}).map(k=>({
+    src:"assets/bears/"+meta.variants[k].file,
+    apply(pack, im){ pack.img[k]=im; },
+  }))
+);
 
-(function loadWildSprites(){
-  fetch("assets/wildlife/meta.json").then(r=>r.json()).then(meta=>{
-    WILD_SPRITE.meta=meta;
-    const sp=meta.species||{}; const jobs=[];
-    for(const kind of Object.keys(sp)){
-      for(const v of Object.keys(sp[kind].variants||{})){
-        jobs.push([kind,v,sp[kind].variants[v].file]);
-      }
+bootSpritePack(WILD_SPRITE, "assets/wildlife/meta.json", meta=>{
+  const jobs=[], sp=meta.species||{};
+  for(const kind of Object.keys(sp)){
+    for(const v of Object.keys(sp[kind].variants||{})){
+      jobs.push({
+        src:"assets/wildlife/"+sp[kind].variants[v].file,
+        apply(pack, im){
+          if(!pack.img[kind]) pack.img[kind]={};
+          pack.img[kind][v]=im;
+        },
+      });
     }
-    let left=jobs.length||0;
-    if(!left){ WILD_SPRITE.ready=true; return; }
-    for(const [kind,v,file] of jobs){
-      const im=new Image();
-      im.onload=im.onerror=()=>{ if(--left<=0) WILD_SPRITE.ready=true; };
-      im.src="assets/wildlife/"+file;
-      if(!WILD_SPRITE.img[kind]) WILD_SPRITE.img[kind]={};
-      WILD_SPRITE.img[kind][v]=im;
-    }
-  }).catch(()=>{ WILD_SPRITE.ready=true; });
-})();
+  }
+  return jobs;
+});
 
 function inForestAt(x,y){
   const k=cellAt(x,y);
