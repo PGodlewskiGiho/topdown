@@ -398,8 +398,11 @@ function resolveLayerImg(o, layerKey, wf, dir, cache, priority){
     queueImg(path, null, pri);
   }
   if(cache&&cache[layerKey]){
-    const im=getImg(cache[layerKey].path);
-    if(im) return im;
+    const held=cache[layerKey];
+    if(held.wf===wf&&held.dir===dir){
+      const im=getImg(held.path);
+      if(im) return im;
+    }
   }
   return null;
 }
@@ -663,8 +666,7 @@ function drawComposite(c, p, down, forcedDir){
     ensureClipForPed(p, p._animClip, moveDir);
   else ensureWalkPrefetch(p, o, wfRaw, dir);
 
-  let loadPri=p===global.ped?12:(p.state==="dying"||down?11:7);
-  if(p._attackT>0) loadPri=16;
+  const loadPri=p._attackT>0?16:(p===global.ped?12:(p.state==="dying"||down?11:7));
   const uid=pedUid(p);
   const combatDraw=isCombatClip(p._animClip)||(p._attackT>0&&isCombatClip(p._attackClip));
 
@@ -673,6 +675,8 @@ function drawComposite(c, p, down, forcedDir){
 
   let drew=false;
   if(combatDraw){
+    if(p._psWasCombat!==true) p._psLayerCache={};
+    p._psWasCombat=true;
     const wfSig=wfRaw+"|"+dir;
     if(p._psCombatSig!==wfSig){
       p._psCombatSig=wfSig;
@@ -693,7 +697,17 @@ function drawComposite(c, p, down, forcedDir){
       }
     }
   }else{
+    if(p._psWasCombat){
+      p._psLayerCache={};
+      p._psCombatSig=null;
+      p._psWasCombat=false;
+    }
     if(!p._psLayerCache) p._psLayerCache={};
+    const walkSig=wfRaw+"|"+dir;
+    if(p._psWalkSig!==walkSig){
+      p._psWalkSig=walkSig;
+      p._psLayerCache={};
+    }
     const smart=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri);
     drew=smart.complete||smart.drew>0;
     if(smart.complete){
@@ -702,7 +716,7 @@ function drawComposite(c, p, down, forcedDir){
     }
     if(!drew){
       const hold=lastHold[uid];
-      if(hold&&hold.canvas){
+      if(hold&&hold.canvas&&!hold.combat){
         c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
         drew=true;
       }
