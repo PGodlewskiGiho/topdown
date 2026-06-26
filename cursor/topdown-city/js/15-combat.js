@@ -379,7 +379,8 @@ function updateCombat(dt){
         const pmeta=typeof PeopleSprites!=="undefined"?PeopleSprites.meta:null;
         LivingSprite.startAttackClip(ped, w.kind==="melee"?"punch":"shoot", pmeta);
         if(typeof PeopleSprites!=="undefined"&&PeopleSprites.beginPedCombat){
-          PeopleSprites.beginPedCombat(ped, w.kind==="melee"?"punch":"shoot");
+          const face=LivingSprite.dirNameFromAngle?LivingSprite.dirNameFromAngle(ang):null;
+          PeopleSprites.beginPedCombat(ped, w.kind==="melee"?"punch":"shoot", face);
         }
       }
       if(w.kind!=="melee"){

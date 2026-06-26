@@ -669,8 +669,10 @@ function updateNpcPed(p,dt){
       if(typeof LivingSprite!=="undefined"){
         const pmeta=typeof PeopleSprites!=="undefined"?PeopleSprites.meta:null;
         LivingSprite.startAttackClip(p, "shoot", pmeta);
-        if(typeof PeopleSprites!=="undefined"&&PeopleSprites.beginPedCombat)
-          PeopleSprites.beginPedCombat(p, "shoot");
+        if(typeof PeopleSprites!=="undefined"&&PeopleSprites.beginPedCombat){
+          const face=LivingSprite.dirNameFromAngle?LivingSprite.dirNameFromAngle(ang):null;
+          PeopleSprites.beginPedCombat(p, "shoot", face);
+        }
       }
     }
     { const ci=Math.floor((p.x-ROAD)/GAP), cj=Math.floor((p.y-ROAD)/GAP);

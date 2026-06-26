@@ -114,8 +114,8 @@ function ensureVehicleDoors(v){
 function pedEntrySideForVehicle(v, px, py){
   const c=Math.cos(v.a||0), s=Math.sin(v.a||0);
   const dx=(px!=null?px:ped.x)-v.x, dy=(py!=null?py:ped.y)-v.y;
-  const lx=dx*c+dy*s;
-  return lx<0?"left":"right";
+  const ly=-dx*s+dy*c;
+  return ly>=0?"left":"right";
 }
 
 function setVehicleDoorOpen(v, side, open){

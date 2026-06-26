@@ -7,7 +7,8 @@
     "smoke": "node scripts/smoke-check.mjs",
     "check": "npm run smoke",
     "gen:people": "python3 scripts/gen_topdown_people.py",
-    "gen:gta2": "python3 scripts/gen_gta2_people_parts.py"
+    "gen:gta2": "python3 scripts/gen_gta2_people_parts.py",
+    "gen:trees": "python3 ../scripts/generate-trees.py --hd-all"
   },
   "devDependencies": {
     "canvas": "^3.2.3"

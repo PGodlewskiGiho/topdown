@@ -358,35 +358,36 @@ function poseCandidates(wf, dir){
   return out;
 }
 
-/** Combat draw: exact pose only — borrowing other frames freezes the clip on frame 0. */
-function resolveCombatLayerImg(o, layerKey, wf, dir, priority){
-  if(layerKey==="hair"&&!o.hair) return null;
-  const path=singleLayerPath(o, layerKey, wf, dir);
-  if(!path) return null;
-  const im=getImg(path);
-  if(im) return im;
-  queueImg(path, null, priority!=null?priority:12);
-  return null;
-}
-
-function drawCombatLayers(c, o, wf, dir, ax, ay, sx, sy, bm, priority){
-  const order=meta.layer_order||["shoes","pants","arms","torso","skin","hair"];
-  let drew=0, need=0;
-  for(const k of order){
-    if(k==="hair"&&!o.hair) continue;
-    need++;
-    const im=resolveCombatLayerImg(o, k, wf, dir, priority);
-    if(!im) continue;
-    c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
-    drew++;
+/** Combat borrow: same clip only; skip frame 0 when attacking on later frames. */
+function combatPoseCandidates(wf, dir){
+  const m=wf.match(/^([a-z]+)(\d+)$/);
+  if(!m) return [{wf, dir}];
+  const clipId=m[1], want=parseInt(m[2],10);
+  if(!isCombatClip(clipId)) return [{wf, dir}];
+  const spec=clipSpec(clipId);
+  const count=spec.count||1;
+  const dirs=facingDirs(dir);
+  const frames=[want];
+  for(let off=1; off<count; off++){
+    if(want+off<count) frames.push(want+off);
+    const earlier=want-off;
+    if(earlier>=0&&(want===0||earlier>0)) frames.push(earlier);
   }
-  return need>0&&drew===need;
+  const out=[], seen=new Set();
+  const add=(f,d)=>{
+    const k=f+"|"+d;
+    if(seen.has(k)) return;
+    seen.add(k);
+    out.push({wf:f, dir:d});
+  };
+  for(const d of dirs) for(const fi of frames) add(clipId+fi, d);
+  return out;
 }
 
-function resolveLayerImg(o, layerKey, wf, dir, cache, priority){
+function resolveLayerImg(o, layerKey, wf, dir, cache, priority, candidateFn){
   if(layerKey==="hair"&&!o.hair) return null;
   const pri=priority!=null?priority:1;
-  const candidates=poseCandidates(wf, dir);
+  const candidates=candidateFn?candidateFn(wf, dir):poseCandidates(wf, dir);
   for(const {wf:w, dir:d} of candidates){
     const path=singleLayerPath(o, layerKey, w, d);
     if(!path) continue;
@@ -408,13 +409,13 @@ function resolveLayerImg(o, layerKey, wf, dir, cache, priority){
 }
 
 /** Each layer borrows nearest loaded frame/dir — no holes in torso/hair. */
-function drawLayersSmart(c, o, wf, dir, ax, ay, sx, sy, bm, cache, priority){
+function drawLayersSmart(c, o, wf, dir, ax, ay, sx, sy, bm, cache, priority, candidateFn){
   const order=meta.layer_order||["shoes","pants","arms","torso","skin","hair"];
   let drew=0, need=0;
   for(const k of order){
     if(k==="hair"&&!o.hair) continue;
     need++;
-    const im=resolveLayerImg(o, k, wf, dir, cache, priority);
+    const im=resolveLayerImg(o, k, wf, dir, cache, priority, candidateFn);
     if(!im) continue;
     c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
     drew++;
@@ -683,15 +684,16 @@ function drawComposite(c, p, down, forcedDir){
       prefetchOutfit(o, wfRaw, dir, false, 20);
     }
     if(p._animClip) prefetchClipDir(o, p._animClip, dir, loadPri);
-    if(drawCombatLayers(c, o, wfRaw, dir, ax, ay, sx, sy, bm, loadPri)){
+    const combatSmart=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, null, loadPri, combatPoseCandidates);
+    if(combatSmart.complete||combatSmart.drew>0){
       drew=true;
-      const bakedIm=tryBake(o, wfRaw, dir);
-      if(bakedIm){
-        lastHold[uid]={wf:wfRaw, dir, canvas:bakedIm, combat:true};
+      if(combatSmart.complete){
+        const bakedIm=tryBake(o, wfRaw, dir);
+        if(bakedIm) lastHold[uid]={wf:wfRaw, dir, canvas:bakedIm, combat:true};
       }
     }else{
       const hold=lastHold[uid];
-      if(hold&&hold.combat&&hold.canvas){
+      if(hold&&hold.combat&&hold.canvas&&hold.wf===wfRaw&&hold.dir===dir){
         c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
         drew=true;
       }

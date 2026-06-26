@@ -46,10 +46,15 @@ jobs:
           pip install pillow
           npm run gen:gta2
 
+      - name: Generate tree sprites
+        run: |
+          pip install pillow
+          python3 cursor/scripts/generate-trees.py --hd-all
+
       - name: Prepare site artifact
         run: |
           SITE=cursor/topdown-city
-          echo "{\"build\":\"2026062748\",\"people\":10,\"style\":\"gta2\",\"sprites\":\"relative\",\"source\":\"main\"}" > "$SITE/version.json"
+          echo "{\"build\":\"2026062749\",\"people\":10,\"style\":\"gta2\",\"sprites\":\"relative\",\"source\":\"main\"}" > "$SITE/version.json"
           touch "$SITE/.nojekyll"
 
       - name: Upload site artifact

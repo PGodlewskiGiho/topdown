@@ -1936,15 +1936,28 @@ function treeVisible(p,cl,cr,ct,cb){ const b=treeScreenBox(p); return b.maxX>=cl
 // ── PNG tree sprites (Pillow-generated, assets/trees/*.png) ──────────────
 const TREE_SPRITE={ready:false,meta:null,img:{}};
 window.TREE_SPRITE=TREE_SPRITE;
+function treeAssetRoot(){
+  const b=typeof window!=="undefined"&&window.__GAME_BASE;
+  if(typeof b==="string"&&b.length) return b.endsWith("/")?b:b+"/";
+  if(typeof location!=="undefined"){
+    const path=location.pathname||"";
+    const pages=path.match(/^(.*\/topdown\/)/);
+    if(pages) return pages[1];
+    const nested=path.match(/^(.*\/cursor\/topdown-city\/)/);
+    if(nested) return nested[1];
+  }
+  return "";
+}
 (function loadTreeSprites(){
-  fetch("assets/trees/meta.json").then(r=>r.json()).then(meta=>{
+  const root=treeAssetRoot();
+  fetch(root+"assets/trees/meta.json").then(r=>r.json()).then(meta=>{
     TREE_SPRITE.meta=meta;
     const kinds=Object.keys(meta.kinds); let left=kinds.length||0;
     if(!left){ TREE_SPRITE.ready=true; return; }
     for(const k of kinds){
       const im=new Image();
       im.onload=im.onerror=()=>{ if(--left<=0) TREE_SPRITE.ready=true; };
-      im.src="assets/trees/"+meta.kinds[k].file;
+      im.src=root+"assets/trees/"+meta.kinds[k].file;
       TREE_SPRITE.img[k]=im;
     }
   }).catch(()=>{});
@@ -1999,7 +2012,6 @@ function drawLeaningTreeStrip(p,sy0,sy1){
   return true;
 }
 function drawTreeTrunkSprite(p){
-  if(p.city) return false;
   const tr=p.trunk||{tw:p.s*0.1,frac:0.5};
   if(tr.frac<0.18) return true;
   const hw=tr.tw*0.72, bx=p.x, by=p.y;
@@ -2008,7 +2020,6 @@ function drawTreeTrunkSprite(p){
   return drawLeaningTreeStrip(p, Math.max(0, m.splitY-Math.max(2, Math.round(m.height/64))), m.height);
 }
 function drawTreeCanopySprite(p){
-  if(p.city) return false;
   const m=treeKindMeta(p.kind||"deciduous"), split=Math.min(m.height-1, m.splitY+Math.max(14, Math.round(m.height/36)));
   return drawLeaningTreeStrip(p, 0, split);
 }
