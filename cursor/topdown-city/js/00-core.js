@@ -2,6 +2,8 @@
 "use strict";
 const cv = document.getElementById("cv");
 const ctx = cv.getContext("2d");
+const cvLabels = document.getElementById("cv-labels");
+const ctxLabels = cvLabels ? cvLabels.getContext("2d") : null;
 const PX = 2;                              // chunky pixel size (GTA2 look)
 let ZOOM = 2.0;                            // world magnification (Ctrl+scroll: 1..5, higher = closer camera)
 let DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -13,9 +15,61 @@ function resize(){
   VW = window.innerWidth/ZOOM; VH = window.innerHeight/ZOOM;             // visible world size (smaller = zoomed in)
   cv.width = Math.ceil(window.innerWidth/PX); cv.height = Math.ceil(window.innerHeight/PX);   // backing buffer (screen / PX)
   cv.style.width = window.innerWidth+"px"; cv.style.height = window.innerHeight+"px";
+  if(cvLabels){
+    cvLabels.width = Math.ceil(window.innerWidth);
+    cvLabels.height = Math.ceil(window.innerHeight);
+    cvLabels.style.width = window.innerWidth+"px";
+    cvLabels.style.height = window.innerHeight+"px";
+  }
   ctx.setTransform(ZOOM/PX,0,0,ZOOM/PX,0,0);
   ctx.imageSmoothingEnabled = false;
 }
+function clearLabelLayer(){
+  if(!ctxLabels||!cvLabels) return;
+  ctxLabels.setTransform(1,0,0,1,0,0);
+  ctxLabels.clearRect(0,0,cvLabels.width,cvLabels.height);
+}
+function drawWorldLabel(wx, wy, text, opts){
+  if(!ctxLabels||text==null||text==="") return;
+  opts=opts||{};
+  const ox=cam.x-VW/2, oy=cam.y-VH/2;
+  const sx=(wx-ox)*ZOOM, sy=(wy-oy)*ZOOM;
+  ctxLabels.save();
+  ctxLabels.setTransform(1,0,0,1,0,0);
+  ctxLabels.imageSmoothingEnabled=true;
+  ctxLabels.font=opts.font||"700 13px 'DM Mono', monospace";
+  ctxLabels.fillStyle=opts.color||"#fff";
+  ctxLabels.textAlign=opts.align||"center";
+  ctxLabels.textBaseline=opts.baseline||"alphabetic";
+  if(opts.stroke){
+    ctxLabels.lineWidth=opts.strokeWidth||3;
+    ctxLabels.strokeStyle=opts.stroke;
+    ctxLabels.strokeText(text,sx,sy);
+  }
+  ctxLabels.fillText(text,sx,sy);
+  ctxLabels.restore();
+}
+function drawScreenLabel(sx, sy, text, opts){
+  if(!ctxLabels||text==null||text==="") return;
+  opts=opts||{};
+  ctxLabels.save();
+  ctxLabels.setTransform(1,0,0,1,0,0);
+  ctxLabels.imageSmoothingEnabled=true;
+  ctxLabels.font=opts.font||"700 13px 'DM Mono', monospace";
+  ctxLabels.fillStyle=opts.color||"#fff";
+  ctxLabels.textAlign=opts.align||"left";
+  ctxLabels.textBaseline=opts.baseline||"alphabetic";
+  if(opts.stroke){
+    ctxLabels.lineWidth=opts.strokeWidth||3;
+    ctxLabels.strokeStyle=opts.stroke;
+    ctxLabels.strokeText(text,sx,sy);
+  }
+  ctxLabels.fillText(text,sx,sy);
+  ctxLabels.restore();
+}
+window.drawWorldLabel=drawWorldLabel;
+window.drawScreenLabel=drawScreenLabel;
+window.clearLabelLayer=clearLabelLayer;
 window.addEventListener("resize", resize); resize();
 window.addEventListener("wheel", e=>{ if(!e.ctrlKey) return; e.preventDefault();
   ZOOM = clamp(ZOOM*(e.deltaY<0?1.1:1/1.1), 1, 5); resize(); }, {passive:false});

@@ -5,6 +5,7 @@ const css = getComputedStyle(document.documentElement);
 const COL = n => css.getPropertyValue(n).trim();
 function draw(){
   drawFrameId++;
+  if(typeof clearLabelLayer==="function") clearLabelLayer();
   if(typeof perfFrameStart==="function") perfFrameStart();
   if(mode==="inside"){
     if(typeof canalInterior!=="undefined"&&canalInterior&&typeof drawCanalInterior==="function"){ drawCanalInterior(); if(typeof perfFrameEnd==="function") perfFrameEnd(); return; }

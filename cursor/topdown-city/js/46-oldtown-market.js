@@ -164,10 +164,8 @@ function drawRynek(ox,oy){
     if(s.x<ox-40||s.x>ox+VW+40||s.y<oy-40||s.y>oy+VH+40) continue;
     drawMarketStall(s,t);
   }
-  ctx.fillStyle="rgba(40,36,32,.75)";
-  ctx.font="bold 11px monospace";
-  ctx.textAlign="center";
-  ctx.fillText(MARKET_NAME,cx,cy-R+16);
+  if(typeof drawWorldLabel==="function") drawWorldLabel(cx, cy-R+16, MARKET_NAME, {font:"bold 11px monospace", color:"rgba(240,235,228,.92)"});
+  else { ctx.fillStyle="rgba(40,36,32,.75)"; ctx.font="bold 11px monospace"; ctx.textAlign="center"; ctx.fillText(MARKET_NAME,cx,cy-R+16); }
   ctx.restore();
 }
 

@@ -1190,7 +1190,9 @@ function drawMotoDealerLot(L){
   ctx.fillStyle="rgba(255,255,255,.06)"; for(let gx=L.x+20;gx<L.x+L.w-10;gx+=Math.max(40,L.w/5)){ ctx.fillRect(gx,L.y+L.h*0.42,2,L.h*0.3); }
   ctx.fillStyle="#1a1d22"; ctx.fillRect(L.x+L.w*0.5-52, L.y+6, 104, 18);
   ctx.fillStyle="#e0a32e"; ctx.fillRect(L.x+L.w*0.5-52, L.y+6, 104, 3);
-  ctx.fillStyle="#ffd566"; ctx.font="bold 12px monospace"; ctx.textAlign="center"; ctx.textBaseline="alphabetic"; ctx.fillText("MOTO SALON ▸ F", L.x+L.w*0.5, L.y+19);
+  ctx.fillStyle="#ffd566";
+  if(typeof drawWorldLabel==="function") drawWorldLabel(L.x+L.w*0.5, L.y+19, "MOTO SALON ▸ F", {font:"bold 12px monospace", color:"#ffd566"});
+  else { ctx.font="bold 12px monospace"; ctx.textAlign="center"; ctx.textBaseline="alphabetic"; ctx.fillText("MOTO SALON ▸ F", L.x+L.w*0.5, L.y+19); }
 }
 function drawRacks(ox,oy){
   const i0=Math.floor((ox-GAP)/GAP)-1,i1=Math.floor((ox+VW)/GAP)+1,j0=Math.floor((oy-GAP)/GAP)-1,j1=Math.floor((oy+VH)/GAP)+1;

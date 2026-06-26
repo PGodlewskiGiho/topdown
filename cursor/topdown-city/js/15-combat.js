@@ -71,8 +71,8 @@ function drawGunShop(){
   ctx.save();
   ctx.fillStyle="#2a2d34"; ctx.fillRect(gunshop.cx-46,gunshop.cy-20,92,40);
   ctx.fillStyle="#3a3e46"; ctx.fillRect(gunshop.cx-46,gunshop.cy-20,92,8);
-  ctx.font="700 16px 'DM Mono', monospace"; ctx.textAlign="center"; ctx.textBaseline="alphabetic";
-  ctx.fillStyle="#ffcf6a"; ctx.fillText("BROŃ", gunshop.cx, gunshop.cy-28);
+  if(typeof drawWorldLabel==="function") drawWorldLabel(gunshop.cx, gunshop.cy-28, "BROŃ", {font:"700 16px 'DM Mono', monospace", color:"#ffcf6a"});
+  else { ctx.font="700 16px 'DM Mono', monospace"; ctx.textAlign="center"; ctx.fillStyle="#ffcf6a"; ctx.fillText("BROŃ", gunshop.cx, gunshop.cy-28); }
   ctx.restore();
 }
 const gunshopEl=document.getElementById("gunshop");

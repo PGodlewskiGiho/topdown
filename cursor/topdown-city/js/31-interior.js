@@ -390,14 +390,22 @@ function drawInterior(){
   ctx.restore(); ctx.setTransform(1/PX,0,0,1/PX,0,0);
   const inLift=fp.zones.some(z=>z.kind==="elevator"&&pointInZone(it.player,z));
   ctx.fillStyle="rgba(0,0,0,.55)"; ctx.fillRect(12,12,220,it.floors>1?56:40);
-  ctx.fillStyle="#e9ecf1"; ctx.font="bold 13px monospace"; ctx.textAlign="left";
-  ctx.fillText((INT_NAMES[it.type]||"BUDYNEK")+(it.floors>1?` · ${fp.label||""}`:""), 20, 30);
-  ctx.fillStyle="rgba(233,236,241,.65)"; ctx.font="10px monospace";
-  ctx.fillText("F — wyjście", 20, 45);
-  if(it.floors>1){
-    ctx.fillText(inLift?"E/Q lub ↑↓ — piętro · schody: W/S":"Wejdź do windy (E/Q) lub schodów (W/S)", 20, 58);
+  const intTitle=(INT_NAMES[it.type]||"BUDYNEK")+(it.floors>1?` · ${fp.label||""}`:"");
+  if(typeof drawScreenLabel==="function"){
+    drawScreenLabel(20, 30, intTitle, {font:"bold 13px monospace", color:"#e9ecf1"});
+    drawScreenLabel(20, 45, "F — wyjście", {font:"10px monospace", color:"rgba(233,236,241,.65)"});
+    if(it.floors>1) drawScreenLabel(20, 58, inLift?"E/Q lub ↑↓ — piętro · schody: W/S":"Wejdź do windy (E/Q) lub schodów (W/S)", {font:"10px monospace", color:"rgba(233,236,241,.65)"});
+    if(it.withCar&&fp.parking) drawScreenLabel(20, it.floors>1?71:58, it.drivingCar?"F — wysiądź z auta":"F — wsiądź / garaż", {font:"10px monospace", color:"rgba(233,236,241,.65)"});
+  } else {
+    ctx.fillStyle="#e9ecf1"; ctx.font="bold 13px monospace"; ctx.textAlign="left";
+    ctx.fillText(intTitle, 20, 30);
+    ctx.fillStyle="rgba(233,236,241,.65)"; ctx.font="10px monospace";
+    ctx.fillText("F — wyjście", 20, 45);
+    if(it.floors>1){
+      ctx.fillText(inLift?"E/Q lub ↑↓ — piętro · schody: W/S":"Wejdź do windy (E/Q) lub schodów (W/S)", 20, 58);
+    }
+    if(it.withCar&&fp.parking) ctx.fillText(it.drivingCar?"F — wysiądź z auta":"F — wsiądź / garaż", 20, it.floors>1?71:58);
   }
-  if(it.withCar&&fp.parking) ctx.fillText(it.drivingCar?"F — wysiądź z auta":"F — wsiądź / garaż", 20, it.floors>1?71:58);
 }
 
 function toggleInteriorVehicle(){

@@ -846,16 +846,18 @@ function pruneCaches(){
 let salon=null;
 let gunshop=null;
 function buildSalonLot(lot){
-  salon={x:lot.x,y:lot.y,cx:lot.x+lot.w/2,cy:lot.y+lot.h/2,pads:[]};
+  const MIN_CELL_W=128, MIN_CELL_H=195;
+  const cols=Math.max(1, Math.floor((lot.w-20)/MIN_CELL_W));
+  const rows=Math.max(1, Math.floor((lot.h-20)/MIN_CELL_H));
+  const cellW=lot.w/cols, cellH=lot.h/rows;
+  const capacity=cols*rows;
+  salon={x:lot.x,y:lot.y,w:lot.w,h:lot.h,cx:lot.x+lot.w/2,cy:lot.y+lot.h/2,cols,rows,cellW,cellH,pads:[]};
   const models=CARS.slice().sort((a,b)=>{
     const ba=a.brand||"", bb=b.brand||"";
     if(ba!==bb) return ba.localeCompare(bb);
     return (a.price||0)-(b.price||0);
   });
-  const n=models.length;
-  const cols=Math.max(6, Math.ceil(Math.sqrt(n*1.55)));
-  const rows=Math.ceil(n/cols);
-  const cellW=lot.w/cols, cellH=lot.h/rows;
+  const n=Math.min(models.length, capacity);
   for(let i=0;i<n;i++){
     const col=i%cols, row=(i/cols)|0;
     salon.pads.push({x:lot.x+cellW*(col+0.5), y:lot.y+cellH*(row+0.5), model:models[i], colorIdx:0});
@@ -1330,11 +1332,13 @@ function addCurbside(lot,i,j,r){
 function addStreetTrees(lot,i,j,r){
   const A=node(i,j),Bn=node(i+1,j),D=node(i,j+1);
   const edges=[ {ex:getEdge(i,j,1,0),P0:A,P1:Bn,nx:0,ny:1,di:1,dj:0}, {ex:getEdge(i,j,0,1),P0:A,P1:D,nx:1,ny:0,di:0,dj:1} ];
-  const zone=lot.zone||"", dens=zone==="downtown"?0.10:(zone==="suburb"||zone==="transition")?0.6:0.32;
+  const zone=lot.zone||"";
+  const dens=zone==="downtown"?0.30:(zone==="suburb"||zone==="transition")?0.6:0.32;
+  const step=zone==="downtown"?0.20:0.24;
   for(const e of edges){ if(!e.ex.exists||e.ex.bridge||e.ex.klass==="hwy") continue;
     if(edgeAtRoundabout(i,j,e.di,e.dj)) continue;
     const dx=e.P1[0]-e.P0[0], dy=e.P1[1]-e.P0[1], off=e.ex.width/2+15;
-    for(let t=0.18;t<0.9;t+=0.24){ if(r()>dens) continue;
+    for(let t=0.18;t<0.9;t+=step){ if(r()>dens) continue;
       const cx=e.P0[0]+dx*t+e.nx*off, cy=e.P0[1]+dy*t+e.ny*off;
       if(inRoundabout(cx,cy)||inPlaza(cx,cy)||nearRoundabout(cx,cy,12)) continue;
       let blocked=false; for(const b of lot.buildings){ if(cx>b.x-12&&cx<b.x+b.w+12&&cy>b.y-12&&cy<b.y+b.h+12){ blocked=true; break; } }
@@ -1344,11 +1348,18 @@ function addStreetTrees(lot,i,j,r){
     }
   }
 }
+function lampLayoutForLot(lot){
+  const z=lot.zone||"";
+  if(z==="downtown") return {dens:0.995, ts:[0.08,0.20,0.32,0.44,0.56,0.68,0.80,0.92]};
+  if(z==="midrise") return {dens:0.96, ts:[0.14,0.34,0.54,0.74]};
+  if(lot.biome==="city") return {dens:0.90, ts:[0.22,0.50,0.78]};
+  return {dens:0.4, ts:[0.5]};
+}
 function addLamps(lot,i,j,r){
   lot.lamps=[];
   const A=node(i,j),Bn=node(i+1,j),D=node(i,j+1);
   const edges=[ {ex:getEdge(i,j,1,0),P0:A,P1:Bn,nx:0,ny:1,di:1,dj:0}, {ex:getEdge(i,j,0,1),P0:A,P1:D,nx:1,ny:0,di:0,dj:1} ];
-  const dens=lot.biome==="city"?0.92:0.4, ts=lot.biome==="city"?[0.22,0.5,0.78]:[0.5];
+  const {dens, ts}=lampLayoutForLot(lot);
   for(const e of edges){ if(!e.ex.exists||e.ex.bridge) continue;
     if(edgeAtRoundabout(i,j,e.di,e.dj)) continue;
     const dx=e.P1[0]-e.P0[0], dy=e.P1[1]-e.P0[1], off=e.ex.width/2+9, arm=20;

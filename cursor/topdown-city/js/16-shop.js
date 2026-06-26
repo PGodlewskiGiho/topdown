@@ -41,9 +41,11 @@ function updateShop(){
 }
 function drawSalon(){
   if(!salon) return;
-  ctx.save();
-  ctx.font="700 16px 'DM Mono', monospace"; ctx.textAlign="center"; ctx.textBaseline="alphabetic";
-  ctx.fillStyle="#9fd0ff"; ctx.fillText("AUTO-SALON", salon.cx, salon.y+18);
+  const cellW=salon.cellW||128, cellH=salon.cellH||195;
+  const padW=Math.min(72, cellW*0.54), padH=Math.min(96, cellH*0.46);
+  const lbl=typeof drawWorldLabel==="function"?drawWorldLabel:null;
+  if(lbl) lbl(salon.cx, salon.y+18, "AUTO-SALON", {font:"700 16px 'DM Mono', monospace", color:"#9fd0ff"});
+  else { ctx.save(); ctx.font="700 16px 'DM Mono', monospace"; ctx.textAlign="center"; ctx.fillStyle="#9fd0ff"; ctx.fillText("AUTO-SALON", salon.cx, salon.y+18); ctx.restore(); }
   const drawnBrands=new Set();
   for(const p of salon.pads){
     const m=p.model;
@@ -55,42 +57,47 @@ function drawSalon(){
     const bkey=brand+"|"+(m.era||"");
     if(brand && !drawnBrands.has(bkey)){
       drawnBrands.add(bkey);
-      ctx.font="800 13px 'DM Mono', monospace";
-      ctx.fillStyle=accent;
       const eraTag=m.era==="classic"?" KLASYKI":"";
       const label="── "+brand.toUpperCase()+eraTag+" ──";
-      ctx.fillText(label, salon.cx, p.y-78);
+      if(lbl) lbl(p.x, p.y-cellH*0.40, label, {font:"800 13px 'DM Mono', monospace", color:accent});
+      else { ctx.save(); ctx.font="800 13px 'DM Mono', monospace"; ctx.fillStyle=accent; ctx.textAlign="center"; ctx.fillText(label, p.x, p.y-cellH*0.40); ctx.restore(); }
     }
-    // pad border (highlight if player is near)
-    ctx.strokeStyle=isNear?"#ffd23b":"rgba(90,150,225,.40)"; ctx.lineWidth=isNear?3:2; ctx.strokeRect(p.x-34,p.y-44,68,88);
-    ctx.strokeStyle=accent+"66"; ctx.lineWidth=1; ctx.strokeRect(p.x-33,p.y-43,66,86);
-    // draw the actual model in its selected colour
-    const fakeV=Object.assign({x:p.x,y:p.y,a:-Math.PI/2},m,{color:col});
+    ctx.strokeStyle=isNear?"#ffd23b":"rgba(90,150,225,.40)"; ctx.lineWidth=isNear?3:2;
+    ctx.strokeRect(p.x-padW*0.5, p.y-padH*0.5, padW, padH);
+    ctx.strokeStyle=accent+"66"; ctx.lineWidth=1;
+    ctx.strokeRect(p.x-padW*0.5+1, p.y-padH*0.5+1, padW-2, padH-2);
+    const sc=Math.min((cellW*0.62)/(m.W||36), (cellH*0.34)/(m.L||80), 1);
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.scale(sc, sc);
+    const fakeV=Object.assign({x:0,y:0,a:-Math.PI/2},m,{color:col});
     drawVehicle(fakeV, col);
-    // name + stats
-    ctx.font="700 10px 'DM Mono', monospace";
-    ctx.fillStyle=accent; ctx.fillText(m.name, p.x, p.y-52);
-    ctx.font="600 8px 'DM Mono', monospace";
-    ctx.fillStyle="#8fa0b0"; ctx.fillText("MAX "+m.topSpeed+" KM/H", p.x, p.y-43);
-    // power bars
+    ctx.restore();
+    if(lbl){
+      lbl(p.x, p.y-cellH*0.27, m.name, {font:"700 11px 'DM Mono', monospace", color:accent});
+      lbl(p.x, p.y-cellH*0.22, "MAX "+m.topSpeed+" KM/H", {font:"600 9px 'DM Mono', monospace", color:"#8fa0b0"});
+      lbl(p.x, p.y+cellH*0.44, "$"+m.price, {font:"700 13px 'DM Mono', monospace", color:"#7fe0a8"});
+    } else {
+      ctx.save();
+      ctx.textAlign="center";
+      ctx.font="700 10px 'DM Mono', monospace"; ctx.fillStyle=accent; ctx.fillText(m.name, p.x, p.y-cellH*0.27);
+      ctx.font="600 8px 'DM Mono', monospace"; ctx.fillStyle="#8fa0b0"; ctx.fillText("MAX "+m.topSpeed+" KM/H", p.x, p.y-cellH*0.22);
+      ctx.font="700 13px 'DM Mono', monospace"; ctx.fillStyle="#7fe0a8"; ctx.fillText("$"+m.price, p.x, p.y+cellH*0.44);
+      ctx.restore();
+    }
     const bars=Math.round((m.power-1.0)*8);
     for(let b=0;b<Math.min(bars,11);b++){
       ctx.fillStyle=b<bars*0.5?accent:accent+"99";
-      ctx.fillRect(p.x-20+b*4,p.y+58,3,5);
+      ctx.fillRect(p.x-20+b*4, p.y+cellH*0.30, 3, 5);
     }
-    // colour swatches row
     if(m.colors){
       const sw=6, total=m.colors.length*(sw+1)-1, sx=p.x-total/2;
       for(let k=0;k<m.colors.length;k++){
-        ctx.fillStyle=m.colors[k]; ctx.fillRect(sx+k*(sw+1), p.y+66, sw, sw);
-        if(k===ci){ ctx.strokeStyle="#fff"; ctx.lineWidth=1; ctx.strokeRect(sx+k*(sw+1)-0.5, p.y+65.5, sw+1, sw+1); }
+        ctx.fillStyle=m.colors[k]; ctx.fillRect(sx+k*(sw+1), p.y+cellH*0.34, sw, sw);
+        if(k===ci){ ctx.strokeStyle="#fff"; ctx.lineWidth=1; ctx.strokeRect(sx+k*(sw+1)-0.5, p.y+cellH*0.34-0.5, sw+1, sw+1); }
       }
     }
-    // price
-    ctx.font="700 13px 'DM Mono', monospace";
-    ctx.fillStyle="#7fe0a8"; ctx.fillText("$"+m.price, p.x, p.y+86);
   }
-  ctx.restore();
 }
 function drawShopHUD(){
   if(nearPad){
@@ -102,4 +109,3 @@ function drawShopHUD(){
       : `Za mało: ${fullName} ($${m.price})`;
   } else promptEl.style.opacity="0";
 }
-
