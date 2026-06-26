@@ -35,6 +35,10 @@ body.is-loading #cv-labels{opacity:0}
 #loading-screen.hidden{display:none!important;pointer-events:none}
 #loading-screen.oni-load-out{opacity:0;visibility:hidden}
 
+#load-sakura{
+  position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;
+}
+
 .oni-load-bg{
   position:absolute;inset:0;pointer-events:none;opacity:.55;
   background:
@@ -93,6 +97,18 @@ body.is-loading #cv-labels{opacity:0}
 }
 .oni-load-pct{
   font-size:11px;letter-spacing:.3em;color:var(--oni-gold);margin:0;
+}
+.oni-load-continue{
+  margin-top:20px;font-family:var(--serif);font-size:13px;letter-spacing:.22em;
+  padding:12px 28px;border:2px solid var(--oni-gold);background:linear-gradient(180deg,rgba(184,32,40,.45),rgba(110,20,24,.55));
+  color:var(--oni-gold-bright);border-radius:2px;cursor:pointer;
+  animation:oni-continue-pulse 2.4s ease-in-out infinite;
+}
+.oni-load-continue:hover{background:linear-gradient(180deg,rgba(196,48,56,.6),rgba(130,24,28,.65));color:#fff}
+.oni-load-continue.hidden{display:none!important}
+@keyframes oni-continue-pulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.02)}
 }
 .oni-load-retry{
   margin-top:18px;font-family:var(--serif);font-size:12px;letter-spacing:.14em;

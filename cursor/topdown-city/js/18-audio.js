@@ -351,6 +351,25 @@ function bellStrike(f0,vol,when){
     o.connect(g); g.connect(master); o.start(t0); o.stop(t0+2.8); }
 }
 function playBell(){ initAudio(); bellStrike(330,0.5,0); bellStrike(330,0.42,1.15); }
+/** Temple gong + soft flute sweep when loading completes (Onimusha-style). */
+function playLoadComplete(){
+  initAudio();
+  if(actx&&actx.state==="suspended") actx.resume().catch(()=>{});
+  if(!actx||!audioOn) return;
+  bellStrike(196,0.34,0);
+  bellStrike(294,0.2,0.06);
+  const t0=actx.currentTime;
+  const o=actx.createOscillator(); o.type="triangle";
+  const g=actx.createGain();
+  o.frequency.setValueAtTime(784,t0);
+  o.frequency.exponentialRampToValueAtTime(392,t0+0.42);
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.linearRampToValueAtTime(0.11,t0+0.035);
+  g.gain.exponentialRampToValueAtTime(0.001,t0+0.55);
+  o.connect(g); g.connect(master);
+  o.start(t0); o.stop(t0+0.6);
+}
+window.playLoadComplete=playLoadComplete;
 function playThunder(){ noiseBurst(0.9,"lowpass",150,0,0.5); }
 function playHorn(){ if(!actx||!audioOn) return; const t0=actx.currentTime, moto=car.kind==="moto";
   const f=actx.createBiquadFilter(); f.type="lowpass"; f.frequency.value=moto?2200:1500;
