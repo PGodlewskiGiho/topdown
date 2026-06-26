@@ -2281,8 +2281,8 @@ function drawSignals(ox,oy){
   }
 }
 function drawCrosswalks(ox,oy){
-  const CW=12;
-  ctx.fillStyle="rgba(228,230,233,.48)";
+  const CW=14, stripeW=4, stripeGap=7;
+  ctx.fillStyle="rgba(228,230,233,.55)";
   const i0=Math.floor((ox-NODE_VAR)/GAP)-2, i1=Math.floor((ox+VW+NODE_VAR)/GAP)+2;
   const j0=Math.floor((oy-NODE_VAR)/GAP)-2, j1=Math.floor((oy+VH+NODE_VAR)/GAP)+2;
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
@@ -2292,9 +2292,12 @@ function drawCrosswalks(ox,oy){
     for(const[di,dj]of[[1,0],[0,1]]){
       const e=getEdge(i,j,di,dj); if(!e.exists||!e.markings) continue;
       const ang=Math.atan2(nY(i+di,j+dj)-cy, nX(i+di,j+dj)-cx);
-      ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
       const hw=e.width*0.5;
-      for(let x=half; x<half+CW+1; x+=9){ ctx.fillRect(x,-hw,5,hw*2); }
+      ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
+      for(let s=0; s<CW; s+=stripeGap){
+        ctx.fillRect(-hw, -(half+s+stripeW), hw*2, stripeW);
+        ctx.fillRect(-hw, half+s, hw*2, stripeW);
+      }
       ctx.restore();
     }
   }

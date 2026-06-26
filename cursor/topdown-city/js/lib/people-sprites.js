@@ -268,7 +268,9 @@ function warmDefault(){
 
 function prefetchCombat(o){
   if(!o) return;
-  for(const clip of ["shoot","punch"]) prefetchClipDir(o, clip, "S");
+  const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
+  for(const clip of ["shoot","punch"])
+    for(const d of dirs) prefetchClipDir(o, clip, d, 10);
 }
 
 function resolveOutfit(p, skipPrefetch){
@@ -669,7 +671,7 @@ function drawComposite(c, p, down, forcedDir){
 
   const loadPri=p._attackT>0?16:(p===global.ped?12:(p.state==="dying"||down?11:7));
   const uid=pedUid(p);
-  const combatDraw=isCombatClip(p._animClip)||(p._attackT>0&&isCombatClip(p._attackClip));
+  const combatDraw=(p._attackT>0&&isCombatClip(p._attackClip))||isCombatClip(p._animClip);
 
   const isDown=down||p.state==="dying";
   drawPedShadowBlob(c, sc, {down:isDown});
@@ -697,6 +699,11 @@ function drawComposite(c, p, down, forcedDir){
         c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
         drew=true;
       }
+    }
+    if(!drew&&p._attackT>0){
+      const pose=resolveAnimPose(o, wfRaw, dir);
+      if(drawLayersPartial(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm)) drew=true;
+      else if(drawLayersSmart(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm, null, loadPri, combatPoseCandidates).drew>0) drew=true;
     }
   }else{
     if(p._psWasCombat){

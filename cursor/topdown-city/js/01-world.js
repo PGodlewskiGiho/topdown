@@ -684,6 +684,24 @@ function strokeEdgeOffset(i,j,di,dj,off,w,style,dash){
   ctx.stroke();
   if(dash) ctx.setLineDash([]);
 }
+function drawLaneMarkings(i0,i1,j0,j1){
+  const dash=[14,16];
+  ctx.setLineDash(dash);
+  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
+    for(const[di,dj]of[[1,0],[0,1]]){
+      const e=getEdge(i,j,di,dj);
+      if(!e.exists||e.bridge||!e.markings||e.klass==="dirt"||e.klass==="rural"||e.klass==="trail") continue;
+      const lanes=roadLanesPerSide(e.width);
+      strokeEdgeOffset(i,j,di,dj, 0, 1.4, "rgba(236,238,242,0.62)", dash);
+      for(let li=1; li<lanes; li++){
+        const off=trafficLaneOffset(e.width, li-1);
+        strokeEdgeOffset(i,j,di,dj, off, 1.1, "rgba(236,238,242,0.48)", dash);
+        strokeEdgeOffset(i,j,di,dj, -off, 1.1, "rgba(236,238,242,0.48)", dash);
+      }
+    }
+  }
+  ctx.setLineDash([]);
+}
 function drawRoads(ox,oy){
   const i0=Math.floor((ox-NODE_VAR*2)/GAP)-1, i1=Math.floor((ox+VW+NODE_VAR*2)/GAP)+2;
   const j0=Math.floor((oy-NODE_VAR*2)/GAP)-1, j1=Math.floor((oy+VH+NODE_VAR*2)/GAP)+2;
@@ -701,6 +719,7 @@ function drawRoads(ox,oy){
     ctx.strokeStyle=_at; ctx.lineWidth=e.width;
     const A=node(i,j), B=node(i+di,j+dj), C=e.cp;
     ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.quadraticCurveTo(C[0],C[1],B[0],B[1]); ctx.stroke(); } } }
+  drawLaneMarkings(i0,i1,j0,j1);
   if(typeof drawFieldRoads==="function") drawFieldRoads(ox,oy);
   else if(typeof drawForestTrails==="function") drawForestTrails(ox,oy);
   if(typeof drawForestBridges==="function") drawForestBridges(ox,oy);

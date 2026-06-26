@@ -367,7 +367,6 @@ function updateBullets(dt){
 function updateCombat(dt){
   tickVehicleImpactCd(dt);
   if(typeof invOpen!=="undefined"&&invOpen) return;
-  if(typeof LivingSprite!=="undefined") LivingSprite.tickAttackClip(ped, dt);
   playerFireCd-=dt;
   if(mode==="foot" && (firing||keys[" "]) && playerFireCd<=0){
     const w=WEAPONS[curWeapon];
@@ -391,6 +390,7 @@ function updateCombat(dt){
     } else { if(typeof syncCurWeaponFromEquip==="function") syncCurWeaponFromEquip(); else curWeapon=0; playerFireCd=0.1; }
   }
   updateBullets(dt); updateExplosions(dt); updateSlashes(dt);
+  if(typeof LivingSprite!=="undefined") LivingSprite.tickAttackClip(ped, dt);
 }
 function drawBullets(){
   for(const b of bullets){

@@ -24,7 +24,7 @@ const CARCOL = ["#c9c9cf","#3f5b86","#b5483b","#d8a93f","#3f7d5a","#6c6f78","#7a
 const PEDCOL = ["#3a6ea5","#a4513f","#4f7d4a","#7a5fa0","#b59a3f","#5a5e66","#a85a7a"];
 const HATCOL=["#b5483b","#3f5b86","#d8a93f","#3f7d5a","#222222","#e0e0e0","#7a4d6b"];
 function assignTrafficLane(c, width){
-  if(c.laneSide==null) c.laneSide=rng()<0.5?1:-1;
+  if(c.laneSide==null) c.laneSide=1;
   if(c.laneIdx==null) c.laneIdx=(rng()*roadLanesPerSide(width))|0;
 }
 function trafficRoadOffset(c, width, taper){
@@ -159,6 +159,12 @@ function obstacleAhead(c,dx,dy){
   for(const o of traffic){ if(o===c||o.state!=="drive") continue;
     if(scanR<1e8 && Math.hypot(o.x-c.x,o.y-c.y)>scanR) continue;
     if(isAhead(c,dx,dy,o.x,o.y,64,22)) return true; }
+  for(const p of peds){
+    if(p.state==="down"||p.state==="dying") continue;
+    if(scanR<1e8 && Math.hypot(p.x-c.x,p.y-c.y)>scanR) continue;
+    if(isAhead(c,dx,dy,p.x,p.y,58,20)) return true;
+  }
+  if(typeof ped!=="undefined"&&mode==="foot"&&isAhead(c,dx,dy,ped.x,ped.y,58,20)) return true;
   return false;
 }
 function obstacleDistAhead(c,dx,dy){
@@ -172,6 +178,12 @@ function obstacleDistAhead(c,dx,dy){
   for(const o of traffic){ if(o===c||o.state!=="drive") continue;
     if(scanR<1e8 && Math.hypot(o.x-c.x,o.y-c.y)>scanR) continue;
     scan(o.x,o.y,64,22); }
+  for(const p of peds){
+    if(p.state==="down"||p.state==="dying") continue;
+    if(scanR<1e8 && Math.hypot(p.x-c.x,p.y-c.y)>scanR) continue;
+    scan(p.x,p.y,58,20);
+  }
+  if(typeof ped!=="undefined"&&mode==="foot") scan(ped.x,ped.y,58,20);
   return best;
 }
 function pickAlternateLane(c, width){
@@ -464,9 +476,62 @@ function pedPickTurn(p){
   pedPickSide(p);
   pedSyncPos(p);
 }
-function pedClear(p){ const c=node(p.pb[0],p.pb[1]);
-  for(const t of traffic){ if((t.state==="drive"||t.state==="loose")&&Math.hypot(t.x-c[0],t.y-c[1])<58) return false; }
+function pedClear(p){
+  const ci=p.pb[0], cj=p.pb[1];
+  const cx=nX(ci,cj), cy=nY(ci,cj);
+  const R=Math.max(52, nodeMaxWidth(ci,cj)*0.56);
+  const crossAxis=p.waitAxis;
+  for(const t of traffic){
+    if(t.state!=="drive"&&t.state!=="loose") continue;
+    const dx=t.x-cx, dy=t.y-cy, d=Math.hypot(dx,dy);
+    if(d>R+36) continue;
+    const tAxis=(t.bj===t.aj)?0:1;
+    if(tAxis===crossAxis) continue;
+    const spd=Math.hypot(t.vx||0,t.vy||0);
+    if(d<R && (spd>10 || d<R*0.82)) return false;
+  }
+  if(typeof mode!=="undefined"&&mode==="car"&&typeof car!=="undefined"){
+    if(Math.hypot(car.x-cx,car.y-cy)<R+car.R) return false;
+  }
   return true;
+}
+function pedBlocksCrossing(i,j,axis){
+  const cx=nX(i,j), cy=nY(i,j);
+  const R=nodeMaxWidth(i,j)*0.58+18;
+  for(const p of peds){
+    if(p.state==="down"||p.state==="dying") continue;
+    if(Math.hypot(p.x-cx,p.y-cy)>R) continue;
+    if(p.cross){
+      const crossAxis=(p.pb[1]===p.pa[1])?0:1;
+      if(p.pb[0]===i&&p.pb[1]===j&&crossAxis===axis) return true;
+      continue;
+    }
+    if(!p.onGraph){
+      for(const[di,dj]of[[1,0],[0,1]]){
+        const e=getEdge(i,j,di,dj); if(!e.exists) continue;
+        const edgeAxis=dj===0?0:1;
+        if(edgeAxis!==axis) continue;
+        const g=edgeGeom(i,j,di,dj);
+        const len2=Math.max(1,(g.e.len||GAP)*(g.e.len||GAP));
+        const t=clamp(((p.x-g.p0[0])*(g.p1[0]-g.p0[0])+(p.y-g.p0[1])*(g.p1[1]-g.p0[1]))/len2,0,1);
+        const pt=bez(g.p0,g.cp,g.p1,t);
+        if(Math.hypot(p.x-pt[0],p.y-pt[1])<g.e.width*0.42+p.r) return true;
+      }
+    }
+  }
+  if(typeof mode!=="undefined"&&mode==="foot"&&typeof ped!=="undefined"&&Math.hypot(ped.x-cx,ped.y-cy)<R){
+    for(const[di,dj]of[[1,0],[0,1]]){
+      const e=getEdge(i,j,di,dj); if(!e.exists) continue;
+      const edgeAxis=dj===0?0:1;
+      if(edgeAxis!==axis) continue;
+      const g=edgeGeom(i,j,di,dj);
+      const len2=Math.max(1,(g.e.len||GAP)*(g.e.len||GAP));
+      const t=clamp(((ped.x-g.p0[0])*(g.p1[0]-g.p0[0])+(ped.y-g.p0[1])*(g.p1[1]-g.p0[1]))/len2,0,1);
+      const pt=bez(g.p0,g.cp,g.p1,t);
+      if(Math.hypot(ped.x-pt[0],ped.y-pt[1])<g.e.width*0.42+ped.r) return true;
+    }
+  }
+  return false;
 }
 function pedStartCross(p){ const g=edgeGeom(p.pa[0],p.pa[1],p.pb[0],p.pb[1]);
   p._wait=false; p.cross=1; p.crossProg=0; p.crossW=g.e.width+22; }
@@ -554,6 +619,9 @@ function updateTrafficCar(c,dt){
     let stopT=1, redLight=false;
     if(isSignal(c.bi,c.bj)){ const axis=(c.bj===c.aj)?0:1;
       if(signalState(c.bi,c.bj,axis)!=="green"){ redLight=true; stopT=1-(g.e.width*0.5+24)/g.e.len; if(c.t>=stopT-0.05) targetSpeed=0; } }
+    if(pedBlocksCrossing(c.bi,c.bj,(c.bj===c.aj)?0:1)){
+      redLight=true; stopT=1-(g.e.width*0.5+24)/g.e.len; if(c.t>=stopT-0.05) targetSpeed=0;
+    }
     if(typeof crossingBlocksRoad==="function"){
       const axis=(c.bj===c.aj)?0:1;
       if(crossingBlocksRoad(c.bi,c.bj,axis)){ redLight=true; stopT=1-(g.e.width*0.5+24)/g.e.len; if(c.t>=stopT-0.05) targetSpeed=0; }
@@ -585,6 +653,7 @@ function updateTrafficCar(c,dt){
     }
   }
   collideParked(c); collideFences(c); collideGraves(c);
+  if(typeof trafficVsPeds==="function") trafficVsPeds(c);
   if(Math.hypot(c.x-focusX,c.y-focusY)>2750) respawnTraffic(c);
 }
 function alertPeds(x,y,R){
@@ -744,6 +813,7 @@ function updateNpcPed(p,dt){
       if(dd<p.r){ if(dd>0.001){p.x+=ex/dd*(p.r-dd); p.y+=ey/dd*(p.r-dd);} if(!p.onGraph)p.repick=0; }
     } } }
   if(!p.onGraph) collideFences(p);
+  if(typeof npcPedVsTraffic==="function") npcPedVsTraffic(p);
   const mdx=p.x-_wx, mdy=p.y-_wy;
   p.vx=mdx/Math.max(dt,0.001); p.vy=mdy/Math.max(dt,0.001);
   if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,mdx,mdy);

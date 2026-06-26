@@ -116,9 +116,56 @@ function carVsPeds(){
 }
 function pedVsTraffic(){           // player on foot pushed out of cars
   for(const c of traffic){
+    if(c.dead) continue;
     const R=ped.r+c.R, dx=ped.x-c.x, dy=ped.y-c.y, d=Math.hypot(dx,dy);
     if(d>=R||d<0.0001) continue;
     ped.x+=dx/d*(R-d); ped.y+=dy/d*(R-d);
+  }
+}
+function npcPedVsTraffic(p){
+  if(!p||p.state==="down"||p.state==="dying") return;
+  for(const c of traffic){
+    if(c.dead) continue;
+    const R=p.r+c.R, dx=p.x-c.x, dy=p.y-c.y, d=Math.hypot(dx,dy);
+    if(d>=R||d<0.0001) continue;
+    const nx=dx/d, ny=dy/d;
+    const spd=Math.hypot(c.vx||0,c.vy||0);
+    if(spd>42){
+      p.state="dying"; p._dieT=0;
+      p.vx=nx*(spd*0.65+50)+(c.vx||0)*0.35; p.vy=ny*(spd*0.65+50)+(c.vy||0)*0.35;
+      if(typeof PeopleSprites!=="undefined"&&PeopleSprites.ensureClipForPed) PeopleSprites.ensureClipForPed(p,"die");
+      spawnBlood(p.x,p.y,c.vx||0,c.vy||0,1.1,Math.atan2(ny,nx));
+      if(p.armed&&p.weapon!=null) dropWeapon(p.x,p.y,p.weapon);
+      c.speed=Math.max(0,c.speed*0.35);
+      if(c.vx!=null){ c.vx*=0.55; c.vy*=0.55; }
+      return;
+    }
+    p.x+=nx*(R-d); p.y+=ny*(R-d);
+    if(c.state==="drive") c.speed=Math.min(c.speed, Math.max(0, spd*0.55));
+    if(c.vx!=null&&spd>12){
+      c.vx-=nx*Math.min(spd*0.25, 28); c.vy-=ny*Math.min(spd*0.25, 28);
+    }
+  }
+}
+function trafficVsPeds(c){
+  if(!c||c.dead) return;
+  const spd=Math.hypot(c.vx||0,c.vy||0);
+  for(const p of peds){
+    if(p.state==="down"||p.state==="dying") continue;
+    const R=c.R+p.r, dx=p.x-c.x, dy=p.y-c.y, d=Math.hypot(dx,dy);
+    if(d>=R) continue;
+    const nx=d>0.001?dx/d:Math.cos(c.a||0), ny=d>0.001?dy/d:Math.sin(c.a||0);
+    if(spd>40){
+      p.state="dying"; p._dieT=0;
+      p.vx=nx*(spd*0.7+55)+(c.vx||0)*0.35; p.vy=ny*(spd*0.7+55)+(c.vy||0)*0.35;
+      if(typeof PeopleSprites!=="undefined"&&PeopleSprites.ensureClipForPed) PeopleSprites.ensureClipForPed(p,"die");
+      spawnBlood(p.x,p.y,c.vx||0,c.vy||0,1.0,Math.atan2(ny,nx));
+      if(p.armed&&p.weapon!=null) dropWeapon(p.x,p.y,p.weapon);
+      c.speed=Math.max(0,c.speed*0.4);
+    } else {
+      p.x+=nx*(R-d); p.y+=ny*(R-d);
+      if(c.state==="drive") c.speed=Math.min(c.speed, Math.max(8, spd*0.5));
+    }
   }
 }
 function pedVsNpcs(){              // player gently shoves NPCs aside
