@@ -41,6 +41,10 @@ function frame(now){
   }
   else { maintainTraffic(); maintainPeds(); }
   pruneT+=dt; if(pruneT>3){ pruneT=0; pruneCaches(); }
+  if(typeof PeopleSprites!=="undefined"){
+    if(PeopleSprites.tickLoadQueue) PeopleSprites.tickLoadQueue();
+    if(PeopleSprites.warmVisiblePeds) PeopleSprites.warmVisiblePeds();
+  }
   updateAudio();
   tickSave(dt);
   Game.update(dt, mapPause);

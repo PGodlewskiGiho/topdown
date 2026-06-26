@@ -9,6 +9,9 @@ const pending=new Set();
 const failed=new Set();
 const baked={};
 const lastHold={}; // ped uid -> {wf, dir, canvas}
+const loadQueue=[];
+let inflight=0;
+const MAX_INFLIGHT=12;
 let meta=null, loadP=null, ready=false;
 let resolvedRoot=null;
 let warmStarted=false;
@@ -56,27 +59,70 @@ function outfitKey(o){
 
 function bakeKey(o,wf,dir){ return outfitKey(o)+"|"+wf+"|"+dir; }
 
-function queueImg(path, onload){
+function pumpLoadQueue(){
+  while(inflight<MAX_INFLIGHT&&loadQueue.length){
+    const item=loadQueue.shift();
+    if(!item||!item.path) continue;
+    if(failed.has(item.path)) continue;
+    const cur=imgs[item.path];
+    if(cur&&cur.complete&&cur.naturalWidth>0){
+      for(const cb of item.callbacks) try{ cb(); }catch(e){}
+      continue;
+    }
+    if(pending.has(item.path)){
+      for(const cb of item.callbacks){
+        if(imgs[item.path]) imgs[item.path].addEventListener("load",cb,{once:true});
+      }
+      continue;
+    }
+    pending.add(item.path);
+    inflight++;
+    const im=new Image();
+    im.onload=()=>{
+      pending.delete(item.path);
+      inflight--;
+      for(const cb of item.callbacks) try{ cb(); }catch(e){}
+      pumpLoadQueue();
+    };
+    im.onerror=()=>{
+      pending.delete(item.path);
+      inflight--;
+      if(!failed.has(item.path)){
+        failed.add(item.path);
+        console.warn("PeopleSprites missing layer:", item.path);
+      }
+      pumpLoadQueue();
+    };
+    im.src=item.path;
+    imgs[item.path]=im;
+  }
+}
+
+function queueImg(path, onload, priority){
   if(!path) return;
+  const pri=priority!=null?priority:0;
   const cur=imgs[path];
   if(cur&&cur.complete&&cur.naturalWidth>0){ if(onload) onload(); return; }
+  if(failed.has(path)) return;
   if(pending.has(path)){
     if(onload&&imgs[path]) imgs[path].addEventListener("load",onload,{once:true});
     return;
   }
-  pending.add(path);
-  const im=new Image();
-  im.onload=()=>{ pending.delete(path); if(onload) onload(); };
-  im.onerror=()=>{
-    pending.delete(path);
-    if(!failed.has(path)){
-      failed.add(path);
-      console.warn("PeopleSprites missing layer:", path);
-    }
-  };
-  im.src=path;
-  imgs[path]=im;
+  let item=null;
+  for(let i=0;i<loadQueue.length;i++){
+    if(loadQueue[i].path===path){ item=loadQueue[i]; break; }
+  }
+  if(item){
+    if(pri>item.priority) item.priority=pri;
+    if(onload) item.callbacks.push(onload);
+  }else{
+    loadQueue.push({path, priority:pri, callbacks:onload?[onload]:[]});
+  }
+  loadQueue.sort((a,b)=>b.priority-a.priority);
+  pumpLoadQueue();
 }
+
+function tickLoadQueue(){ pumpLoadQueue(); }
 
 function getImg(path){
   const im=imgs[path];
@@ -123,18 +169,20 @@ function pedUid(p){
   return p._psUid;
 }
 
-function prefetchOutfit(o, wf, direction, altWalk){
-  for(const path of layerPaths(o, wf, direction)) queueImg(path, ()=>tryBake(o, wf, direction));
+function prefetchOutfit(o, wf, direction, altWalk, priority){
+  const pri=priority!=null?priority:2;
+  for(const path of layerPaths(o, wf, direction)) queueImg(path, ()=>tryBake(o, wf, direction), pri);
   if(altWalk!==false){
     const alt=wf.startsWith("walk")?(wf==="walk0"?"walk1":"walk0"):null;
-    if(alt) for(const path of layerPaths(o, alt, direction)) queueImg(path, ()=>tryBake(o, alt, direction));
+    if(alt) for(const path of layerPaths(o, alt, direction)) queueImg(path, ()=>tryBake(o, alt, direction), pri);
   }
 }
 
-function prefetchClipDir(o, clipId, direction){
+function prefetchClipDir(o, clipId, direction, priority){
   const spec=clipSpec(clipId);
   const n=spec.count!=null?spec.count:2;
-  for(let i=0;i<n;i++) prefetchOutfit(o, clipId+i, direction, false);
+  const pri=priority!=null?priority:8;
+  for(let i=0;i<n;i++) prefetchOutfit(o, clipId+i, direction, false, pri);
 }
 
 /** Lazy: one facing only — avoids 8× frame storm per clip. */
@@ -143,9 +191,46 @@ function ensureClipForPed(p, clipId){
   if(!o) return;
   const moveDir=moveFacingDir(p);
   const dir=gta2SpriteDir(moveDir);
-  prefetchClipDir(o, clipId, dir);
+  prefetchClipDir(o, clipId, dir, 14);
   const opp=LS&&LS.DIR?LS.DIR[(LS.DIR.indexOf(dir)+4)%8]:null;
-  if(opp) prefetchClipDir(o, clipId, opp);
+  if(opp) prefetchClipDir(o, clipId, opp, 12);
+}
+
+function warmPed(p, priority){
+  if(!meta) return;
+  const pri=priority!=null?priority:5;
+  const o=resolveOutfit(p, true);
+  if(!o) return;
+  const moveDir=p._faceDir||"S";
+  const dir=gta2SpriteDir(moveDir);
+  const sig=outfitKey(o)+"|"+dir;
+  if(p._psWarmSig===sig) return;
+  p._psWarmSig=sig;
+  prefetchOutfit(o, "walk0", dir, true, pri);
+  prefetchOutfit(o, "walk1", dir, false, pri);
+  prefetchOutfit(o, "idle0", dir, false, pri);
+}
+
+function warmVisiblePeds(){
+  if(!meta) return;
+  const tier=typeof global.perfTier==="function"?global.perfTier():3;
+  const budget=tier===1?3:tier===2?5:8;
+  const list=[];
+  const camX=global.cam?global.cam.x:0;
+  const camY=global.cam?global.cam.y:0;
+  const all=global.peds;
+  if(all){
+    for(const p of all){
+      const d=Math.hypot(p.x-camX, p.y-camY);
+      if(d>920) continue;
+      list.push({p, d});
+    }
+  }
+  if(global.ped) list.push({p:global.ped, d:0});
+  list.sort((a,b)=>a.d-b.d);
+  for(let i=0;i<Math.min(budget, list.length); i++){
+    warmPed(list[i].p, 10-Math.min(9, (list[i].d/95)|0));
+  }
 }
 
 function warmDefault(){
@@ -188,10 +273,95 @@ function resolveOutfit(p, skipPrefetch){
   p._gta2Outfit=o;
   if(!skipPrefetch){
     const dir=gta2SpriteDir(p._faceDir||"S");
-    prefetchOutfit(o, "walk0", dir);
-    prefetchOutfit(o, "idle0", dir);
+    prefetchOutfit(o, "walk0", dir, true, 4);
+    prefetchOutfit(o, "idle0", dir, false, 3);
   }
   return o;
+}
+
+function singleLayerPath(o, layerKey, wf, direction){
+  const b=o.body||"male";
+  const base=assetsBase();
+  const map={
+    shoes:"shoes/"+o.pants,
+    pants:"pants/"+o.pants,
+    arms:"arms/"+o.shirt,
+    torso:"torsos/"+o.shirt,
+    skin:"skins/"+o.skin,
+    hair:o.hair?"hairs/"+o.hair:null,
+  };
+  const rel=map[layerKey];
+  if(!rel) return null;
+  return base+b+"/"+rel+"/"+wf+"/"+direction+".png";
+}
+
+function poseCandidates(wf, dir){
+  const m=wf.match(/^([a-z]+)(\d+)$/);
+  const clipId=m?m[1]:wf.replace(/\d+$/,"");
+  const frameIdx=m?parseInt(m[2],10):0;
+  const spec=clipSpec(clipId);
+  const count=spec.count||1;
+  const dirs=facingDirs(dir);
+  const out=[];
+  const seen=new Set();
+  const add=(folder, d)=>{
+    const k=folder+"|"+d;
+    if(seen.has(k)) return;
+    seen.add(k);
+    out.push({wf:folder, dir:d});
+  };
+  for(const d of dirs){
+    for(let fi=frameIdx; fi>=0; fi--) add(clipId+fi, d);
+    for(let fi=frameIdx+1; fi<count; fi++) add(clipId+fi, d);
+  }
+  const fallbacks=clipId==="die"?["down","walk","idle"]:clipId==="down"?["walk","idle"]:["walk","idle"];
+  for(const fb of fallbacks){
+    const fbSpec=clipSpec(fb);
+    const fn=Math.min(fbSpec.count||1, fb==="down"?5:3);
+    for(const d of dirs){
+      for(let fi=0; fi<fn; fi++) add(fb+fi, d);
+    }
+  }
+  for(const fb of ["idle0","walk0","walk1"]){
+    for(const d of dirs) add(fb, d);
+  }
+  return out;
+}
+
+function resolveLayerImg(o, layerKey, wf, dir, cache, priority){
+  if(layerKey==="hair"&&!o.hair) return null;
+  const pri=priority!=null?priority:1;
+  const candidates=poseCandidates(wf, dir);
+  for(const {wf:w, dir:d} of candidates){
+    const path=singleLayerPath(o, layerKey, w, d);
+    if(!path) continue;
+    const im=getImg(path);
+    if(im){
+      if(cache) cache[layerKey]={path, wf:w, dir:d};
+      return im;
+    }
+    queueImg(path, null, pri);
+  }
+  if(cache&&cache[layerKey]){
+    const im=getImg(cache[layerKey].path);
+    if(im) return im;
+  }
+  return null;
+}
+
+/** Each layer borrows nearest loaded frame/dir — no holes in torso/hair. */
+function drawLayersSmart(c, o, wf, dir, ax, ay, sx, sy, bm, cache, priority){
+  const order=meta.layer_order||["shoes","pants","arms","torso","skin","hair"];
+  let drew=0, need=0;
+  for(const k of order){
+    if(k==="hair"&&!o.hair) continue;
+    need++;
+    const im=resolveLayerImg(o, k, wf, dir, cache, priority);
+    if(!im) continue;
+    c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
+    drew++;
+  }
+  return {drew, need, complete:need>0&&drew===need};
 }
 
 function layerPaths(o, wf, direction){
@@ -289,7 +459,7 @@ function ensureWalkPrefetch(p, o, wf, dir){
   const key=wf+"|"+dir;
   if(p._psWalkReq===key) return;
   p._psWalkReq=key;
-  prefetchOutfit(o, wf, dir);
+  prefetchOutfit(o, wf, dir, true, 6);
 }
 
 function drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm){
@@ -404,32 +574,22 @@ function drawComposite(c, p, down, forcedDir){
     ensureClipForPed(p, p._animClip);
   else ensureWalkPrefetch(p, o, wfRaw, dir);
 
-  const pose=resolveAnimPose(o, wfRaw, dir);
-  const wf=pose.wf;
-  const drawDir=pose.dir;
+  if(!p._psLayerCache) p._psLayerCache={};
+  const loadPri=p===global.ped?12:(p.state==="dying"||down?11:7);
   const uid=pedUid(p);
 
-  const ang=dirAngle(drawDir);
+  const ang=dirAngle(dir);
   c.save();
   c.rotate(ang-Math.PI/2);
   c.fillStyle="rgba(0,0,0,.30)";
   c.fillRect(-8*sc, 3*sc, 16*sc, 4*sc);
   c.restore();
 
-  let drew=drawLayers(c, o, wf, drawDir, ax, ay, sx, sy, bm);
-  if(!drew) drew=drawLayersPartial(c, o, wf, drawDir, ax, ay, sx, sy, bm);
-  if(!drew){
-    let bakedIm=getBaked(o, wf, drawDir);
-    if(!bakedIm&&allLayersReady(o, wf, drawDir)) bakedIm=tryBake(o, wf, drawDir);
-    if(bakedIm){
-      c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
-      drew=true;
-      lastHold[uid]={wf, dir:drawDir, canvas:bakedIm};
-    }
-  }
-  if(drew && allLayersReady(o, wf, drawDir)){
-    const bakedIm=tryBake(o, wf, drawDir);
-    if(bakedIm) lastHold[uid]={wf, dir:drawDir, canvas:bakedIm};
+  const smart=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri);
+  let drew=smart.complete||smart.drew>0;
+  if(smart.complete){
+    const bakedIm=tryBake(o, wfRaw, dir);
+    if(bakedIm) lastHold[uid]={wf:wfRaw, dir, canvas:bakedIm};
   }
   if(!drew){
     const hold=lastHold[uid];
@@ -439,11 +599,8 @@ function drawComposite(c, p, down, forcedDir){
     }
   }
   if(!drew){
-    for(const fb of ["idle0","walk0","walk1"]){
-      if(fb===wf) continue;
-      const fbp=resolveAnimPose(o, fb, dir);
-      if(drawLayersPartial(c, o, fbp.wf, fbp.dir, ax, ay, sx, sy, bm)){ drew=true; break; }
-    }
+    const pose=resolveAnimPose(o, wfRaw, dir);
+    if(drawLayersSmart(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri).drew>0) drew=true;
   }
 
   if(down||p.state==="dying"){
@@ -469,7 +626,8 @@ function draw(c,p,color,down,forcedDir){
 }
 
 const PeopleSprites={
-  draw, init, warmDefault, prefetchCombat, resolveOutfit, ensureClipForPed, prefetchClipDir,
+  draw, init, warmDefault, warmPed, warmVisiblePeds, tickLoadQueue,
+  prefetchCombat, resolveOutfit, ensureClipForPed, prefetchClipDir,
   get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
   get meta(){ return meta; },
