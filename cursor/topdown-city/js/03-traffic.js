@@ -96,12 +96,14 @@ function spawnPed(){
       const pos=pedPos(p); p.x=pos[0]; p.y=pos[1];
       Object.assign(look, rollNpcAppearance(p.x,p.y,{armed}));
       applyNpcLook(p, look);
+      if(typeof PeopleSprites!=="undefined"&&PeopleSprites.warmPed) PeopleSprites.warmPed(p, 4);
       return p; } }
   let x,y,t=0;
   do{ x=fx+rand(-200,200); y=fy+rand(-200,200); t++; }while((inBuilding(x,y,11)||inWater(x,y))&&t<24);
   p.x=x; p.y=y; p.tx=x; p.ty=y;
   Object.assign(look, rollNpcAppearance(x,y,{armed}));
   applyNpcLook(p, look);
+  if(typeof PeopleSprites!=="undefined"&&PeopleSprites.warmPed) PeopleSprites.warmPed(p, 4);
   return p;
 }
 function trafficCap(){
@@ -145,7 +147,7 @@ function maintainPeds(){
 }
 const awayFromCam=(x,y)=>Math.hypot(x-cam.x,y-cam.y) > 720;
 function respawnTraffic(c){ let n; for(let k=0;k<24;k++){ n=spawnTrafficCar(); if(awayFromCam(n.x,n.y)) break; } Object.assign(c,n); }
-function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); delete p._faceDir; delete p._lastSpriteDir; delete p._gta2Outfit; delete p.ring; }
+function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); delete p._faceDir; delete p._lastSpriteDir; delete p._gta2Outfit; delete p._psLayerCache; delete p._psWalkReq; delete p._psWarmSig; delete p.ring; }
 
 function isAhead(c,dx,dy,ox,oy,dist,lat){
   const rx=ox-c.x, ry=oy-c.y, fwd=rx*dx+ry*dy, side=Math.abs(rx*(-dy)+ry*dx);
