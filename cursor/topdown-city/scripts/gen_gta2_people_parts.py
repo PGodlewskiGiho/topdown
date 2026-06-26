@@ -62,7 +62,7 @@ BODY_PREVIEW = [
 ]
 
 BASE_REMAP = 27
-SHIRT_IDX = {80, 81, 82, 83, 84, 85, 86, 225, 226, 227, 228}
+SHIRT_IDX = {78, 79, 80, 81, 82, 83, 84, 85, 86, 225, 226, 227, 228}
 ARM_IDX = {229, 230, 231, 232}
 PANTS_IDX = {206, 207, 208, 209, 210, 211, 217, 218, 219, 220, 221, 222, 223}
 SHOES_IDX = {193, 242, 244, 245, 246, 247}
@@ -165,34 +165,22 @@ def save_part(body: str, part: str, variant: str, walk: str, direction: str, lay
 
 
 def rotate_layer(im: Image.Image, direction: str) -> Image.Image:
-    """Bake GTA2 sprite rotation: base bitmap faces N; rotate to game direction."""
+    """Bake GTA2 sprite rotation: all layers share foot anchor pivot (11, 21)."""
     if direction not in DIR_NAMES:
         return im.copy()
     idx = DIR_NAMES.index(direction)
     target_rad = idx * (math.pi / 4)
     pil_deg = -math.degrees(target_rad + _anim["rotation_offset_rad"])
 
-    px_list = [(x, y) for y in range(im.height) for x in range(im.width) if im.getpixel((x, y))[3] > 0]
-    if not px_list:
-        return im.copy()
-    com_x = sum(x for x, _ in px_list) / len(px_list)
-    com_y = sum(y for _, y in px_list) / len(px_list)
-
+    px, py = ANCHOR
     pad = 64
     big = Image.new("RGBA", (pad, pad), (0, 0, 0, 0))
     bcx, bcy = pad // 2, pad // 2
-    big.paste(im, (int(bcx - com_x), int(bcy - com_y)), im)
+    big.paste(im, (int(bcx - px), int(bcy - py)), im)
     rotated = big.rotate(pil_deg, resample=Image.NEAREST, center=(bcx, bcy))
 
     out = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
-    pts = [(x, y) for y in range(rotated.height) for x in range(rotated.width) if rotated.getpixel((x, y))[3] > 0]
-    if not pts:
-        return out
-    minx, maxx = min(x for x, _ in pts), max(x for x, _ in pts)
-    miny, maxy = min(y for _, y in pts), max(y for _, y in pts)
-    foot_x = (minx + maxx) // 2
-    foot_y = maxy
-    out.paste(rotated, (ANCHOR[0] - foot_x, ANCHOR[1] - foot_y), rotated)
+    out.paste(rotated, (ANCHOR[0] - bcx, ANCHOR[1] - bcy), rotated)
     return out
 
 
