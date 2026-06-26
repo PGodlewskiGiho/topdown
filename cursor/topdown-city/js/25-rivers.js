@@ -226,7 +226,7 @@ function drawForestRivers(ox,oy){
       const cx=gx+rs*0.5, cy=gy+rs*0.5;
       if(riverScore(cx,cy)<=0) continue;
       const [fx,fy]=riverFlowAt(cx,cy), px=-fy, py=fx;
-      const wave=Math.sin((cx*fx+cy*fy)*0.06 - t*2.8)*2.6;
+      const wave=Math.sin((cx*fx+cy*fy)*0.06 - t*2.8)*1.4;
       ctx.beginPath();
       ctx.moveTo(cx-px*rs*0.5+fx*wave, cy-py*rs*0.5+fy*wave);
       ctx.lineTo(cx+px*rs*0.5+fx*wave, cy+py*rs*0.5+fy*wave);

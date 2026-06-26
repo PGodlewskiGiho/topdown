@@ -33,7 +33,7 @@ function perfVehicleLodDist(){ return perfTier() === 1 ? 200 : perfTier() === 2 
 function perfPedLodDist(){ return perfTier() === 1 ? 720 : perfTier() === 2 ? 520 : 1e9; }
 function perfPedKeepGta2(p){
   if(typeof ped!=="undefined" && p===ped) return true;
-  if(p.state==="dying"||p.state==="down"||p.hostile) return true;
+  if(p.state==="dying"||p.state==="down"||p.hostile||(p.panic||0)>0) return true;
   if(p._attackT>0) return true;
   return false;
 }

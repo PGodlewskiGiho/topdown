@@ -447,7 +447,7 @@ function drawCanalWaterSeg(s, ox, oy, t){
   ctx.strokeStyle = "rgba(120,150,130,.12)"; ctx.lineWidth = 1.2;
   for(let u = 0; u < 1; u += 0.14){
     const px = s.x1 + dx * u, py = s.y1 + dy * u;
-    const wob = Math.sin(t * 1.8 + u * 12) * 2;
+    const wob = Math.sin(t * 1.8 + u * 12) * 1.2;
     ctx.beginPath();
     ctx.moveTo(px + nx * wob, py + ny * wob);
     ctx.lineTo(px + fx * 16 + nx * wob, py + fy * 16 + ny * wob);

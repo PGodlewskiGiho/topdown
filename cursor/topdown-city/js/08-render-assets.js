@@ -1274,7 +1274,7 @@ function drawWaterGlobal(ox,oy){
     applyWaterPattern("water_lake_v2",ox,oy,t,0.58);
     if(typeof applyWaterSimInClip==="function") applyWaterSimInClip("lake",0.42,0.006);
     tintWaterDepth(polys,lakeScore,[8,28,48],[40,100,130]);
-    const wy=(x,ry)=> ry + Math.sin(x*0.10 - t*1.4 + ry*0.05)*2.6 + Math.sin(x*0.045 + ry*0.09 + t*0.8)*2.0;
+    const wy=(x,ry)=> ry + Math.sin(x*0.10 - t*1.4 + ry*0.05)*1.4 + Math.sin(x*0.045 + ry*0.09 + t*0.8)*1.1;
     const ry0=Math.floor(oy/24)*24, x0w=Math.floor(ox/22)*22;
     ctx.strokeStyle="rgba(13,40,66,.22)"; ctx.lineWidth=1.5; ctx.beginPath();
     for(let ry=ry0;ry<oy+VH+24;ry+=24){ let f=true; for(let x=x0w;x<=ox+VW+22;x+=22){ const yy=wy(x,ry)+1.6; if(f){ctx.moveTo(x,yy);f=false;}else ctx.lineTo(x,yy);} } ctx.stroke();

@@ -245,7 +245,23 @@ function warmPed(p, priority){
   p._psWarmSig=sig;
   prefetchOutfit(o, "walk0", dir, true, pri);
   prefetchOutfit(o, "walk1", dir, false, pri);
+  prefetchOutfit(o, "run0", dir, false, pri);
+  prefetchOutfit(o, "run1", dir, false, pri);
   prefetchOutfit(o, "idle0", dir, false, pri);
+}
+
+/** Prefetch run cycle when a civilian panics — avoids frozen walk hold while fleeing. */
+function beginPedPanic(p){
+  if(!p||!meta) return;
+  p._psWalkReq=null;
+  const o=resolveOutfit(p, true);
+  if(!o) return;
+  const moveDir=p._faceDir||"S";
+  const dir=gta2SpriteDir(moveDir);
+  prefetchClipDir(o, "run", dir, 18);
+  const opp=LS&&LS.DIR?LS.DIR[(LS.DIR.indexOf(dir)+4)%8]:null;
+  if(opp) prefetchClipDir(o, "run", opp, 16);
+  ensureClipForPed(p, "run", moveDir);
 }
 
 function warmVisiblePeds(){
@@ -556,11 +572,7 @@ function resolveCombatPose(o, clipId, frameIdx, dir){
   return {wf:clipId+Math.min(frameIdx,count-1), dir};
 }
 
-function combatLungePx(p, clipId, meta){
-  if(!p||!p._attackT||!clipId) return 0;
-  const fi=LS&&LS.animFrameIndex?LS.animFrameIndex(p, clipId, meta, false):0;
-  if(clipId==="punch") return [0,2.5,4.5,1.5][fi]||0;
-  if(clipId==="shoot") return [0,-1.2,-0.6,0][fi]||0;
+function combatLungePx(){
   return 0;
 }
 
@@ -727,10 +739,10 @@ function drawComposite(c, p, down, forcedDir){
   const loadPri=p._attackT>0?16:(p===global.ped?12:(p.state==="dying"||down?11:7));
   const uid=pedUid(p);
   const combatDraw=!!attackClip||isCombatClip(p._animClip);
-  const lunge=attackClip?combatLungePx(p, attackClip, meta):0;
-  if(lunge){
-    const fa=typeof p.a==="number"&&isFinite(p.a)?p.a:dirAngle(moveDir);
-    c.translate(Math.cos(fa)*lunge*sc, Math.sin(fa)*lunge*sc);
+  if(p.swimming){
+    const bob=Math.sin(performance.now()*0.0042)*1.6*sc;
+    c.translate(0, bob);
+    c.globalAlpha=0.94;
   }
 
   const isDown=down||p.state==="dying";
@@ -799,7 +811,7 @@ function drawComposite(c, p, down, forcedDir){
     }
     if(!drew){
       const hold=lastHold[uid];
-      if(hold&&hold.canvas&&!hold.combat){
+      if(hold&&hold.canvas&&!hold.combat&&hold.wf===wfRaw&&hold.dir===dir){
         c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
         drew=true;
       }
@@ -814,6 +826,7 @@ function drawComposite(c, p, down, forcedDir){
     c.strokeStyle="rgba(255,60,40,.85)"; c.lineWidth=1.5;
     c.strokeRect(-10*sc,-12*sc,20*sc,22*sc);
   }
+  c.globalAlpha=1;
 }
 
 function draw(c,p,color,down,forcedDir){
@@ -847,7 +860,7 @@ function whenBootReady(timeoutMs){
 
 const PeopleSprites={
   draw, drawShadow:drawPedShadowBlob, init, warmDefault, warmPed, warmVisiblePeds, tickLoadQueue, whenBootReady,
-  prefetchCombat, beginPedCombat, resolveOutfit, ensureClipForPed, prefetchClipDir,
+  prefetchCombat, beginPedCombat, beginPedPanic, resolveOutfit, ensureClipForPed, prefetchClipDir,
   get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
   get meta(){ return meta; },

@@ -658,7 +658,10 @@ function updateTrafficCar(c,dt){
 }
 function alertPeds(x,y,R){
   for(const p of peds){ if(p.state==="down"||p.hostile) continue;
-    if((p.x-x)**2+(p.y-y)**2 < R*R){ p.panic=rand(2.4,4.2); p.threatX=x; p.threatY=y; p.act=null; p.onGraph=p.onGraph; } }
+    if((p.x-x)**2+(p.y-y)**2 < R*R){
+      p.panic=rand(2.4,4.2); p.threatX=x; p.threatY=y; p.act=null; p.onGraph=p.onGraph;
+      if(typeof PeopleSprites!=="undefined"&&PeopleSprites.beginPedPanic) PeopleSprites.beginPedPanic(p);
+    } }
 }
 function startChat(p){
   let q=null, bd=150*150;
@@ -755,7 +758,11 @@ function updateNpcPed(p,dt){
     const dx=p.x-p.threatX, dy=p.y-p.threatY, d=Math.hypot(dx,dy)||1;
     if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,dx,dy);
     else p.a=Math.atan2(dy,dx);
-    const sp=p.speed*2.5; p.x+=dx/d*sp*dt; p.y+=dy/d*sp*dt;
+    const sp=p.speed*2.5;
+    p.vx=dx/d*sp; p.vy=dy/d*sp;
+    p._moveDx=dx/d; p._moveDy=dy/d;
+    if(typeof PeopleSprites!=="undefined"&&PeopleSprites.ensureClipForPed) PeopleSprites.ensureClipForPed(p,"run");
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
     { const ci=Math.floor((p.x-ROAD)/GAP), cj=Math.floor((p.y-ROAD)/GAP);
       for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){ const L=getLot(i,j); for(const b of L.buildings){
         const cx=clamp(p.x,b.x,b.x+b.w), cy=clamp(p.y,b.y,b.y+b.h), ex=p.x-cx, ey=p.y-cy, dd=Math.hypot(ex,ey);
@@ -817,7 +824,7 @@ function updateNpcPed(p,dt){
   const mdx=p.x-_wx, mdy=p.y-_wy;
   p.vx=mdx/Math.max(dt,0.001); p.vy=mdy/Math.max(dt,0.001);
   if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,mdx,mdy);
-  } finally { if(inWater(p.x,p.y)){ p.x=_wx; p.y=_wy; p.vx=0; p.vy=0; } }
+  } finally { if(p.panic<=0&&inWater(p.x,p.y)){ p.x=_wx; p.y=_wy; p.vx=0; p.vy=0; } }
 }
 
 for(let i=0;i<38;i++) traffic.push(spawnTrafficCar());
