@@ -335,12 +335,18 @@ function resolveOutfit(p, skipPrefetch){
   if(p.hairStyle==="bald"||p.hair==null) o.hair=null;
   p._gta2Outfit=o;
   if(!skipPrefetch){
-    const dir=gta2SpriteDir(p._faceDir||"S");
+    const moveDir=moveFacingDir(p, null);
+    const dir=gta2SpriteDir(moveDir);
     prefetchOutfit(o, "walk0", dir, true, 4);
     prefetchOutfit(o, "idle0", dir, false, 3);
-    if(p===global.ped&&!p._psCombatWarm){
-      p._psCombatWarm=true;
-      prefetchCombat(o);
+    if(p===global.ped){
+      if(!p._psCombatWarm){
+        p._psCombatWarm=true;
+        prefetchCombat(o);
+      }
+      for(let fi=0; fi<4; fi++){
+        prefetchOutfit(o, "punch"+fi, dir, false, 20-fi);
+      }
     }
   }
   return o;
@@ -771,7 +777,7 @@ function drawComposite(c, p, down, forcedDir){
       }
     }
     if(!drew){
-      const combatSmart=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, null, loadPri, combatPoseCandidates);
+      const combatSmart=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri, combatPoseCandidates);
       if(combatSmart.complete||combatSmart.drew>0){
         drew=true;
         if(combatSmart.complete){
@@ -790,7 +796,7 @@ function drawComposite(c, p, down, forcedDir){
       const fi=LS&&LS.animFrameIndex?LS.animFrameIndex(p, attackClip, meta, false):0;
       const pose=resolveCombatPose(o, attackClip, fi, dir);
       if(drawLayersPartial(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm)) drew=true;
-      else if(drawLayersSmart(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm, null, loadPri, combatPoseCandidates).drew>0) drew=true;
+      else if(drawLayersSmart(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri, combatPoseCandidates).drew>0) drew=true;
       if(!drew){
         for(let f=3; f>=0; f--){
           const tryWf=attackClip+f;
@@ -804,6 +810,11 @@ function drawComposite(c, p, down, forcedDir){
           drew=true;
         }
       }
+    }
+    if(!drew&&attackClip){
+      tickLoadQueue();
+      const rescue=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri+8, combatPoseCandidates);
+      if(rescue.drew>0||rescue.complete) drew=true;
     }
   }else{
     if(p._psWasCombat){

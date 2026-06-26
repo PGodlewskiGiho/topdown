@@ -147,6 +147,12 @@ function animFrameIndex(entity, clipId, meta, down){
   if(entity._attackT>0&&clipId===entity._attackClip){
     const total=clipDuration(clipId, meta);
     const elapsed=total-entity._attackT;
+    if(clipId==="punch"){
+      // GTA2 punch sprites 53/54 are identical — play visual keyframes 0,2,3 only.
+      const punchVisual=[0,2,3];
+      const punchStep=total/punchVisual.length;
+      return punchVisual[Math.min(punchVisual.length-1, Math.floor(elapsed/punchStep))];
+    }
     return Math.min(n-1, Math.floor(elapsed/step));
   }
   if(entity.swimming&&(clipId==="idle"||clipId==="walk")){

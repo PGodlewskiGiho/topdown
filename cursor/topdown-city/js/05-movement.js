@@ -167,15 +167,16 @@ function updatePed(dt){
   const len=Math.hypot(ix,iy);
   const swim=inWater(ped.x,ped.y); ped.swimming=swim;
   const spd= swim ? ped.walk*0.55 : (keys["shift"]?ped.run:ped.walk);
-  if(len>0 && !(typeof LivingSprite!=="undefined"&&ped._attackT>0)){
+  const attacking=typeof LivingSprite!=="undefined"&&ped._attackT>0;
+  if(len>0 && !attacking){
     ped._moveDx=ix; ped._moveDy=iy;
     ped.vx=ix/len*spd; ped.vy=iy/len*spd;
     if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(ped,ix,iy);
     else { ped.a=Math.atan2(iy,ix); }
-  } else if(len>0){
-    ped._moveDx=ix; ped._moveDy=iy;
-    ped.vx=ix/len*spd; ped.vy=iy/len*spd;
-  } else { ped.vx=0; ped.vy=0; ped._moveDx=0; ped._moveDy=0; }
+  } else {
+    ped.vx=0; ped.vy=0;
+    if(!len||attacking){ ped._moveDx=0; ped._moveDy=0; }
+  }
   const ppx=ped.x, ppy=ped.y;
   const ptf=terrainSpeedFactor(ped.x,ped.y, ped.vx, ped.vy);
   ped.x+=ped.vx*dt*ptf; ped.y+=ped.vy*dt*ptf;
