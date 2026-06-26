@@ -6,7 +6,7 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>戸城 CITY — TOPDOWN</title>
+<title>Topdown City</title>
 <link rel="canonical" href="https://pgodlewskigiho.github.io/topdown/">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,23 +17,18 @@
 <canvas id="cv"></canvas>
 <canvas id="cv-labels"></canvas>
 <div id="loading-screen">
-  <canvas id="load-sakura" aria-hidden="true"></canvas>
-  <div class="oni-load-bg" aria-hidden="true"></div>
-  <div class="oni-load-frame">
-    <div class="oni-load-kanji" aria-hidden="true">載</div>
-    <h1 class="oni-load-title">TOPDOWN <span>CITY</span></h1>
-    <p class="oni-load-jp">読み込み中</p>
-    <p class="oni-load-status" id="load-status">Przygotowanie…</p>
-    <div class="oni-load-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <div class="oni-load-fill" id="load-fill"></div>
+  <div class="load-panel">
+    <h1 class="load-title">Topdown City</h1>
+    <div class="load-orb" id="load-orb" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Ładowanie">
+      <div class="load-orb-ball"></div>
     </div>
-    <p class="oni-load-pct" id="load-pct">0%</p>
-    <button type="button" class="oni-load-continue hidden" id="load-continue">続ける · Kontynuuj</button>
-    <button type="button" class="oni-load-retry hidden" id="load-retry">再読み込み · Odśwież</button>
+    <p class="load-status" id="load-status">Przygotowanie…</p>
+    <button type="button" class="load-continue hidden" id="load-continue">Kontynuuj</button>
+    <button type="button" class="load-retry hidden" id="load-retry">Odśwież</button>
   </div>
 </div>
 <div id="hud">
-  <div class="tag">TOPDOWN CITY · <span class="v">戸城</span></div>
+  <div class="tag">Topdown City</div>
   <div id="clock">08:00 · DZIEŃ</div>
   <svg class="gauge" id="gauge" viewBox="0 0 148 148"></svg>
   <div class="readout" id="ro">GEAR D · 0 KM/H</div>
@@ -237,8 +232,8 @@
 </div>
 <div id="menu" class="hidden">
   <div class="menu-panel" id="menu-main">
-    <h1>戸城 <span>CITY</span></h1>
-    <p class="menu-sub">侍の旅 · menu startowe</p>
+    <h1>Topdown <span>City</span></h1>
+    <p class="menu-sub">Menu startowe</p>
     <div class="menu-actions">
       <button type="button" class="menu-primary" id="btn-new">Nowa gra</button>
       <button type="button" class="menu-secondary" id="btn-load">Wczytaj grę</button>
