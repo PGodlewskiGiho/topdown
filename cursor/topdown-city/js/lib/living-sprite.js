@@ -123,7 +123,7 @@ function animClip(entity, down, meta){
   if(down||entity.state==="down") return "down";
   if(entity._attackT>0&&entity._attackClip) return entity._attackClip;
   const clips=clipDefs(meta);
-  if(entity.swimming) return clips.walk?"walk":"idle";
+  if(entity.swimming) return clips.idle?"idle":"walk";
   const spd=moveSpeed(entity);
   if(entity.hostile){
     if(spd<36) return "shoot";
@@ -148,9 +148,11 @@ function animFrameIndex(entity, clipId, meta, down){
     const elapsed=total-entity._attackT;
     return Math.min(n-1, Math.floor(elapsed/step));
   }
-  if(entity.swimming&&clipId==="walk"){
+  if(entity.swimming&&(clipId==="idle"||clipId==="walk")){
+    const spec=clipSpec("idle", meta);
+    const n=spec.count||6;
     const time=entity.previewT!=null?entity.previewT:performance.now()*0.001;
-    return Math.floor(time/0.16)%n;
+    return Math.floor(time/0.22)%n;
   }
   if((clipId==="down"||down)&&entity.downT!=null){
     const i=Math.floor(entity.downT/step);

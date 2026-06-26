@@ -259,10 +259,12 @@ function updateLooseCar(c,dt){
   if(Math.hypot(c.x-focusX,c.y-focusY)>2600){ respawnTraffic(c); return; }
   if(Math.hypot(c.vx,c.vy)<18){ c.downT+=dt; if(c.downT>1.0) rejoinRoad(c); } else c.downT=0;
 }
-function pickExit(ai,aj,bi,bj){                 // next node at B, no U-turn unless dead end
-  const ns=neighbors(bi,bj).filter(n=>!(n[0]===ai&&n[1]===aj));
+function pickExit(ai,aj,bi,bj){
+  let ns=neighbors(bi,bj).filter(n=>!(n[0]===ai&&n[1]===aj));
   if(!ns.length) return [ai,aj];
-  if(getEdge(ai,aj,bi-ai,bj-aj).hwy){            // stay on the highway through the crossing
+  const ped=ns.filter(n=>!(typeof isMarketNode==="function"&&isMarketNode(n[0],n[1])));
+  if(ped.length) ns=ped;
+  if(getEdge(ai,aj,bi-ai,bj-aj).hwy){
     const ci=bi+(bi-ai), cj=bj+(bj-aj);
     for(const n of ns) if(n[0]===ci&&n[1]===cj && getEdge(bi,bj,n[0]-bi,n[1]-bj).hwy) return n;
   }
@@ -580,6 +582,7 @@ function pedWalkGraph(p,dt){
 }
 function updateTrafficCar(c,dt){
   if(c._entryLock){ c.vx=0; c.vy=0; return; }
+  if(typeof inRynek==="function"&&inRynek(c.x,c.y)){ respawnTraffic(c); return; }
   if(typeof perfShouldUpdateEntity==="function" && !perfShouldUpdateEntity(c.x,c.y)) return;
   if(c.maxHp && !c.dead && c.hp>0 && c.hp<c.maxHp*0.08) damageCar(c, 1.4*dt, c.x, c.y, "burn");   // burning -> burns down
   if(c.state==="loose"){ updateLooseCar(c,dt); return; }

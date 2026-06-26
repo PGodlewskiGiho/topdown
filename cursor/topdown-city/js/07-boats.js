@@ -6,8 +6,9 @@ function findWaterNear(fx,fy,minR,maxR){
   const ci=Math.round(fx/GAP), cj=Math.round(fy/GAP);
   for(let tr=0;tr<50;tr++){ const i=ci+randInt(-maxR,maxR), j=cj+randInt(-maxR,maxR);
     if(Math.max(Math.abs(i-ci),Math.abs(j-cj))<minR) continue;
-    if(isWaterCell(i,j)) return [(i+0.5)*GAP,(j+0.5)*GAP];
-    if(typeof canalScore==="function"&&canalScore((i+0.5)*GAP,(j+0.5)*GAP)>0.2) return [(i+0.5)*GAP,(j+0.5)*GAP]; }
+    const x=(i+0.5)*GAP, y=(j+0.5)*GAP;
+    if(inWater(x,y)) return [x,y];
+    if(typeof canalScore==="function"&&canalDepthAt(x,y)>0) return [x,y]; }
   return null;
 }
 function spawnBoat(){ const w=findWaterNear(focusX,focusY,2,9); if(!w) return null;

@@ -572,10 +572,6 @@ function resolveCombatPose(o, clipId, frameIdx, dir){
   return {wf:clipId+Math.min(frameIdx,count-1), dir};
 }
 
-function combatLungePx(){
-  return 0;
-}
-
 function ensureWalkPrefetch(p, o, wf, dir){
   const key=wf+"|"+dir;
   if(p._psWalkReq===key) return;

@@ -203,7 +203,7 @@ function drawRiverBanks(bnd,t){
 
 function drawForestRivers(ox,oy){
   const step=30, t=performance.now()/1000;
-  const {polys,bnd}=collectWaterPolys(riverScore, ox, oy, step);
+  const {polys,bnd}=collectWaterPolys((x,y)=>riverDepthAt(x,y), ox, oy, step);
   if(!polys.length) return;
 
   clipWaterPolys(polys);
@@ -224,7 +224,7 @@ function drawForestRivers(ox,oy){
   for(let gy=y0; gy<y1; gy+=rs){
     for(let gx=x0; gx<x1; gx+=rs){
       const cx=gx+rs*0.5, cy=gy+rs*0.5;
-      if(riverScore(cx,cy)<=0) continue;
+      if(riverDepthAt(cx,cy)<=0) continue;
       const [fx,fy]=riverFlowAt(cx,cy), px=-fy, py=fx;
       const wave=Math.sin((cx*fx+cy*fy)*0.06 - t*2.8)*1.4;
       ctx.beginPath();
