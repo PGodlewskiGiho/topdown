@@ -116,9 +116,9 @@ function drawPersonSimple(p, color, down, targetCtx){
   const shirt = p.shirt || color || "#3a6ea5";
   c.save();
   c.translate(p.x, p.y);
+  if(typeof PeopleSprites!=="undefined"&&PeopleSprites.drawShadow) PeopleSprites.drawShadow(c, sc, {down});
+  else { c.fillStyle="rgba(0,0,0,.22)"; c.beginPath(); c.ellipse(sc*0.4, 3.3*sc, 7.8*sc, 2.7*sc, 0, 0, Math.PI*2); c.fill(); }
   if(down){ c.rotate(0.4); c.globalAlpha = 0.85; }
-  c.fillStyle = "rgba(0,0,0,.22)";
-  c.fillRect(-6 * sc, 2 * sc, 12 * sc, 3 * sc);
   c.fillStyle = shirt;
   c.fillRect(-5 * sc, -8 * sc, 10 * sc, 14 * sc);
   c.fillStyle = p.skin || "#e8b888";
