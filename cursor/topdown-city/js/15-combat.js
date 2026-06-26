@@ -298,7 +298,7 @@ function explode(x,y){
   if(Math.hypot(ax-x,ay-y)<R*0.72) damage(38);
   playBoom(0.9);
 }
-function slashFx(x,y,ang,range){ slashes.push({x,y,a:ang,range,life:0.12}); }
+function slashFx(x,y,ang,range){ slashes.push({x,y,a:ang,range,life:0.22}); }
 function updateExplosions(dt){ for(let i=explosions.length-1;i>=0;i--){ const e=explosions[i]; e.life-=dt; e.r+=180*dt; if(e.life<=0) explosions.splice(i,1); } }
 function updateSlashes(dt){ for(let i=slashes.length-1;i>=0;i--){ slashes[i].life-=dt; if(slashes[i].life<=0) slashes.splice(i,1); } }
 function drawExplosions(){
@@ -309,8 +309,12 @@ function drawExplosions(){
 }
 function drawSlashes(){
   for(const s of slashes){ ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(s.a);
-    ctx.strokeStyle=`rgba(255,255,255,${s.life/0.12*0.8})`; ctx.lineWidth=3;
-    ctx.beginPath(); ctx.arc(0,0,s.range*0.8,-0.7,0.7); ctx.stroke(); ctx.restore(); }
+    const t=clamp(s.life/0.22,0,1);
+    ctx.strokeStyle=`rgba(255,255,255,${t*0.92})`; ctx.lineWidth=4.5;
+    ctx.beginPath(); ctx.arc(0,0,s.range*0.92,-0.95,0.95); ctx.stroke();
+    ctx.strokeStyle=`rgba(255,210,120,${t*0.55})`; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(0,0,s.range*0.72,-0.75,0.75); ctx.stroke();
+    ctx.restore(); }
 }
 function playBoom(v){ noiseBurst(0.6,"lowpass",120,0,Math.min(0.85,v)); }
 function playSwoosh(){ noiseBurst(0.12,"highpass",500,0,0.25); }
@@ -378,11 +382,10 @@ function updateCombat(dt){
       fireWeapon(w, ped.x, ped.y, ang, "player");
       if(typeof LivingSprite!=="undefined"){
         const pmeta=typeof PeopleSprites!=="undefined"?PeopleSprites.meta:null;
-        LivingSprite.startAttackClip(ped, w.kind==="melee"?"punch":"shoot", pmeta);
-        if(typeof PeopleSprites!=="undefined"&&PeopleSprites.beginPedCombat){
-          const face=LivingSprite.dirNameFromAngle?LivingSprite.dirNameFromAngle(ang):null;
+        const face=LivingSprite.dirNameFromAngle?LivingSprite.dirNameFromAngle(ang):null;
+        LivingSprite.startAttackClip(ped, w.kind==="melee"?"punch":"shoot", pmeta, face);
+        if(typeof PeopleSprites!=="undefined"&&PeopleSprites.beginPedCombat)
           PeopleSprites.beginPedCombat(ped, w.kind==="melee"?"punch":"shoot", face);
-        }
       }
       if(w.kind!=="melee"){
         if(typeof playerConsumeAmmo==="function") playerConsumeAmmo();

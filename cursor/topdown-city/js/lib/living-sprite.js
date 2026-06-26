@@ -106,16 +106,21 @@ function clipDuration(clipId, meta){
   return (spec.count||1)*(spec.step_sec||0.1);
 }
 
-function startAttackClip(entity, clipId, meta){
+function startAttackClip(entity, clipId, meta, faceDir){
   if(entity._attackT>0.04&&entity._attackClip===clipId) return;
   entity._attackClip=clipId;
   entity._attackT=clipDuration(clipId, meta);
+  if(typeof faceDir==="string"&&faceDir) entity._attackFaceDir=faceDir;
+  else if(typeof entity.a==="number"&&isFinite(entity.a)) entity._attackFaceDir=dirNameFromAngle(entity.a);
 }
 
 function tickAttackClip(entity, dt){
   if(!entity._attackT||entity._attackT<=0) return;
   entity._attackT=Math.max(0, entity._attackT-dt);
-  if(entity._attackT<=0) entity._attackClip=null;
+  if(entity._attackT<=0){
+    entity._attackClip=null;
+    entity._attackFaceDir=null;
+  }
 }
 
 /** Pick GTA2 animation clip from entity state (matches gta2_re anim groups). */

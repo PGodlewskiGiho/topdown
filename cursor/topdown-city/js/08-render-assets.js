@@ -402,6 +402,7 @@ function entitySpriteDir(p){
   const opts={};
   const isPlayer=typeof ped!=="undefined"&&p===ped&&typeof mode!=="undefined"&&mode==="foot";
   if(isPlayer&&typeof keys!=="undefined") opts.keys=keys;
+  if(p._attackT>0&&p._attackFaceDir) return p._attackFaceDir;
   if((p._attackT>0||p.state==="dying")&&typeof p.a==="number"&&isFinite(p.a))
     return LivingSprite.dirNameFromAngle(p.a);
   return LivingSprite.spriteDir(p, opts);
@@ -2263,27 +2264,5 @@ function drawSignals(ox,oy){
     }
   }
 }
-function drawCrosswalks(ox,oy){
-  const CW=14, stripeW=4, stripeGap=7;
-  ctx.fillStyle="rgba(228,230,233,.55)";
-  const i0=Math.floor((ox-NODE_VAR)/GAP)-2, i1=Math.floor((ox+VW+NODE_VAR)/GAP)+2;
-  const j0=Math.floor((oy-NODE_VAR)/GAP)-2, j1=Math.floor((oy+VH+NODE_VAR)/GAP)+2;
-  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
-    if(biomeOf(i,j)!=="city"||isRoundabout(i,j)) continue;
-    if(typeof nodePedZone==="function"&&nodePedZone(i,j)) continue;
-    const mw=nodeMaxWidth(i,j); if(mw<40) continue;
-    const cx=nX(i,j), cy=nY(i,j);
-    const half=(typeof junctionRadius==="function"?junctionRadius(i,j,mw):mw*0.5)+10;
-    for(const[di,dj]of[[1,0],[0,1]]){
-      const e=getEdge(i,j,di,dj); if(!e.exists||!e.markings) continue;
-      const ang=Math.atan2(nY(i+di,j+dj)-cy, nX(i+di,j+dj)-cx);
-      const hw=e.width*0.5;
-      ctx.save(); ctx.translate(cx,cy); ctx.rotate(ang);
-      for(let s=0; s<CW; s+=stripeGap){
-        ctx.fillRect(-hw, -(half+s+stripeW), hw*2, stripeW);
-      }
-      ctx.restore();
-    }
-  }
-}
+function drawCrosswalks(ox,oy){ /* zebra crossings removed */ }
 

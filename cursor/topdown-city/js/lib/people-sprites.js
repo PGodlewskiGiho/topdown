@@ -210,13 +210,19 @@ function beginPedCombat(p, clipId, forcedDir){
   if(o){
     const moveDir=moveFacingDir(p, forcedDir);
     const dir=gta2SpriteDir(moveDir);
-    prefetchClipDir(o, clipId, dir, 22);
+    const pri=24;
+    prefetchClipDir(o, clipId, dir, pri);
     const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
     for(const d of dirs){
-      if(d===dir) continue;
-      prefetchClipDir(o, clipId, d, 18);
+      const spec=clipSpec(clipId);
+      const n=spec.count||1;
+      for(let fi=0; fi<n; fi++){
+        prefetchOutfit(o, clipId+fi, d, false, pri-1);
+      }
     }
     trySyncBakeCombat(o, clipId, moveDir);
+    tickLoadQueue();
+    tickLoadQueue();
   }
   ensureClipForPed(p, clipId, forcedDir);
 }
@@ -623,6 +629,7 @@ function gta2SpriteDir(moveDir){
 }
 
 function moveFacingDir(p, forcedDir){
+  if(p._attackT>0&&p._attackFaceDir) return p._attackFaceDir;
   if(typeof forcedDir==="string"&&forcedDir) return forcedDir;
   if((p._attackT>0||p.state==="dying")&&typeof p.a==="number"&&isFinite(p.a)&&LS)
     return LS.dirNameFromAngle(p.a);
@@ -725,7 +732,8 @@ function drawComposite(c, p, down, forcedDir){
   const ay=(meta.anchor||[24,47])[1]*sc;
   c.imageSmoothingEnabled=false;
 
-  const attackClip=(p._attackT>0&&isCombatClip(p._attackClip))?p._attackClip:null;
+  const attacking=p._attackT>0&&isCombatClip(p._attackClip);
+  const attackClip=attacking?p._attackClip:null;
   let wfRaw;
   if(attackClip&&LS){
     const fi=LS.animFrameIndex(p, attackClip, meta, down);
@@ -745,9 +753,8 @@ function drawComposite(c, p, down, forcedDir){
     ensureClipForPed(p, p._animClip, moveDir);
   else ensureWalkPrefetch(p, o, wfRaw, dir);
 
-  const loadPri=p._attackT>0?16:(p===global.ped?12:(p.state==="dying"||down?11:7));
+  const loadPri=attacking?20:(p===global.ped?12:(p.state==="dying"||down?11:7));
   const uid=pedUid(p);
-  const combatDraw=!!attackClip||isCombatClip(p._animClip);
   if(p.swimming){
     const bob=Math.sin(performance.now()*0.0042)*1.6*sc;
     c.translate(0, bob);
@@ -758,63 +765,45 @@ function drawComposite(c, p, down, forcedDir){
   drawPedShadowBlob(c, sc, {down:isDown});
 
   let drew=false;
-  if(combatDraw){
+  if(attacking){
     if(p._psWasCombat!==true) p._psLayerCache={};
     p._psWasCombat=true;
     const wfSig=wfRaw+"|"+dir;
     if(p._psCombatSig!==wfSig){
       p._psCombatSig=wfSig;
-      prefetchOutfit(o, wfRaw, dir, false, 22);
+      prefetchOutfit(o, wfRaw, dir, false, 24);
     }
-    if(attackClip||p._animClip) prefetchClipDir(o, attackClip||p._animClip, dir, loadPri);
-    if(attackClip){
-      tickLoadQueue();
-      const bakedAtk=getBaked(o, wfRaw, dir);
-      if(bakedAtk){
-        c.drawImage(bakedAtk, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
-        drew=true;
-        lastHold[uid]={wf:wfRaw, dir, canvas:bakedAtk, combat:true};
-      }
+    prefetchClipDir(o, attackClip, dir, loadPri);
+    tickLoadQueue();
+    const bakedAtk=getBaked(o, wfRaw, dir);
+    if(bakedAtk){
+      c.drawImage(bakedAtk, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
+      drew=true;
+      lastHold[uid]={wf:wfRaw, dir, canvas:bakedAtk, combat:true};
     }
     if(!drew){
-      const combatSmart=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri, combatPoseCandidates);
-      if(combatSmart.complete||combatSmart.drew>0){
+      const smart=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri, combatPoseCandidates);
+      if(smart.complete||smart.drew>0){
         drew=true;
-        if(combatSmart.complete){
+        if(smart.complete){
           const bakedIm=tryBake(o, wfRaw, dir);
           if(bakedIm) lastHold[uid]={wf:wfRaw, dir, canvas:bakedIm, combat:true};
         }
-      }else{
-        const hold=lastHold[uid];
-        if(hold&&hold.combat&&hold.canvas&&hold.wf===wfRaw&&hold.dir===dir){
-          c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
-          drew=true;
-        }
       }
     }
-    if(!drew&&p._attackT>0&&attackClip){
+    if(!drew){
       const fi=LS&&LS.animFrameIndex?LS.animFrameIndex(p, attackClip, meta, false):0;
-      const pose=resolveCombatPose(o, attackClip, fi, dir);
-      if(drawLayersPartial(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm)) drew=true;
-      else if(drawLayersSmart(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri, combatPoseCandidates).drew>0) drew=true;
-      if(!drew){
-        for(let f=3; f>=0; f--){
-          const tryWf=attackClip+f;
-          if(drawLayersPartial(c, o, tryWf, dir, ax, ay, sx, sy, bm)){ drew=true; break; }
-        }
-      }
-      if(!drew){
-        const hold=lastHold[uid];
-        if(hold&&hold.combat&&hold.canvas&&hold.dir===dir){
-          c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
-          drew=true;
-        }
+      for(let f=fi; f>=0; f--){
+        const tryWf=attackClip+f;
+        if(drawLayersPartial(c, o, tryWf, dir, ax, ay, sx, sy, bm)){ drew=true; break; }
       }
     }
-    if(!drew&&attackClip){
-      tickLoadQueue();
-      const rescue=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri+8, combatPoseCandidates);
-      if(rescue.drew>0||rescue.complete) drew=true;
+    if(!drew){
+      const hold=lastHold[uid];
+      if(hold&&hold.combat&&hold.canvas&&hold.dir===dir){
+        c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
+        drew=true;
+      }
     }
   }else{
     if(p._psWasCombat){
