@@ -352,17 +352,17 @@ function entitySpriteDir(p){
 
 function drawPerson(p,color,down,targetCtx){
   const c=targetCtx||ctx;
-  if(typeof perfPedLodDist==="function"){
+  const isDown=down||p.state==="down"||p.state==="dying";
+  if(typeof perfPedLodDist==="function" && typeof perfPedKeepGta2==="function" && !perfPedKeepGta2(p)){
     const lodD=perfPedLodDist();
     if(lodD<1e8 && Math.hypot(p.x-cam.x,p.y-cam.y)>lodD && typeof drawPersonSimple==="function"){
-      drawPersonSimple(p,color,down,c); return;
+      drawPersonSimple(p,color,isDown,c); return;
     }
   }
   if(typeof PeopleSprites!=="undefined"&&PeopleSprites.meta){
     const dir=entitySpriteDir(p);
     p._spriteDir=dir;
-    p._faceDir=dir;
-    PeopleSprites.draw(c,p,color,down,dir);
+    PeopleSprites.draw(c,p,color,isDown,dir);
     return;
   }
   const sc=((p.r||9)/9)*2.05;

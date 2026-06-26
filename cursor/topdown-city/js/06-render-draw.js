@@ -127,7 +127,7 @@ function draw(){
 
   if(typeof perfBegin==="function") perfBegin("actors");
   // NPC pedestrians (culled) — drawn under vehicles so run-overs read correctly
-  for(const p of peds){ if(p.x<ox-30||p.x>ox+VW+30||p.y<oy-30||p.y>oy+VH+30) continue; drawPerson(p,p.color,p.state==="down"); if(!(typeof perfSkipSpeech==="function"&&perfSkipSpeech())&&p.act==="chat"&&p.talking&&p.state!=="down"&&p.state!=="dying") drawSpeech(p); }
+  for(const p of peds){ if(p.x<ox-30||p.x>ox+VW+30||p.y<oy-30||p.y>oy+VH+30) continue; drawPerson(p,p.color,p.state==="down"||p.state==="dying"); if(!(typeof perfSkipSpeech==="function"&&perfSkipSpeech())&&p.act==="chat"&&p.talking&&p.state!=="down"&&p.state!=="dying") drawSpeech(p); }
   Game.drawActors(ox,oy,"beforeTraffic");
   // traffic (culled)
   for(const c of traffic){ if(c.x<ox-50||c.x>ox+VW+50||c.y<oy-50||c.y>oy+VH+50) continue; drawVehicle(c,c.color); }
