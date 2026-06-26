@@ -6,15 +6,32 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>TOPDOWN CITY</title>
+<title>戸城 CITY — TOPDOWN</title>
 <link rel="canonical" href="https://pgodlewskigiho.github.io/topdown/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="styles/main.css">
+<link rel="stylesheet" href="styles/japanese-ui.css">
 </head>
 <body>
 <canvas id="cv"></canvas>
 <canvas id="cv-labels"></canvas>
+<div id="loading-screen">
+  <div class="oni-load-bg" aria-hidden="true"></div>
+  <div class="oni-load-frame">
+    <div class="oni-load-kanji" aria-hidden="true">載</div>
+    <h1 class="oni-load-title">TOPDOWN <span>CITY</span></h1>
+    <p class="oni-load-jp">読み込み中</p>
+    <p class="oni-load-status" id="load-status">Przygotowanie…</p>
+    <div class="oni-load-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div class="oni-load-fill" id="load-fill"></div>
+    </div>
+    <p class="oni-load-pct" id="load-pct">0%</p>
+    <button type="button" class="oni-load-retry hidden" id="load-retry">再読み込み · Odśwież</button>
+  </div>
+</div>
 <div id="hud">
-  <div class="tag">TOPDOWN CITY · <span class="v">modular</span></div>
+  <div class="tag">TOPDOWN CITY · <span class="v">戸城</span></div>
   <div id="clock">08:00 · DZIEŃ</div>
   <svg class="gauge" id="gauge" viewBox="0 0 148 148"></svg>
   <div class="readout" id="ro">GEAR D · 0 KM/H</div>
@@ -54,7 +71,7 @@
   <div class="pause-shell">
     <header class="pause-header">
       <div>
-        <h2 class="pause-title">PAUZA</h2>
+        <h2 class="pause-title">停止 · PAUZA</h2>
         <p class="pause-hint">Esc — wznów grę</p>
       </div>
       <button type="button" class="menu-primary pause-resume" id="pause-resume">Wznów</button>
@@ -216,10 +233,10 @@
     </div>
   </div>
 </div>
-<div id="menu">
+<div id="menu" class="hidden">
   <div class="menu-panel" id="menu-main">
-    <h1>TOPDOWN <span>CITY</span></h1>
-    <p class="menu-sub">Menu startowe · narzędzie testowe</p>
+    <h1>戸城 <span>CITY</span></h1>
+    <p class="menu-sub">侍の旅 · menu startowe</p>
     <div class="menu-actions">
       <button type="button" class="menu-primary" id="btn-new">Nowa gra</button>
       <button type="button" class="menu-secondary" id="btn-load">Wczytaj grę</button>
@@ -381,6 +398,7 @@
   <script src="js/42-pause-menu.js"></script>
   <script src="js/43-puddle-water.js"></script>
   <script src="js/44-sun-glare.js"></script>
+  <script src="js/57-loading.js"></script>
   <script src="js/20-main.js"></script>
 </body>
 </html>

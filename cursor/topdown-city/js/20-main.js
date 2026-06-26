@@ -6,6 +6,11 @@ let last=performance.now();
 function frame(now){
   let dt=(now-last)/1000; last=now;
   if(dt>0.05) dt=0.05;
+  if(typeof gamePhase!=="undefined"&&gamePhase==="loading"){
+    if(typeof LoadingScreen!=="undefined") LoadingScreen.tick(dt);
+    requestAnimationFrame(frame);
+    return;
+  }
   if(gamePhase!=="playing"){
     updateClock(dt); updateWeather(dt); updateRain(dt); updateLeaves(dt);
     if((gamePhase==="charcreate"||gamePhase==="respawn") && typeof drawCharacterPreview==="function") drawCharacterPreview();

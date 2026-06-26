@@ -1,6 +1,6 @@
 /* TOPDOWN CITY — 21-menu.js */
 /* ---------- start menu (new game / load + roguelike death respawn) ---------- */
-let gamePhase="menu";                                        // "menu" | "newgame" | "playing" | "dead" | "respawn" | "charcreate"
+let gamePhase="loading";                                     // loading | menu | newgame | playing | ...
 const menuState={biome:"city", variant:0, preview:null, newWorld:true, preparedSeed:null};
 let respawnMode=false, respawnAnchor={x:0,y:0}, lastDeathReason="";
 const BIOMES_UI=[
@@ -298,4 +298,4 @@ function initStartMenu(){
   if(typeof initCharacterCreator==="function") initCharacterCreator();
   if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
 }
-initStartMenu();
+// Boot menu opens after LoadingScreen finishes (57-loading.js).

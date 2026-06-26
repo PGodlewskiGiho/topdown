@@ -1380,7 +1380,7 @@ window.FOREST_GRASS=FOREST_GRASS;
       im.src="assets/grass-forest/"+meta.variants[k].file;
       FOREST_GRASS.img[k]=im;
     }
-  }).catch(()=>{});
+  }).catch(()=>{ FOREST_GRASS.ready=true; });
 })();
 function forestGrassMeta(key){
   const v=FOREST_GRASS.meta?.variants?.[key];
@@ -1464,6 +1464,7 @@ function drawForestFloor(L){
 
 // ── PNG desert floor (assets/sand-desert/*.png) ───────────────────────────
 const DESERT_FLOOR={ready:false,meta:null,img:{}};
+window.DESERT_FLOOR=DESERT_FLOOR;
 (function loadDesertFloorSprites(){
   fetch("assets/sand-desert/meta.json").then(r=>r.json()).then(meta=>{
     DESERT_FLOOR.meta=meta;
@@ -1475,7 +1476,7 @@ const DESERT_FLOOR={ready:false,meta:null,img:{}};
       im.src="assets/sand-desert/"+meta.variants[k].file;
       DESERT_FLOOR.img[k]=im;
     }
-  }).catch(()=>{});
+  }).catch(()=>{ DESERT_FLOOR.ready=true; });
 })();
 function desertFloorMeta(key){
   const v=DESERT_FLOOR.meta?.variants?.[key];
@@ -1938,6 +1939,7 @@ function treeVisible(p,cl,cr,ct,cb){ const b=treeScreenBox(p); return b.maxX>=cl
 // ── PNG tree sprites (Pillow-generated, assets/trees/*.png) ──────────────
 const TREE_SPRITE={ready:false,meta:null,img:{}};
 window.TREE_SPRITE=TREE_SPRITE;
+window.TREE_SPRITE=TREE_SPRITE;
 function treeAssetRoot(){
   const b=typeof window!=="undefined"&&window.__GAME_BASE;
   if(typeof b==="string"&&b.length) return b.endsWith("/")?b:b+"/";
@@ -1962,7 +1964,7 @@ function treeAssetRoot(){
       im.src=root+"assets/trees/"+meta.kinds[k].file;
       TREE_SPRITE.img[k]=im;
     }
-  }).catch(()=>{});
+  }).catch(()=>{ TREE_SPRITE.ready=true; });
 })();
 function treeKindMeta(kind){
   const g=TREE_SPRITE.meta||{};

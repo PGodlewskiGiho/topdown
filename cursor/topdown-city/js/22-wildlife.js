@@ -17,6 +17,8 @@ const BOAR_VARIANTS=["brown","dark","spotted"];
 
 const BEAR_SPRITE={ready:false,meta:null,img:{}};
 const WILD_SPRITE={ready:false,meta:null,img:{}};
+window.BEAR_SPRITE=BEAR_SPRITE;
+window.WILD_SPRITE=WILD_SPRITE;
 
 const MAX_BEAR_FAMILIES=2, MAX_DEER_HERDS=3, MAX_WOLF_PACKS=2, MAX_BOAR_GROUPS=3;
 const MAX_FOREST_CRITTERS=26, MAX_TREE_SQUIRRELS=18, MAX_FOXES=5, MAX_OTTERS=8;

@@ -1,0 +1,182 @@
+/* Onimusha 3–inspired Japanese UI layer */
+@import url("https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;700&family=Noto+Serif+JP:wght@400;600;700&display=swap");
+
+:root{
+  --oni-ink:#f2e8d8;
+  --oni-ink-dim:#b8a898;
+  --oni-crimson:#6e1418;
+  --oni-crimson-hot:#b82028;
+  --oni-gold:#c9a24a;
+  --oni-gold-bright:#e8c878;
+  --oni-black:#080406;
+  --oni-panel:rgba(14,8,10,.90);
+  --oni-border:rgba(201,162,74,.42);
+  --serif:"Shippori Mincho","Noto Serif JP","Yu Mincho",serif;
+  --ink:var(--oni-ink);
+  --panel:var(--oni-panel);
+  --accent:var(--oni-crimson-hot);
+}
+
+html,body{
+  background:var(--oni-black);
+  font-family:var(--serif);
+}
+
+body.is-loading #cv,
+body.is-loading #cv-labels{opacity:0}
+
+/* ── Loading screen ── */
+#loading-screen{
+  position:fixed;inset:0;z-index:12000;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse 120% 80% at 50% 40%,#1a080c 0%,#080406 55%,#000 100%);
+  color:var(--oni-ink);pointer-events:auto;overflow:hidden;
+  transition:opacity .65s ease, visibility .65s;
+}
+#loading-screen.hidden{display:none!important;pointer-events:none}
+#loading-screen.oni-load-out{opacity:0;visibility:hidden}
+
+.oni-load-bg{
+  position:absolute;inset:0;pointer-events:none;opacity:.55;
+  background:
+    repeating-linear-gradient(90deg,transparent,transparent 47px,rgba(201,162,74,.04) 47px,rgba(201,162,74,.04) 48px),
+    repeating-linear-gradient(0deg,transparent,transparent 47px,rgba(201,162,74,.03) 47px,rgba(201,162,74,.03) 48px);
+}
+.oni-load-bg::before{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(circle at 18% 22%,rgba(184,32,40,.22),transparent 42%),
+              radial-gradient(circle at 82% 78%,rgba(201,162,74,.12),transparent 38%);
+}
+.oni-load-bg::after{
+  content:"";position:absolute;left:50%;top:50%;width:min(92vw,720px);height:min(72vh,520px);
+  transform:translate(-50%,-50%);
+  border:1px solid rgba(201,162,74,.18);
+  box-shadow:inset 0 0 80px rgba(0,0,0,.55), 0 0 0 1px rgba(110,20,24,.35);
+  pointer-events:none;
+}
+
+.oni-load-frame{
+  position:relative;z-index:1;width:min(520px,90vw);text-align:center;padding:36px 28px 32px;
+  border:2px solid var(--oni-border);
+  background:linear-gradient(180deg,rgba(20,10,12,.92),rgba(8,4,6,.96));
+  box-shadow:0 0 0 1px rgba(110,20,24,.5), 0 24px 64px rgba(0,0,0,.7), inset 0 1px 0 rgba(232,200,120,.08);
+}
+.oni-load-frame::before,.oni-load-frame::after{
+  content:"";position:absolute;width:28px;height:28px;border:2px solid var(--oni-gold);opacity:.75;
+}
+.oni-load-frame::before{left:10px;top:10px;border-right:none;border-bottom:none}
+.oni-load-frame::after{right:10px;bottom:10px;border-left:none;border-top:none}
+
+.oni-load-kanji{
+  font-family:var(--serif);font-size:clamp(52px,14vw,88px);font-weight:700;line-height:1;
+  color:var(--oni-gold-bright);text-shadow:0 0 28px rgba(184,32,40,.45), 0 2px 0 #3a1014;
+  margin-bottom:4px;letter-spacing:.08em;
+}
+.oni-load-title{
+  font-family:var(--serif);font-size:clamp(18px,4.5vw,28px);font-weight:600;letter-spacing:.28em;
+  text-transform:uppercase;color:var(--oni-ink);margin:0 0 6px;
+}
+.oni-load-title span{color:var(--oni-crimson-hot)}
+.oni-load-jp{
+  font-family:var(--serif);font-size:13px;letter-spacing:.45em;color:var(--oni-gold);
+  margin:0 0 22px;text-transform:none;
+}
+.oni-load-status{
+  font-size:12px;letter-spacing:.18em;color:var(--oni-ink-dim);margin:0 0 12px;min-height:1.4em;
+}
+.oni-load-bar{
+  height:10px;margin:0 auto 10px;max-width:360px;border:1px solid rgba(201,162,74,.35);
+  background:rgba(0,0,0,.55);box-shadow:inset 0 2px 6px rgba(0,0,0,.65);padding:1px;
+}
+.oni-load-fill{
+  height:100%;width:0;background:linear-gradient(90deg,#6e1418,#b82028 45%,#c9a24a 100%);
+  box-shadow:0 0 12px rgba(184,32,40,.55);transition:width .22s ease-out;
+}
+.oni-load-pct{
+  font-size:11px;letter-spacing:.3em;color:var(--oni-gold);margin:0;
+}
+.oni-load-retry{
+  margin-top:18px;font-family:var(--serif);font-size:12px;letter-spacing:.14em;
+  padding:10px 18px;border:1px solid rgba(201,162,74,.45);background:rgba(110,20,24,.35);
+  color:var(--oni-ink);border-radius:2px;cursor:pointer;
+}
+.oni-load-retry:hover{background:rgba(184,32,40,.45)}
+.oni-load-retry.hidden{display:none!important}
+
+/* ── HUD (Onimusha parchment panels) ── */
+#hud{font-family:var(--serif)}
+.tag{
+  letter-spacing:.42em;color:var(--oni-gold-dim,#8a7040);
+  text-shadow:0 1px 0 rgba(0,0,0,.8);
+}
+.tag .v{color:var(--oni-crimson-hot)}
+.tag::before{content:"城 · ";color:var(--oni-gold);opacity:.85}
+.readout,#clock,#weapon,#money,#prompt,#gunshop,#mission{
+  background:var(--oni-panel);
+  border:1px solid var(--oni-border);
+  border-radius:2px;
+  box-shadow:inset 0 1px 0 rgba(232,200,120,.06), 0 4px 16px rgba(0,0,0,.45);
+  font-family:var(--serif);
+}
+#clock{color:var(--oni-gold-bright);letter-spacing:.22em}
+#money{color:var(--oni-gold-bright)}
+#weapon{color:var(--oni-ink)}
+#health{
+  background:rgba(8,4,6,.85);border:1px solid rgba(201,162,74,.28);border-radius:2px;
+  box-shadow:inset 0 2px 6px rgba(0,0,0,.5);
+}
+#health i{background:linear-gradient(90deg,#6e1418,#c42828 60%,#8a2020);transition:width .15s}
+#wanted span.on{color:var(--oni-gold-bright);text-shadow:0 0 8px rgba(201,162,74,.55)}
+#bigmsg{
+  font-family:var(--serif);letter-spacing:.12em;
+  text-shadow:0 0 24px rgba(184,32,40,.5), 0 3px 18px rgba(0,0,0,.85);
+}
+#district .eyebrow{color:var(--oni-gold);letter-spacing:.38em}
+#district .dn{font-family:var(--serif)}
+.minimap{
+  border-radius:2px;
+  box-shadow:0 0 0 2px rgba(201,162,74,.22), 0 8px 28px rgba(0,0,0,.65);
+}
+
+/* ── Main menu ── */
+#menu{
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 20%,rgba(110,20,24,.28),transparent 55%),
+    linear-gradient(180deg,rgba(8,4,6,.97),rgba(14,8,10,.94));
+  font-family:var(--serif);
+}
+.menu-panel{
+  background:linear-gradient(180deg,rgba(18,10,12,.94),rgba(10,6,8,.96));
+  border:2px solid var(--oni-border);border-radius:2px;
+  box-shadow:0 0 0 1px rgba(110,20,24,.4), 0 28px 72px rgba(0,0,0,.65), inset 0 1px 0 rgba(232,200,120,.07);
+}
+.menu-panel h1{font-family:var(--serif);letter-spacing:.14em}
+.menu-panel h1 span{color:var(--oni-crimson-hot)}
+.menu-panel h2{color:var(--oni-gold);letter-spacing:.28em}
+.menu-primary{
+  background:linear-gradient(180deg,rgba(184,32,40,.35),rgba(110,20,24,.45));
+  border-color:rgba(201,162,74,.45);border-radius:2px;font-family:var(--serif);
+}
+.menu-primary:hover{background:linear-gradient(180deg,rgba(196,40,48,.5),rgba(130,24,28,.55))}
+.menu-choice.on{
+  background:rgba(201,162,74,.14);border-color:rgba(201,162,74,.5);color:var(--oni-gold-bright);
+}
+.menu-secondary,.menu-back,.menu-choice{border-radius:2px;font-family:var(--serif)}
+
+/* ── Pause menu ── */
+#pause-menu{
+  background:linear-gradient(180deg,rgba(6,4,6,.96),rgba(12,8,10,.94));
+  font-family:var(--serif);
+}
+.pause-shell{
+  border:2px solid var(--oni-border);border-radius:2px;
+  background:linear-gradient(180deg,rgba(16,10,12,.96),rgba(8,4,6,.98));
+}
+.pause-title{color:var(--oni-gold);letter-spacing:.32em}
+.pause-tab.on{
+  background:rgba(110,20,24,.28);border-color:rgba(201,162,74,.38);color:var(--oni-gold-bright);
+}
+.controls-grid h3{color:var(--oni-gold)}
+
+/* ── Inventory / map accents ── */
+.bigmap-title,.bigmap-events-head,.race-label{color:var(--oni-gold)}
+#pause-menu .pause-resume{font-family:var(--serif)}

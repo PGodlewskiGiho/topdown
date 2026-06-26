@@ -824,8 +824,29 @@ function draw(c,p,color,down,forcedDir){
   c.restore();
 }
 
+/** Boot gate: meta + core walk/punch layers for default outfit. */
+function whenBootReady(timeoutMs){
+  const timeout=timeoutMs!=null?timeoutMs:14000;
+  const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
+  return init().then(()=>{
+    if(!ready) throw new Error("people meta");
+    warmDefault();
+    prefetchCombat(sample);
+    const t0=performance.now();
+    return new Promise(resolve=>{
+      const tick=()=>{
+        tickLoadQueue();
+        const ok=allLayersReady(sample,"walk0","S")&&allLayersReady(sample,"idle0","S")&&allLayersReady(sample,"punch0","S");
+        if(ok||performance.now()-t0>=timeout) resolve(ok);
+        else requestAnimationFrame(tick);
+      };
+      tick();
+    });
+  });
+}
+
 const PeopleSprites={
-  draw, drawShadow:drawPedShadowBlob, init, warmDefault, warmPed, warmVisiblePeds, tickLoadQueue,
+  draw, drawShadow:drawPedShadowBlob, init, warmDefault, warmPed, warmVisiblePeds, tickLoadQueue, whenBootReady,
   prefetchCombat, beginPedCombat, resolveOutfit, ensureClipForPed, prefetchClipDir,
   get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
