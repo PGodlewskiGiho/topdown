@@ -11,7 +11,9 @@ const baked={};
 const lastHold={}; // ped uid -> {wf, dir, canvas}
 const loadQueue=[];
 let inflight=0;
-const MAX_INFLIGHT=12;
+let maxInflight=12;
+const bootPaths=new Set();
+let bootPrefetching=false;
 let meta=null, loadP=null, ready=false;
 let resolvedRoot=null;
 let warmStarted=false;
@@ -60,7 +62,7 @@ function outfitKey(o){
 function bakeKey(o,wf,dir){ return outfitKey(o)+"|"+wf+"|"+dir; }
 
 function pumpLoadQueue(){
-  while(inflight<MAX_INFLIGHT&&loadQueue.length){
+  while(inflight<maxInflight&&loadQueue.length){
     const item=loadQueue.shift();
     if(!item||!item.path) continue;
     if(failed.has(item.path)) continue;
@@ -147,7 +149,7 @@ function init(){
         }
         meta=m;
         ready=true;
-        setTimeout(warmDefault, 500);
+        warmDefault();
         return m;
       }catch(e){ lastErr=e; }
     }
@@ -260,6 +262,8 @@ function warmPed(p, priority){
   if(p===global.ped){
     prefetchOutfit(o, "punch0", dir, false, pri+2);
     prefetchOutfit(o, "punch1", dir, false, pri+1);
+    const pn=clipSpec("punch").count||8;
+    for(let fi=2; fi<pn; fi++) prefetchOutfit(o, "punch"+fi, dir, false, pri);
   }
 }
 
@@ -303,8 +307,8 @@ function warmDefault(){
   if(!meta||warmStarted) return;
   warmStarted=true;
   const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
-  for(const f of ["walk0","walk1","idle0"]) prefetchOutfit(sample, f, "S");
-  prefetchCombat(sample);
+  maxInflight=28;
+  bootPrefetchOutfit(sample, 18);
 }
 
 function prefetchCombat(o){
@@ -350,7 +354,7 @@ function resolveOutfit(p, skipPrefetch){
         p._psCombatWarm=true;
         prefetchCombat(o);
       }
-      for(let fi=0; fi<4; fi++){
+      for(let fi=0; fi<(clipSpec("punch").count||8); fi++){
         prefetchOutfit(o, "punch"+fi, dir, false, 20-fi);
       }
     }
@@ -851,29 +855,81 @@ function draw(c,p,color,down,forcedDir){
   c.restore();
 }
 
-/** Boot gate: meta + core walk/punch layers for default outfit. */
+function trackBootPath(path){ if(path) bootPaths.add(path); }
+
+function bootQueueLayer(o, wf, dir, pri){
+  for(const path of layerPaths(o, wf, dir)){
+    trackBootPath(path);
+    queueImg(path, ()=>tryBake(o, wf, dir), pri);
+  }
+}
+
+/** Eager prefetch: walk/run/idle + full punch cycle in all 8 facings. */
+function bootPrefetchOutfit(o, priority){
+  if(!o||!meta) return;
+  const pri=priority!=null?priority:16;
+  const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
+  bootPrefetching=true;
+  const walkN=clipSpec("walk").count||8;
+  const punchN=clipSpec("punch").count||8;
+  const shootN=Math.min(clipSpec("shoot").count||8, 4);
+  for(const d of dirs){
+    for(let fi=0; fi<walkN; fi++) bootQueueLayer(o, "walk"+fi, d, pri);
+    bootQueueLayer(o, "run0", d, pri);
+    bootQueueLayer(o, "run1", d, pri);
+    bootQueueLayer(o, "idle0", d, pri);
+    for(let fi=0; fi<punchN; fi++) bootQueueLayer(o, "punch"+fi, d, pri+1);
+    for(let fi=0; fi<shootN; fi++) bootQueueLayer(o, "shoot"+fi, d, pri);
+  }
+  pumpLoadQueue();
+}
+
+function bootLayersReady(o, wf, dir){ return allLayersReady(o, wf, dir); }
+
+function bootLoadRatio(){
+  if(!bootPaths.size) return ready?1:0;
+  let n=0;
+  for(const p of bootPaths){
+    const im=imgs[p];
+    if(im&&im.complete&&im.naturalWidth>0) n++;
+  }
+  return n/bootPaths.size;
+}
+
+/** Boot gate: preload core animation layers (8 dirs) before gameplay. */
 function whenBootReady(timeoutMs){
-  const timeout=timeoutMs!=null?timeoutMs:14000;
+  const timeout=timeoutMs!=null?timeoutMs:32000;
   const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
+  const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
+  const minRatio=0.92;
   return init().then(()=>{
     if(!ready) throw new Error("people meta");
-    warmDefault();
-    prefetchCombat(sample);
+    maxInflight=28;
+    bootPrefetchOutfit(sample, 18);
     const t0=performance.now();
     return new Promise(resolve=>{
       const tick=()=>{
         tickLoadQueue();
-        const ok=allLayersReady(sample,"walk0","S")&&allLayersReady(sample,"idle0","S")&&allLayersReady(sample,"punch0","S");
-        if(ok||performance.now()-t0>=timeout) resolve(ok);
-        else requestAnimationFrame(tick);
+        const ratio=bootLoadRatio();
+        const punchOk=dirs.every(d=>bootLayersReady(sample,"punch0",d)&&bootLayersReady(sample,"punch3",d));
+        const walkOk=dirs.every(d=>bootLayersReady(sample,"walk0",d));
+        const ok=ratio>=minRatio&&punchOk&&walkOk;
+        if(ok||performance.now()-t0>=timeout){
+          maxInflight=12;
+          bootPrefetching=false;
+          resolve(ok);
+        }else requestAnimationFrame(tick);
       };
       tick();
     });
   });
 }
 
+function getBootLoadRatio(){ return bootLoadRatio(); }
+
 const PeopleSprites={
   draw, drawShadow:drawPedShadowBlob, init, warmDefault, warmPed, warmVisiblePeds, tickLoadQueue, whenBootReady,
+  bootPrefetchOutfit, getBootLoadRatio,
   prefetchCombat, beginPedCombat, beginPedPanic, resolveOutfit, ensureClipForPed, prefetchClipDir,
   get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
