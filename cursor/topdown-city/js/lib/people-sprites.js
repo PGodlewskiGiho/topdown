@@ -210,9 +210,12 @@ function beginPedCombat(p, clipId, forcedDir){
   if(o){
     const moveDir=moveFacingDir(p, forcedDir);
     const dir=gta2SpriteDir(moveDir);
-    prefetchClipDir(o, clipId, dir, 20);
-    const opp=LS&&LS.DIR?LS.DIR[(LS.DIR.indexOf(dir)+4)%8]:null;
-    if(opp) prefetchClipDir(o, clipId, opp, 18);
+    prefetchClipDir(o, clipId, dir, 22);
+    const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
+    for(const d of dirs){
+      if(d===dir) continue;
+      prefetchClipDir(o, clipId, d, 18);
+    }
     trySyncBakeCombat(o, clipId, moveDir);
   }
   ensureClipForPed(p, clipId, forcedDir);
@@ -248,6 +251,10 @@ function warmPed(p, priority){
   prefetchOutfit(o, "run0", dir, false, pri);
   prefetchOutfit(o, "run1", dir, false, pri);
   prefetchOutfit(o, "idle0", dir, false, pri);
+  if(p===global.ped){
+    prefetchOutfit(o, "punch0", dir, false, pri+2);
+    prefetchOutfit(o, "punch1", dir, false, pri+1);
+  }
 }
 
 /** Prefetch run cycle when a civilian panics — avoids frozen walk hold while fleeing. */
@@ -751,21 +758,32 @@ function drawComposite(c, p, down, forcedDir){
     const wfSig=wfRaw+"|"+dir;
     if(p._psCombatSig!==wfSig){
       p._psCombatSig=wfSig;
-      prefetchOutfit(o, wfRaw, dir, false, 20);
+      prefetchOutfit(o, wfRaw, dir, false, 22);
     }
     if(attackClip||p._animClip) prefetchClipDir(o, attackClip||p._animClip, dir, loadPri);
-    const combatSmart=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, null, loadPri, combatPoseCandidates);
-    if(combatSmart.complete||combatSmart.drew>0){
-      drew=true;
-      if(combatSmart.complete){
-        const bakedIm=tryBake(o, wfRaw, dir);
-        if(bakedIm) lastHold[uid]={wf:wfRaw, dir, canvas:bakedIm, combat:true};
-      }
-    }else{
-      const hold=lastHold[uid];
-      if(hold&&hold.combat&&hold.canvas&&hold.wf===wfRaw&&hold.dir===dir){
-        c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
+    if(attackClip){
+      tickLoadQueue();
+      const bakedAtk=getBaked(o, wfRaw, dir);
+      if(bakedAtk){
+        c.drawImage(bakedAtk, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
         drew=true;
+        lastHold[uid]={wf:wfRaw, dir, canvas:bakedAtk, combat:true};
+      }
+    }
+    if(!drew){
+      const combatSmart=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, null, loadPri, combatPoseCandidates);
+      if(combatSmart.complete||combatSmart.drew>0){
+        drew=true;
+        if(combatSmart.complete){
+          const bakedIm=tryBake(o, wfRaw, dir);
+          if(bakedIm) lastHold[uid]={wf:wfRaw, dir, canvas:bakedIm, combat:true};
+        }
+      }else{
+        const hold=lastHold[uid];
+        if(hold&&hold.combat&&hold.canvas&&hold.wf===wfRaw&&hold.dir===dir){
+          c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
+          drew=true;
+        }
       }
     }
     if(!drew&&p._attackT>0&&attackClip){

@@ -16,8 +16,8 @@ function muzzle(x,y,a){ muzzles.push({x,y,a,life:0.06}); }
 
 /* ---- weapons (GTA-SA-style arsenal) ---- */
 const WEAPONS=[
-  {name:"Pięści",        kind:"melee",   dmg:10, cd:0.32, range:30, price:0,     cap:Infinity},
-  {name:"Pałka",         kind:"melee",   dmg:24, cd:0.40, range:34, price:150,   cap:Infinity},
+  {name:"Pięści",        kind:"melee",   dmg:10, cd:0.42, range:30, price:0,     cap:Infinity},
+  {name:"Pałka",         kind:"melee",   dmg:24, cd:0.45, range:34, price:150,   cap:Infinity},
   {name:"Pistolet",      kind:"bullet",  dmg:16, cd:0.30, spd:820,  spread:0.02, price:400,   cap:120},
   {name:"Uzi",           kind:"bullet",  dmg:9,  cd:0.08, spd:780,  spread:0.09, price:1200,  cap:250},
   {name:"Strzelba",      kind:"pellets", dmg:9,  cd:0.72, spd:680,  spread:0.34, pellets:7,   price:1600,  cap:60},
