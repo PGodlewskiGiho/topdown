@@ -1480,26 +1480,25 @@ function drawForestMammal(m){
 }
 function drawBear(b){ drawForestMammal(b); }
 
+function updateWildlifeMammal(arr, updateFn, maxDist, dt){
+  for(let i=arr.length-1;i>=0;i--){
+    const m=arr[i];
+    if(!m) continue;
+    updateFn(m,dt);
+    const j=arr.indexOf(m);
+    if(j<0) continue;
+    if(Math.hypot(m.x-focusX,m.y-focusY)>maxDist||m.hp<=0) arr.splice(j,1);
+  }
+}
+
 function updateWildlife(dt){
   const forest=inForestAt(focusX,focusY);
   if(!forest && typeof perfWildlifeUpdates==="function" && !perfWildlifeUpdates()) return;
   bearTimer-=dt; deerTimer-=dt; wolfTimer-=dt; boarTimer-=dt;
-  for(let i=bears.length-1;i>=0;i--){
-    updateBear(bears[i],dt);
-    if(Math.hypot(bears[i].x-focusX,bears[i].y-focusY)>2400||bears[i].hp<=0) bears.splice(i,1);
-  }
-  for(let i=deer.length-1;i>=0;i--){
-    updateDeer(deer[i],dt);
-    if(Math.hypot(deer[i].x-focusX,deer[i].y-focusY)>2200||deer[i].hp<=0) deer.splice(i,1);
-  }
-  for(let i=wolves.length-1;i>=0;i--){
-    updateWolf(wolves[i],dt);
-    if(Math.hypot(wolves[i].x-focusX,wolves[i].y-focusY)>2300||wolves[i].hp<=0) wolves.splice(i,1);
-  }
-  for(let i=boars.length-1;i>=0;i--){
-    updateBoar(boars[i],dt);
-    if(Math.hypot(boars[i].x-focusX,boars[i].y-focusY)>2100||boars[i].hp<=0) boars.splice(i,1);
-  }
+  updateWildlifeMammal(bears, updateBear, 2400, dt);
+  updateWildlifeMammal(deer, updateDeer, 2200, dt);
+  updateWildlifeMammal(wolves, updateWolf, 2300, dt);
+  updateWildlifeMammal(boars, updateBoar, 2100, dt);
   for(let i=bearFamilies.length-1;i>=0;i--) if(!bears.some(b=>b.familyId===bearFamilies[i].id)) bearFamilies.splice(i,1);
   for(let i=deerHerds.length-1;i>=0;i--) if(!deer.some(d=>d.herdId===deerHerds[i].id)) deerHerds.splice(i,1);
   for(let i=wolfPacks.length-1;i>=0;i--) if(!wolves.some(w=>w.packId===wolfPacks[i].id)) wolfPacks.splice(i,1);

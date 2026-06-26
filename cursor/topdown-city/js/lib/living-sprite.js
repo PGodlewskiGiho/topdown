@@ -107,6 +107,7 @@ function clipDuration(clipId, meta){
 }
 
 function startAttackClip(entity, clipId, meta){
+  if(entity._attackT>0.04&&entity._attackClip===clipId) return;
   entity._attackClip=clipId;
   entity._attackT=clipDuration(clipId, meta);
 }
