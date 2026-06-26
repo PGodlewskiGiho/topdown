@@ -154,6 +154,242 @@ def apply_mask(src: Image.Image, mask: list[list[bool]]) -> Image.Image:
     return out
 
 
+LAYER_STACK = ("shoes", "pants", "arms", "torso", "skin", "hair")
+LAYER_FILES = {
+    "shoes": ("shoes", "pants"),
+    "pants": ("pants", "pants"),
+    "arms": ("arms", "shirt"),
+    "torso": ("torsos", "shirt"),
+    "skin": ("skins", "skin"),
+    "hair": ("hairs", "hair"),
+}
+N4 = ((0, 1), (0, -1), (1, 0), (-1, 0))
+N8 = N4 + ((1, 1), (1, -1), (-1, 1), (-1, -1))
+
+
+def stack_index(layer_key: str) -> int:
+    try:
+        return LAYER_STACK.index(layer_key)
+    except ValueError:
+        return -1
+
+
+def touching_layers(x: int, y: int, masks: dict[str, list[list[bool]]], keys: tuple[str, ...], *, use8: bool = False) -> set[str]:
+    w, h = CANVAS
+    touch: set[str] = set()
+    neigh = N8 if use8 else N4
+    for k in keys:
+        m = masks[k]
+        for dx, dy in neigh:
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < w and 0 <= ny < h and m[ny][nx]:
+                touch.add(k)
+    return touch
+
+
+def _bridge_axis_seams_once(layers: dict[str, Image.Image]) -> dict[str, Image.Image]:
+    """Close 1–2px straight gaps between layer edges (width matches limb, no blob)."""
+    keys = tuple(k for k in LAYER_STACK if k in layers)
+    if len(keys) < 2:
+        return layers
+    out = {k: layers[k].copy() for k in keys}
+    masks = {k: mask_from_layer(out[k]) for k in keys}
+    w, h = CANVAS
+
+    def filled(x: int, y: int) -> bool:
+        return any(masks[k][y][x] for k in keys)
+
+    def side_layers(x: int, y: int) -> set[str]:
+        if not (0 <= x < w and 0 <= y < h):
+            return set()
+        return {k for k in keys if masks[k][y][x]}
+
+    fills: dict[str, list[tuple[int, int, tuple[int, int, int, int]]]] = {k: [] for k in keys}
+
+    for y in range(h):
+        x = 0
+        while x < w:
+            if filled(x, y):
+                x += 1
+                continue
+            x0 = x
+            while x < w and not filled(x, y):
+                x += 1
+            gap = x - x0
+            if 1 <= gap <= 2 and x0 > 0 and x < w:
+                left, right = side_layers(x0 - 1, y), side_layers(x, y)
+                touch = left | right
+                if len(left) >= 1 and len(right) >= 1 and len(touch) >= 2:
+                    owner = max(touch, key=stack_index)
+                    for gx in range(x0, x):
+                        col = neighbor_color(out[owner], gx, y)
+                        if col:
+                            fills[owner].append((gx, y, col))
+            continue
+
+    for x in range(w):
+        y = 0
+        while y < h:
+            if filled(x, y):
+                y += 1
+                continue
+            y0 = y
+            while y < h and not filled(x, y):
+                y += 1
+            gap = y - y0
+            if 1 <= gap <= 2 and y0 > 0 and y < h:
+                top, bot = side_layers(x, y0 - 1), side_layers(x, y)
+                touch = top | bot
+                if len(top) >= 1 and len(bot) >= 1 and len(touch) >= 2:
+                    owner = max(touch, key=stack_index)
+                    for gy in range(y0, y):
+                        col = neighbor_color(out[owner], x, gy)
+                        if col:
+                            fills[owner].append((x, gy, col))
+            continue
+
+    for k, pts in fills.items():
+        if not pts:
+            continue
+        px = out[k].load()
+        for x, y, col in pts:
+            if px[x, y][3] == 0:
+                px[x, y] = col
+    return out
+
+
+def _weld_layer_seams_once(layers: dict[str, Image.Image]) -> dict[str, Image.Image]:
+    keys = tuple(k for k in LAYER_STACK if k in layers)
+    if len(keys) < 2:
+        return layers
+    out = {k: layers[k].copy() for k in keys}
+    masks = {k: mask_from_layer(out[k]) for k in keys}
+    fills: dict[str, list[tuple[int, int, tuple[int, int, int, int]]]] = {k: [] for k in keys}
+
+    w, h = CANVAS
+    for y in range(h):
+        for x in range(w):
+            if any(masks[k][y][x] for k in keys):
+                continue
+            touch4 = touching_layers(x, y, masks, keys, use8=False)
+            if len(touch4) < 2:
+                touch8 = touching_layers(x, y, masks, keys, use8=True)
+                if len(touch8) < 2:
+                    continue
+                touch = touch8
+            else:
+                touch = touch4
+            owner = max(touch, key=stack_index)
+            col = neighbor_color(out[owner], x, y)
+            if not col:
+                for tk in sorted(touch, key=stack_index, reverse=True):
+                    col = neighbor_color(out[tk], x, y)
+                    if col:
+                        owner = tk
+                        break
+            if col:
+                fills[owner].append((x, y, col))
+
+    for k, pts in fills.items():
+        if not pts:
+            continue
+        px = out[k].load()
+        for x, y, col in pts:
+            px[x, y] = col
+    return out
+
+
+def neighbor_color(layer: Image.Image, x: int, y: int) -> tuple[int, int, int, int] | None:
+    px = layer.load()
+    w, h = layer.size
+    for dx, dy in N8:
+        nx, ny = x + dx, y + dy
+        if 0 <= nx < w and 0 <= ny < h:
+            p = px[nx, ny]
+            if p[3] > 0:
+                return p
+    return None
+
+
+def masks_equal(a: Image.Image, b: Image.Image) -> bool:
+    return mask_from_layer(a) == mask_from_layer(b)
+
+
+def weld_layer_seams(layers: dict[str, Image.Image], passes: int = 2) -> dict[str, Image.Image]:
+    """Fill only narrow holes between stacked layers — no dilation / Michelin effect."""
+    out = layers
+    for _ in range(passes):
+        nxt = _bridge_axis_seams_once(_weld_layer_seams_once(out))
+        if all(masks_equal(out[k], nxt[k]) for k in nxt):
+            break
+        out = nxt
+    return out
+
+
+def load_layer_set(body: str, shirt: str, pants: str, folder: str, direction: str,
+                   skin: str = "medium", hair: str = "brown") -> dict[str, Image.Image]:
+    variants = {"shirt": shirt, "pants": pants, "skin": skin, "hair": hair}
+    layers: dict[str, Image.Image] = {}
+    for key in LAYER_STACK:
+        part, var_key = LAYER_FILES[key]
+        variant = variants[var_key]
+        fp = part_path(body, part, variant, folder, direction)
+        if os.path.isfile(fp):
+            layers[key] = Image.open(fp).convert("RGBA")
+    return layers
+
+
+def save_layer_set(body: str, shirt: str, pants: str, folder: str, direction: str,
+                   layers: dict[str, Image.Image], skin: str = "medium", hair: str = "brown"):
+    variants = {"shirt": shirt, "pants": pants, "skin": skin, "hair": hair}
+    for key, layer in layers.items():
+        part, var_key = LAYER_FILES[key]
+        save_part(body, part, variants[var_key], folder, direction, layer)
+
+
+def pants_ids_for_body(body: str) -> list[str]:
+    ids = ["jeans", "jeans_dark", "shorts_blue"]
+    if body == "female":
+        ids += ["skirt_red", "skirt_navy"]
+    return ids
+
+
+def image_equal(a: Image.Image, b: Image.Image) -> bool:
+    return a.tobytes() == b.tobytes()
+
+
+def weld_all_part_seams():
+    """Run after all body/color variants — closes gaps between modular PNG layers."""
+    combos = len(BODY_TYPES) * len(SHIRT_REMAP) * 5 * SLOT_COUNT * len(DIR_NAMES)
+    print(f"seam weld: ~{combos} combos …", flush=True)
+    total = 0
+    saved = 0
+    for body in BODY_TYPES:
+        shirts = sorted(SHIRT_REMAP)
+        for shirt in shirts:
+            for pants in pants_ids_for_body(body):
+                for slot in EXPORT_SLOTS:
+                    folder = slot["folder"]
+                    for direction in DIR_NAMES:
+                        layers = load_layer_set(body, shirt, pants, folder, direction)
+                        if len(layers) < 2:
+                            continue
+                        total += 1
+                        welded_layers = weld_layer_seams(layers)
+                        for key, im in welded_layers.items():
+                            prev = layers.get(key)
+                            if prev is not None and image_equal(prev, im):
+                                continue
+                            part, var_key = LAYER_FILES[key]
+                            variant = {"shirt": shirt, "pants": pants, "skin": "medium", "hair": "brown"}[var_key]
+                            save_part(body, part, variant, folder, direction, im)
+                            saved += 1
+                        if total % 800 == 0:
+                            print(f"seam weld … {total} combos, {saved} layers saved", flush=True)
+        print(f"seam weld {body}: {total} combos so far, {saved} layer files written", flush=True)
+    print(f"seam weld done — {total} combos, {saved} layer files updated", flush=True)
+
+
 def part_path(body: str, part: str, variant: str, walk: str, direction: str) -> str:
     return os.path.join(PARTS, body, part, variant, walk, f"{direction}.png")
 
@@ -380,8 +616,9 @@ def write_meta():
         {"id": "skirt_navy", "gender": "female"},
     ]
     meta = {
-        "version": 3,
+        "version": 4,
         "style": "gta2",
+        "seam_weld": True,
         "size": list(CANVAS),
         "anchor": list(ANCHOR),
         "directions": DIR_NAMES,
@@ -460,15 +697,20 @@ def main():
     masks = build_masks(base_dir)
     verify_masks(base_dir, masks)
     extract_all(masks, frame_cache)
-    build_color_variants("male")
     build_body_variants()
+    build_skirts("female")
+    weld_all_part_seams()
+    build_color_variants("male")
     for body in BODY_TYPES:
         build_color_variants(body)
-    build_skirts("female")
     write_meta()
     write_previews()
     print("done", ROOT)
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "weld-only":
+        weld_all_part_seams()
+    else:
+        main()
