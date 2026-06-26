@@ -195,6 +195,14 @@ function beginPedCombat(p, clipId, forcedDir){
   p._psLayerCache={};
   p._psCombatSig=null;
   p._psClipReq=null;
+  const o=resolveOutfit(p, true);
+  if(o){
+    const moveDir=moveFacingDir(p, forcedDir);
+    const dir=gta2SpriteDir(moveDir);
+    prefetchClipDir(o, clipId, dir, 20);
+    const opp=LS&&LS.DIR?LS.DIR[(LS.DIR.indexOf(dir)+4)%8]:null;
+    if(opp) prefetchClipDir(o, clipId, opp, 18);
+  }
   ensureClipForPed(p, clipId, forcedDir);
 }
 
@@ -207,7 +215,7 @@ function ensureClipForPed(p, clipId, forcedDir){
   const key=clipId+"|"+dir;
   if(p._psClipReq===key) return;
   p._psClipReq=key;
-  const pri=isCombatClip(clipId)?16:14;
+  const pri=isCombatClip(clipId)?18:14;
   prefetchClipDir(o, clipId, dir, pri);
   const opp=LS&&LS.DIR?LS.DIR[(LS.DIR.indexOf(dir)+4)%8]:null;
   if(opp) prefetchClipDir(o, clipId, opp, pri-2);
@@ -348,6 +356,31 @@ function poseCandidates(wf, dir){
     for(const d of dirs) add(fb, d);
   }
   return out;
+}
+
+/** Combat draw: exact pose only — borrowing other frames freezes the clip on frame 0. */
+function resolveCombatLayerImg(o, layerKey, wf, dir, priority){
+  if(layerKey==="hair"&&!o.hair) return null;
+  const path=singleLayerPath(o, layerKey, wf, dir);
+  if(!path) return null;
+  const im=getImg(path);
+  if(im) return im;
+  queueImg(path, null, priority!=null?priority:12);
+  return null;
+}
+
+function drawCombatLayers(c, o, wf, dir, ax, ay, sx, sy, bm, priority){
+  const order=meta.layer_order||["shoes","pants","arms","torso","skin","hair"];
+  let drew=0, need=0;
+  for(const k of order){
+    if(k==="hair"&&!o.hair) continue;
+    need++;
+    const im=resolveCombatLayerImg(o, k, wf, dir, priority);
+    if(!im) continue;
+    c.drawImage(im, -ax*bm.sx, -ay*bm.sy, im.width*sx, im.height*sy);
+    drew++;
+  }
+  return need>0&&drew===need;
 }
 
 function resolveLayerImg(o, layerKey, wf, dir, cache, priority){
@@ -640,19 +673,21 @@ function drawComposite(c, p, down, forcedDir){
 
   let drew=false;
   if(combatDraw){
-    const sig=wfRaw+"|"+dir;
-    if(p._psCombatSig!==sig){
-      p._psCombatSig=sig;
-      p._psLayerCache={};
+    const wfSig=wfRaw+"|"+dir;
+    if(p._psCombatSig!==wfSig){
+      p._psCombatSig=wfSig;
+      prefetchOutfit(o, wfRaw, dir, false, 20);
     }
-    prefetchOutfit(o, wfRaw, dir, false, loadPri);
-    if(drawLayers(c, o, wfRaw, dir, ax, ay, sx, sy, bm)){
-      const bakedIm=tryBake(o, wfRaw, dir);
-      if(bakedIm) lastHold[uid]={wf:wfRaw, dir, canvas:bakedIm};
+    if(p._animClip) prefetchClipDir(o, p._animClip, dir, loadPri);
+    if(drawCombatLayers(c, o, wfRaw, dir, ax, ay, sx, sy, bm, loadPri)){
       drew=true;
+      const bakedIm=tryBake(o, wfRaw, dir);
+      if(bakedIm){
+        lastHold[uid]={wf:wfRaw, dir, canvas:bakedIm, combat:true};
+      }
     }else{
       const hold=lastHold[uid];
-      if(hold&&hold.canvas){
+      if(hold&&hold.combat&&hold.canvas){
         c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
         drew=true;
       }
@@ -663,7 +698,7 @@ function drawComposite(c, p, down, forcedDir){
     drew=smart.complete||smart.drew>0;
     if(smart.complete){
       const bakedIm=tryBake(o, wfRaw, dir);
-      if(bakedIm) lastHold[uid]={wf:wfRaw, dir, canvas:bakedIm};
+      if(bakedIm) lastHold[uid]={wf:wfRaw, dir, canvas:bakedIm, combat:false};
     }
     if(!drew){
       const hold=lastHold[uid];
