@@ -79,7 +79,7 @@ const LoadingScreen={
           if(PeopleSprites.tickLoadQueue) PeopleSprites.tickLoadQueue();
         }, 60);
         try{
-          const ok=await PeopleSprites.whenBootReady(32000);
+          const ok=await PeopleSprites.whenBootReady(90000);
           if(!ok) throw new Error("sprites");
         }finally{
           clearInterval(poll);
@@ -107,10 +107,10 @@ const LoadingScreen={
       {w:10, label:"Finalizacja", run:async()=>{
         if(typeof PeopleSprites!=="undefined"&&PeopleSprites.tickLoadQueue){
           const t0=performance.now();
-          while(performance.now()-t0<5000){
+          while(performance.now()-t0<30000){
             PeopleSprites.tickLoadQueue();
             const r=PeopleSprites.getBootLoadRatio?PeopleSprites.getBootLoadRatio():1;
-            if(r>=0.97) break;
+            if(r>=0.999) break;
             await wait(80);
           }
         }

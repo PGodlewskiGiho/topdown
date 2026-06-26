@@ -159,7 +159,37 @@ function dismissMenu(){
   initAudio();
   if(actx && actx.state==="suspended") actx.resume();
 }
-function finishRespawn(){
+async function ensurePlayerAnimsReady(){
+  if(typeof PeopleSprites==="undefined"||!PeopleSprites.whenPlayerAnimReady) return true;
+  const screen=document.getElementById("loading-screen");
+  const status=document.getElementById("load-status");
+  const cont=document.getElementById("load-continue");
+  if(screen){
+    screen.classList.remove("hidden","load-done","oni-load-out");
+    document.body.classList.add("is-loading");
+  }
+  if(cont) cont.classList.add("hidden");
+  if(status) status.textContent="Animacje postaci…";
+  let poll=null;
+  try{
+    poll=setInterval(()=>{
+      if(PeopleSprites.tickLoadQueue) PeopleSprites.tickLoadQueue();
+      const orb=document.getElementById("load-orb");
+      if(orb&&PeopleSprites.getBootLoadRatio){
+        orb.setAttribute("aria-valuenow", String(Math.round(PeopleSprites.getBootLoadRatio()*100)));
+      }
+    }, 50);
+    return await PeopleSprites.whenPlayerAnimReady(90000);
+  }finally{
+    clearInterval(poll);
+    if(screen){
+      screen.classList.add("oni-load-out");
+      setTimeout(()=>screen.classList.add("hidden"), 350);
+    }
+    document.body.classList.remove("is-loading");
+  }
+}
+async function finishRespawn(){
   const seed=typeof getWorldSeed==="function"?getWorldSeed():null;
   if(typeof resetRunState==="function") resetRunState({keepWorld:true});
   else if(typeof resetNewGameState==="function") resetNewGameState();
@@ -167,6 +197,7 @@ function finishRespawn(){
   if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
   const p=typeof respawnPointNear==="function"?respawnPointNear(respawnAnchor.x,respawnAnchor.y):roadPoint();
   teleportPlayer(p.x, p.y);
+  await ensurePlayerAnimsReady();
   dismissMenu();
   const who=(playerCharacter&&playerCharacter.name)||"Wędrowiec";
   showBigMsg(who+" · nowe życie");
@@ -201,16 +232,17 @@ function playerDeath(reason){
   mode="foot"; interior=null;
   showDeathPanel(reason);
 }
-function startLoadedGame(){
+async function startLoadedGame(){
   loadGame();
   if(typeof applyCharacterToPed==="function") applyCharacterToPed();
   if(typeof car.x!=="number"||typeof car.y!=="number"||!isFinite(car.x)||!isFinite(car.y)){
     const sp=getSpawnPoint("city", 0);
     teleportPlayer(sp.x, sp.y);
   } else teleportPlayer(car.x, car.y);
+  await ensurePlayerAnimsReady();
   dismissMenu();
 }
-function startNewGame(){
+async function startNewGame(){
   respawnMode=false;
   setCharPanelMode(false);
   menuState.newWorld=wantsNewWorld();
@@ -219,6 +251,7 @@ function startNewGame(){
   const sp=getSpawnPoint(menuState.biome, menuState.variant);
   if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
   teleportPlayer(sp.x, sp.y);
+  await ensurePlayerAnimsReady();
   dismissMenu();
   const who=(playerCharacter&&playerCharacter.name)||"Wędrowiec";
   showBigMsg(who+" · "+sp.district);

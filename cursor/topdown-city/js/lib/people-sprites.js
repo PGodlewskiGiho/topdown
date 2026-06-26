@@ -14,6 +14,7 @@ let inflight=0;
 let maxInflight=12;
 const bootPaths=new Set();
 let bootPrefetching=false;
+let bootOutfit=null;
 let meta=null, loadP=null, ready=false;
 let resolvedRoot=null;
 let warmStarted=false;
@@ -251,20 +252,25 @@ function warmPed(p, priority){
   if(!o) return;
   const moveDir=p._faceDir||"S";
   const dir=gta2SpriteDir(moveDir);
-  const sig=outfitKey(o)+"|"+dir;
+  const sig=outfitKey(o)+"|warm";
   if(p._psWarmSig===sig) return;
   p._psWarmSig=sig;
+  const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
+  if(p===global.ped){
+    const clips=["walk","run","idle","punch","shoot"];
+    for(const d of dirs){
+      for(const clipId of clips){
+        const n=clipSpec(clipId).count||1;
+        for(let fi=0; fi<n; fi++) prefetchOutfit(o, clipId+fi, d, false, pri);
+      }
+    }
+    return;
+  }
   prefetchOutfit(o, "walk0", dir, true, pri);
   prefetchOutfit(o, "walk1", dir, false, pri);
   prefetchOutfit(o, "run0", dir, false, pri);
   prefetchOutfit(o, "run1", dir, false, pri);
   prefetchOutfit(o, "idle0", dir, false, pri);
-  if(p===global.ped){
-    prefetchOutfit(o, "punch0", dir, false, pri+2);
-    prefetchOutfit(o, "punch1", dir, false, pri+1);
-    const pn=clipSpec("punch").count||8;
-    for(let fi=2; fi<pn; fi++) prefetchOutfit(o, "punch"+fi, dir, false, pri);
-  }
 }
 
 /** Prefetch run cycle when a civilian panics — avoids frozen walk hold while fleeing. */
@@ -306,9 +312,38 @@ function warmVisiblePeds(){
 function warmDefault(){
   if(!meta||warmStarted) return;
   warmStarted=true;
-  const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
   maxInflight=28;
-  bootPrefetchOutfit(sample, 18);
+  const o=resolveBootPlayerOutfit();
+  if(o) bootPrefetchOutfit(o, 18, true);
+}
+
+function resolveBootPlayerOutfit(){
+  if(!meta) return null;
+  const ch=global.playerCharacter;
+  if(ch) return outfitFromCharacter(ch);
+  return {body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
+}
+
+function outfitFromCharacter(ch){
+  if(!ch||!meta) return null;
+  const p={
+    body:ch.body||"male",
+    shirt:ch.shirt,
+    pants:ch.pants,
+    skin:ch.skin,
+    hair:ch.hairStyle==="bald"||ch.hair==null?null:ch.hair,
+    hairStyle:ch.hairStyle,
+  };
+  if(GO) GO.applyGta2Ids(p);
+  const defs=meta.rules&&meta.rules.body_build_default||{};
+  return {
+    body:p.body||"male",
+    build:p.build||(defs[p.body]||"average"),
+    shirt:p.shirtId||"blue",
+    pants:p.pantsId||"jeans",
+    skin:p.skinId||"medium",
+    hair:p.hairId!=null?p.hairId:null,
+  };
 }
 
 function prefetchCombat(o){
@@ -864,29 +899,68 @@ function bootQueueLayer(o, wf, dir, pri){
   }
 }
 
-/** Eager prefetch: walk/run/idle + full punch cycle in all 8 facings. */
-function bootPrefetchOutfit(o, priority){
+/** Eager prefetch: full walk/run/idle/punch/shoot in all 8 facings. */
+function bootPrefetchOutfit(o, priority, resetPaths){
   if(!o||!meta) return;
+  if(resetPaths!==false) bootPaths.clear();
+  bootOutfit=o;
   const pri=priority!=null?priority:16;
   const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
   bootPrefetching=true;
-  const walkN=clipSpec("walk").count||8;
-  const punchN=clipSpec("punch").count||8;
-  const shootN=Math.min(clipSpec("shoot").count||8, 4);
+  const clips=["walk","run","idle","punch","shoot"];
   for(const d of dirs){
-    for(let fi=0; fi<walkN; fi++) bootQueueLayer(o, "walk"+fi, d, pri);
-    bootQueueLayer(o, "run0", d, pri);
-    bootQueueLayer(o, "run1", d, pri);
-    bootQueueLayer(o, "idle0", d, pri);
-    for(let fi=0; fi<punchN; fi++) bootQueueLayer(o, "punch"+fi, d, pri+1);
-    for(let fi=0; fi<shootN; fi++) bootQueueLayer(o, "shoot"+fi, d, pri);
+    for(const clipId of clips){
+      const n=clipSpec(clipId).count||1;
+      for(let fi=0; fi<n; fi++) bootQueueLayer(o, clipId+fi, d, pri);
+    }
   }
   pumpLoadQueue();
+}
+
+function prefetchPlayerOutfit(source, resetPaths){
+  let o=null;
+  if(source&&source.shirt!=null&&source.pants!=null&&!source._gta2Outfit) o=outfitFromCharacter(source);
+  else if(source&&source._gta2Outfit) o=source._gta2Outfit;
+  else if(source) o=resolveOutfit(source, true);
+  else o=resolveBootPlayerOutfit();
+  if(o) bootPrefetchOutfit(o, 18, resetPaths);
+  return o;
+}
+
+function bootClipFrames(){
+  const clips=["walk","run","idle","punch","shoot"];
+  const out=[];
+  for(const clipId of clips){
+    const n=clipSpec(clipId).count||1;
+    for(let fi=0; fi<n; fi++) out.push(clipId+fi);
+  }
+  return out;
+}
+
+function outfitLoadRatio(o){
+  if(!o) return 0;
+  const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
+  let done=0, total=0;
+  for(const d of dirs){
+    for(const wf of bootClipFrames()){
+      const c=layersReadyCount(o, wf, d);
+      done+=c.n;
+      total+=c.total;
+    }
+  }
+  return total?done/total:1;
+}
+
+function outfitFullyReady(o){
+  if(!o) return false;
+  const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
+  return dirs.every(d=>bootClipFrames().every(wf=>allLayersReady(o, wf, d)));
 }
 
 function bootLayersReady(o, wf, dir){ return allLayersReady(o, wf, dir); }
 
 function bootLoadRatio(){
+  if(bootOutfit) return outfitLoadRatio(bootOutfit);
   if(!bootPaths.size) return ready?1:0;
   let n=0;
   for(const p of bootPaths){
@@ -896,32 +970,50 @@ function bootLoadRatio(){
   return n/bootPaths.size;
 }
 
-/** Boot gate: preload core animation layers (8 dirs) before gameplay. */
+function waitForOutfit(o, timeoutMs){
+  const timeout=timeoutMs!=null?timeoutMs:90000;
+  if(!o) return Promise.resolve(false);
+  maxInflight=28;
+  bootPrefetchOutfit(o, 20, true);
+  return new Promise(resolve=>{
+    const t0=performance.now();
+    const tick=()=>{
+      tickLoadQueue();
+      if(outfitFullyReady(o)){
+        maxInflight=12;
+        bootPrefetching=false;
+        resolve(true);
+      }else if(performance.now()-t0>=timeout){
+        maxInflight=12;
+        bootPrefetching=false;
+        console.warn("PeopleSprites outfit prefetch timeout", outfitLoadRatio(o).toFixed(3));
+        resolve(false);
+      }else requestAnimationFrame(tick);
+    };
+    tick();
+  });
+}
+
+/** Boot gate: preload player outfit animations before gameplay. */
 function whenBootReady(timeoutMs){
-  const timeout=timeoutMs!=null?timeoutMs:32000;
-  const sample={body:"male",shirt:"blue",pants:"jeans",skin:"medium",hair:"brown",build:"average"};
-  const dirs=LS&&LS.DIR?LS.DIR:["E","SE","S","SW","W","NW","N","NE"];
-  const minRatio=0.92;
   return init().then(()=>{
     if(!ready) throw new Error("people meta");
-    maxInflight=28;
-    bootPrefetchOutfit(sample, 18);
-    const t0=performance.now();
-    return new Promise(resolve=>{
-      const tick=()=>{
-        tickLoadQueue();
-        const ratio=bootLoadRatio();
-        const punchOk=dirs.every(d=>bootLayersReady(sample,"punch0",d)&&bootLayersReady(sample,"punch3",d));
-        const walkOk=dirs.every(d=>bootLayersReady(sample,"walk0",d));
-        const ok=ratio>=minRatio&&punchOk&&walkOk;
-        if(ok||performance.now()-t0>=timeout){
-          maxInflight=12;
-          bootPrefetching=false;
-          resolve(ok);
-        }else requestAnimationFrame(tick);
-      };
-      tick();
-    });
+    const o=resolveBootPlayerOutfit();
+    return waitForOutfit(o, timeoutMs!=null?timeoutMs:90000);
+  });
+}
+
+function whenPlayerAnimReady(timeoutMs){
+  return init().then(()=>{
+    if(!ready) return false;
+    if(global.ped){
+      if(GO) GO.applyGta2Ids(global.ped);
+      const o=resolveOutfit(global.ped, true);
+      return waitForOutfit(o, timeoutMs!=null?timeoutMs:60000);
+    }
+    const ch=global.playerCharacter;
+    const o=ch?outfitFromCharacter(ch):resolveBootPlayerOutfit();
+    return waitForOutfit(o, timeoutMs!=null?timeoutMs:60000);
   });
 }
 
@@ -929,7 +1021,7 @@ function getBootLoadRatio(){ return bootLoadRatio(); }
 
 const PeopleSprites={
   draw, drawShadow:drawPedShadowBlob, init, warmDefault, warmPed, warmVisiblePeds, tickLoadQueue, whenBootReady,
-  bootPrefetchOutfit, getBootLoadRatio,
+  bootPrefetchOutfit, prefetchPlayerOutfit, getBootLoadRatio, whenPlayerAnimReady, outfitLoadRatio,
   prefetchCombat, beginPedCombat, beginPedPanic, resolveOutfit, ensureClipForPed, prefetchClipDir,
   get DIR(){ return LS?LS.DIR:["E","SE","S","SW","W","NW","N","NE"]; },
   get ready(){ return ready; },
