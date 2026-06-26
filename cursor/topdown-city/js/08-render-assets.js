@@ -3,8 +3,18 @@
 // Car local space: nose points +x (east). We rotate so "up" in the SVG
 // design maps to forward. In SVG the car pointed UP (-y = front); here we
 // build everything with front = -y then rotate by v.a + PI/2 so forward=+x.
+function resolveVehicleKind(v){
+  if(v.kind==="moto"||v.kind==="bike") return v.kind;
+  const W=v.W||0, L=v.L||0;
+  if(W<=18&&L<=48) return L>=38?"moto":"bike";
+  return v.kind||"car";
+}
 function drawVehicle(v,color){
-  if(v.kind==="moto"||v.kind==="bike"){ drawBike(v); return; }
+  const kind=resolveVehicleKind(v);
+  if(kind==="moto"||kind==="bike"){
+    if(v.kind!==kind) v.kind=kind;
+    drawBike(v); return;
+  }
   if(typeof perfVehicleLodDist==="function"){
     const lodD=perfVehicleLodDist();
     if(lodD<1e8 && Math.hypot(v.x-cam.x,v.y-cam.y)>lodD){

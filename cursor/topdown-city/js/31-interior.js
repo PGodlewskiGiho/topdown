@@ -213,7 +213,7 @@ function enterBuilding(b, opts){
     floors:lay.totalFloors, floor:startFloor, floorPlans:lay.floorPlans,
     player:{x:spawn.x, y:spawn.y, a:-Math.PI/2, vx:0, vy:0, r:9},
     withCar:!!opts.withCar, drivingCar:!!opts.withCar,
-    icar:opts.withCar?{x:spawn.x,y:spawn.y,a:spawn.a||-Math.PI/2,vx:0,vy:0,W:car.W,L:car.L,color:car.color,R:car.R,brand:car.brand,carName:car.carName,type:car.type}:null,
+    icar:opts.withCar?{x:spawn.x,y:spawn.y,a:spawn.a||-Math.PI/2,vx:0,vy:0,W:car.W,L:car.L,color:car.color,R:car.R,kind:car.kind||"car",brand:car.brand,carName:car.carName,type:car.type,riderHelmet:car.riderHelmet,riderShirt:car.riderShirt,riderSkin:car.riderSkin,riderHair:car.riderHair}:null,
     _floorCd:0,
   };
   if(opts.withCar){ car.vx=0; car.vy=0; }
