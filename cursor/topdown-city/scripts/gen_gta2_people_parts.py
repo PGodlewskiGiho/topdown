@@ -15,8 +15,8 @@ PARTS = os.path.join(ROOT, "parts", "bodies")
 PREVIEWS = os.path.join(ROOT, "previews")
 SCRIPTS = os.path.dirname(__file__)
 STY = os.environ.get("GTA2_STY", "/tmp/bil.sty")
-CANVAS = (22, 22)
-ANCHOR = (11, 21)
+CANVAS = (36, 36)
+ANCHOR = (18, 35)
 BODY_TYPES = ("male", "female", "hardy")
 
 # gta2_re: animation_frame 0-7 = walk cycle; facing = sprite rotation (baked to 8 dirs at export).
@@ -112,7 +112,8 @@ def part_for_pixel(idx: int, x: int, y: int) -> str | None:
     if idx in ARM_IDX:
         return "arms"
     if idx in SHIRT_IDX:
-        return "arms" if x < 6 or x > 15 else "torso"
+        ax = ANCHOR[0]
+        return "arms" if x < ax - 5 or x > ax + 4 else "torso"
     return None
 
 
@@ -368,7 +369,7 @@ def write_meta():
         {"id": "skirt_navy", "gender": "female"},
     ]
     meta = {
-        "version": 3,
+        "version": 5,
         "style": "gta2",
         "size": list(CANVAS),
         "anchor": list(ANCHOR),

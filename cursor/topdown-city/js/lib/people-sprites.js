@@ -504,6 +504,12 @@ function resolveSpriteDir(p, forcedDir){
   return gta2SpriteDir(moveFacingDir(p, forcedDir));
 }
 
+function spriteSize(){
+  const w=meta&&meta.size?meta.size[0]:36;
+  const h=meta&&meta.size?meta.size[1]:36;
+  return {w, h};
+}
+
 function tryBake(o, wf, dir){
   const key=bakeKey(o,wf,dir);
   if(baked[key]) return baked[key];
@@ -514,8 +520,9 @@ function tryBake(o, wf, dir){
     if(!im) return null;
     layers.push(im);
   }
+  const {w, h}=spriteSize();
   const c=document.createElement("canvas");
-  c.width=22; c.height=22;
+  c.width=w; c.height=h;
   const cx=c.getContext("2d");
   cx.imageSmoothingEnabled=false;
   for(const im of layers) cx.drawImage(im,0,0);
@@ -583,8 +590,9 @@ function drawComposite(c, p, down, forcedDir){
   const bm=buildMul(o, p);
   const sc=rad*2.05;
   const sx=sc*bm.sx, sy=sc*bm.sy;
-  const ax=(meta.anchor||[11,21])[0]*sc;
-  const ay=(meta.anchor||[11,21])[1]*sc;
+  const {w:sprW, h:sprH}=spriteSize();
+  const ax=(meta.anchor||[18,35])[0]*sc;
+  const ay=(meta.anchor||[18,35])[1]*sc;
   c.imageSmoothingEnabled=false;
 
   const wfRaw=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down,meta):"walk0";
@@ -616,7 +624,7 @@ function drawComposite(c, p, down, forcedDir){
   if(!drew){
     const hold=lastHold[uid];
     if(hold&&hold.canvas){
-      c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
+      c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
       drew=true;
     }
   }

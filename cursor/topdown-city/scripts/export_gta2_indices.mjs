@@ -32,10 +32,10 @@ for (const [clipId, clip] of Object.entries(animMap.clips)) {
   }
 }
 
-const CANVAS_W = 22;
-const CANVAS_H = 22;
-const ANCHOR_X = 11;
-const ANCHOR_Y = 21;
+const CANVAS_W = 36;
+const CANVAS_H = 36;
+const ANCHOR_X = 18;
+const ANCHOR_Y = 35;
 
 const buf = fs.readFileSync(styPath);
 const sty = new STY(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
