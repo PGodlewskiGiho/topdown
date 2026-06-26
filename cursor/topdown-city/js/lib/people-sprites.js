@@ -189,6 +189,17 @@ function isCombatClip(clipId){
   return clipId==="punch"||clipId==="shoot";
 }
 
+function trySyncBakeCombat(o, clipId, moveDir){
+  const dir=gta2SpriteDir(moveDir);
+  const spec=clipSpec(clipId);
+  const n=spec.count||1;
+  for(let fi=0; fi<n; fi++){
+    const wf=clipId+fi;
+    for(const path of layerPaths(o, wf, dir)) getImg(path);
+    tryBake(o, wf, dir);
+  }
+}
+
 /** Prefetch punch/shoot and reset borrow cache when an attack clip starts. */
 function beginPedCombat(p, clipId, forcedDir){
   if(!p||!meta||!clipId) return;
@@ -202,6 +213,7 @@ function beginPedCombat(p, clipId, forcedDir){
     prefetchClipDir(o, clipId, dir, 20);
     const opp=LS&&LS.DIR?LS.DIR[(LS.DIR.indexOf(dir)+4)%8]:null;
     if(opp) prefetchClipDir(o, clipId, opp, 18);
+    trySyncBakeCombat(o, clipId, moveDir);
   }
   ensureClipForPed(p, clipId, forcedDir);
 }
@@ -516,6 +528,42 @@ function resolveAnimPose(o, wf, dir){
   return {wf, dir};
 }
 
+/** Combat-only borrow — never idle/walk while an attack clip is active. */
+function resolveCombatPose(o, clipId, frameIdx, dir){
+  const spec=clipSpec(clipId);
+  const count=spec.count||1;
+  const dirs=facingDirs(dir);
+  const tryFolder=(folder, d)=>allLayersReady(o, folder, d)?{wf:folder, dir:d}:null;
+  const scan=(folder)=>{
+    for(const d of dirs){
+      const hit=tryFolder(folder, d);
+      if(hit) return hit;
+    }
+    return null;
+  };
+  for(let d=0; d<count; d++){
+    const fi=frameIdx-d;
+    if(fi<0) break;
+    const hit=scan(clipId+fi);
+    if(hit) return hit;
+  }
+  for(let d=1; d<count; d++){
+    const fi=frameIdx+d;
+    if(fi>=count) break;
+    const hit=scan(clipId+fi);
+    if(hit) return hit;
+  }
+  return {wf:clipId+Math.min(frameIdx,count-1), dir};
+}
+
+function combatLungePx(p, clipId, meta){
+  if(!p||!p._attackT||!clipId) return 0;
+  const fi=LS&&LS.animFrameIndex?LS.animFrameIndex(p, clipId, meta, false):0;
+  if(clipId==="punch") return [0,2.5,4.5,1.5][fi]||0;
+  if(clipId==="shoot") return [0,-1.2,-0.6,0][fi]||0;
+  return 0;
+}
+
 function ensureWalkPrefetch(p, o, wf, dir){
   const key=wf+"|"+dir;
   if(p._psWalkReq===key) return;
@@ -656,7 +704,14 @@ function drawComposite(c, p, down, forcedDir){
   const ay=(meta.anchor||[24,47])[1]*sc;
   c.imageSmoothingEnabled=false;
 
-  const wfRaw=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down,meta):"walk0";
+  const attackClip=(p._attackT>0&&isCombatClip(p._attackClip))?p._attackClip:null;
+  let wfRaw;
+  if(attackClip&&LS){
+    const fi=LS.animFrameIndex(p, attackClip, meta, down);
+    wfRaw=attackClip+fi;
+  }else{
+    wfRaw=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down,meta):"walk0";
+  }
   const moveDir=moveFacingDir(p, forcedDir);
   const dir=gta2SpriteDir(moveDir);
   p._faceDir=moveDir;
@@ -671,7 +726,12 @@ function drawComposite(c, p, down, forcedDir){
 
   const loadPri=p._attackT>0?16:(p===global.ped?12:(p.state==="dying"||down?11:7));
   const uid=pedUid(p);
-  const combatDraw=(p._attackT>0&&isCombatClip(p._attackClip))||isCombatClip(p._animClip);
+  const combatDraw=!!attackClip||isCombatClip(p._animClip);
+  const lunge=attackClip?combatLungePx(p, attackClip, meta):0;
+  if(lunge){
+    const fa=typeof p.a==="number"&&isFinite(p.a)?p.a:dirAngle(moveDir);
+    c.translate(Math.cos(fa)*lunge*sc, Math.sin(fa)*lunge*sc);
+  }
 
   const isDown=down||p.state==="dying";
   drawPedShadowBlob(c, sc, {down:isDown});
@@ -685,7 +745,7 @@ function drawComposite(c, p, down, forcedDir){
       p._psCombatSig=wfSig;
       prefetchOutfit(o, wfRaw, dir, false, 20);
     }
-    if(p._animClip) prefetchClipDir(o, p._animClip, dir, loadPri);
+    if(attackClip||p._animClip) prefetchClipDir(o, attackClip||p._animClip, dir, loadPri);
     const combatSmart=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, null, loadPri, combatPoseCandidates);
     if(combatSmart.complete||combatSmart.drew>0){
       drew=true;
@@ -700,10 +760,24 @@ function drawComposite(c, p, down, forcedDir){
         drew=true;
       }
     }
-    if(!drew&&p._attackT>0){
-      const pose=resolveAnimPose(o, wfRaw, dir);
+    if(!drew&&p._attackT>0&&attackClip){
+      const fi=LS&&LS.animFrameIndex?LS.animFrameIndex(p, attackClip, meta, false):0;
+      const pose=resolveCombatPose(o, attackClip, fi, dir);
       if(drawLayersPartial(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm)) drew=true;
       else if(drawLayersSmart(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm, null, loadPri, combatPoseCandidates).drew>0) drew=true;
+      if(!drew){
+        for(let f=3; f>=0; f--){
+          const tryWf=attackClip+f;
+          if(drawLayersPartial(c, o, tryWf, dir, ax, ay, sx, sy, bm)){ drew=true; break; }
+        }
+      }
+      if(!drew){
+        const hold=lastHold[uid];
+        if(hold&&hold.combat&&hold.canvas&&hold.dir===dir){
+          c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, sprW*sx, sprH*sy);
+          drew=true;
+        }
+      }
     }
   }else{
     if(p._psWasCombat){

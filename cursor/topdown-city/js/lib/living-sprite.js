@@ -10,7 +10,7 @@ const DEFAULT_CLIPS={
   run:{count:8,step_sec:0.08,speed_min:55},
   idle:{count:6,step_sec:0.2},
   shoot:{count:8,step_sec:0.09},
-  punch:{count:4,step_sec:0.1},
+  punch:{count:4,step_sec:0.12},
   down:{count:10,step_sec:0.12,hold_last:true},
   die:{count:5,step_sec:0.14,hold_last:true},
 };

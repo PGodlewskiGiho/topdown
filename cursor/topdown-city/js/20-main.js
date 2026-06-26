@@ -26,10 +26,13 @@ function frame(now){
   updateFalling(dt); updateSparks(dt);
   updateBoats(dt);
   updateBirds(dt);
-  if(mode==="car") updateCar(dt); else if(mode==="boat") updateBoatDrive(dt); else if(mode==="inside") updateInside(dt); else updatePed(dt);
+  if(mode==="car") updateCar(dt);
+  else if(mode==="boat") updateBoatDrive(dt);
+  else if(mode==="inside") updateInside(dt);
+  else { updateCombat(dt); updatePed(dt); }
   updateMission(dt);
   updateWanted(dt);
-  updateCombat(dt);
+  if(mode!=="foot") updateCombat(dt);
   updateShop();
   updateGunShop();
   updateDrops(dt);
