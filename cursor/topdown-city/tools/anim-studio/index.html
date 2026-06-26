@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TOPDOWN Anim Studio</title>
+<link rel="stylesheet" href="studio.css">
+</head>
+<body>
+<header class="top">
+  <h1>TOPDOWN Anim Studio</h1>
+  <p>Tworzenie i ulepszanie animacji 8-kierunkowych — ludzie (warstwy GTA2) i zwierzęta (strip PNG).</p>
+</header>
+
+<main class="layout">
+  <section class="panel">
+    <h2>1. Źródło</h2>
+    <label class="row">Tryb
+      <select id="mode">
+        <option value="strip">Strip (niedźwiedź / wildlife)</option>
+        <option value="layered">Warstwy GTA2 (punch)</option>
+      </select>
+    </label>
+    <label class="row">Plik PNG
+      <input type="file" id="file" accept="image/png,image/webp">
+    </label>
+    <label class="row">Szer. klatki <input type="number" id="fw" value="128" min="16" max="512"></label>
+    <label class="row">Wys. klatki <input type="number" id="fh" value="128" min="16" max="512"></label>
+    <label class="row">Kierunki <input type="number" id="dirs" value="8" min="1" max="8"></label>
+    <label class="row">Klatek / kierunek <input type="number" id="fpd" value="5" min="1" max="32"></label>
+    <label class="row">Klatka ataku (start) <input type="number" id="attackStart" value="4" min="0"></label>
+    <button type="button" id="loadSampleBear">Załaduj próbkę niedźwiedzia</button>
+    <button type="button" id="loadSamplePunch">Podgląd punch (GTA2)</button>
+  </section>
+
+  <section class="panel preview">
+    <h2>2. Podgląd</h2>
+    <canvas id="cv" width="320" height="320"></canvas>
+    <div class="controls">
+      <button type="button" id="play">▶ Odtwórz</button>
+      <button type="button" id="attack">Uderzenie</button>
+      <label>Kierunek <input type="range" id="dir" min="0" max="7" value="2"></label>
+      <span id="dirLabel">S</span>
+    </div>
+    <label class="row">Klip
+      <select id="clip">
+        <option value="walk">walk</option>
+        <option value="attack">attack</option>
+        <option value="idle">idle</option>
+      </select>
+    </label>
+    <label class="row">step_sec <input type="number" id="step" value="0.11" step="0.01" min="0.02" max="1"></label>
+  </section>
+
+  <section class="panel">
+    <h2>3. Ulepsz animację</h2>
+    <p class="hint">Generuje pośrednie klatki (morph + wysunięcie ramion / pazurów) żeby cios był czytelny.</p>
+    <label class="row">Docelowe klatki ataku <input type="number" id="attackOut" value="4" min="2" max="12"></label>
+    <button type="button" id="enhance">Ulepsz w przeglądarce</button>
+    <button type="button" id="exportStrip">Pobierz strip PNG</button>
+    <button type="button" id="exportMeta">Pobierz meta.json</button>
+    <pre id="cli" class="cli"></pre>
+  </section>
+
+  <section class="panel wide">
+    <h2>4. Klatki (klik = podgląd)</h2>
+    <div id="timeline" class="timeline"></div>
+  </section>
+</main>
+
+<footer>
+  <p>CLI: <code>npm run gen:punch</code> · <code>npm run gen:bears</code> · <code>python3 scripts/anim_studio.py enhance-strip …</code></p>
+</footer>
+<script src="studio.js"></script>
+</body>
+</html>

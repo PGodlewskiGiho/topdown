@@ -1435,8 +1435,14 @@ function wildAnimFrame(m,meta){
   const fpd=meta.framesPerDirection||5;
   const wf=meta.walkFrames||[0,1,2,3];
   let local=0;
-  if(m.attackT>0.08) local=meta.attackFrame??4;
-  else if(m.moving) local=wf[Math.floor((m.walkT||0)/(meta.walkStep||0.11))%wf.length];
+  if(m.attackT>0.06){
+    const a0=meta.attackFrame??(wf.length);
+    const aN=meta.attackFrames??1;
+    const aStep=meta.attackStep??meta.walkStep??0.09;
+    const total=m.attackCdBase?Math.min(0.45,m.attackCdBase*0.4):0.34;
+    const elapsed=total-m.attackT;
+    local=a0+Math.min(aN-1, Math.floor(elapsed/aStep));
+  } else if(m.moving) local=wf[Math.floor((m.walkT||0)/(meta.walkStep||0.11))%wf.length];
   return wildDir8(m.a)*fpd+local;
 }
 function wildDrawScale(m,meta,dir){
