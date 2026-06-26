@@ -12,7 +12,11 @@ function initMini(){
   mini.addEventListener("click", ()=>{ if(typeof openPauseTab==="function") openPauseTab("map"); else if(typeof toggleBigMap==="function") toggleBigMap(true); });
 }
 
+let miniFrame=0;
 function drawMini(){
+  miniFrame++;
+  const every=typeof perfMinimapEvery==="function"?perfMinimapEvery():1;
+  if(every>1 && miniFrame%every!==0) return;
   mctx.setTransform(DPR,0,0,DPR,0,0);
   mctx.clearRect(0,0,MINI,MINI);
   if(typeof renderRotatingMap==="function"){

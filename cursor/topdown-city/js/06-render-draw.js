@@ -76,7 +76,7 @@ function draw(){
 
   drawWet(ox,oy);          // wet asphalt + puddles (under traffic)
   drawShadows(ox,oy);      // directional sun shadows on the ground (day)
-  drawCanopyShades(ox,oy); // ALTTP forest canopy pools (ambient, under elevated crowns)
+  if(!(typeof perfSkipCanopyShades==="function" && perfSkipCanopyShades())) drawCanopyShades(ox,oy);
   drawBlockGrounds(ox,oy); // courtyards, paths, gardens around bloks
 
   if(typeof perfBegin==="function") perfBegin("buildings");
@@ -98,10 +98,10 @@ function draw(){
     });
     vb.sort((p,q)=>(p.y+p.h)-(q.y+q.h));
     for(const b of vb){
-      // smooth per-building ghost alpha so it fades rather than pops
       const want = buildingOccludesActor(b) ? 0.34 : 1;
       if(b._ga===undefined) b._ga=1;
-      b._ga += (want-b._ga)*0.18;
+      const lerp=(typeof perfBuildingGhostLerp==="function" && perfBuildingGhostLerp())?0.18:1;
+      b._ga += (want-b._ga)*lerp;
       if(b._ga<0.999){ ctx.globalAlpha=b._ga; drawBuildingWalls(b); ctx.globalAlpha=1; }
       else drawBuildingWalls(b);
     }
@@ -127,7 +127,7 @@ function draw(){
 
   if(typeof perfBegin==="function") perfBegin("actors");
   // NPC pedestrians (culled) — drawn under vehicles so run-overs read correctly
-  for(const p of peds){ if(p.x<ox-30||p.x>ox+VW+30||p.y<oy-30||p.y>oy+VH+30) continue; drawPerson(p,p.color,p.state==="down"); if(p.act==="chat"&&p.talking&&p.state!=="down") drawSpeech(p); }
+  for(const p of peds){ if(p.x<ox-30||p.x>ox+VW+30||p.y<oy-30||p.y>oy+VH+30) continue; drawPerson(p,p.color,p.state==="down"||p.state==="dying"); if(!(typeof perfSkipSpeech==="function"&&perfSkipSpeech())&&p.act==="chat"&&p.talking&&p.state!=="down"&&p.state!=="dying") drawSpeech(p); }
   Game.drawActors(ox,oy,"beforeTraffic");
   // traffic (culled)
   for(const c of traffic){ if(c.x<ox-50||c.x>ox+VW+50||c.y<oy-50||c.y>oy+VH+50) continue; drawVehicle(c,c.color); }
@@ -172,7 +172,7 @@ function draw(){
   if(typeof drawSunFlareScreen==="function") drawSunFlareScreen();
   drawRain();
   if(typeof perfEnd==="function") perfEnd("night");
-  vignette();
+  if(!(typeof perfSkipVignette==="function" && perfSkipVignette())) vignette();
   drawCrosshair();
   if(typeof perfFrameEnd==="function") perfFrameEnd();
 }

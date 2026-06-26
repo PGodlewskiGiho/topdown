@@ -129,7 +129,7 @@ function updateSandGrains(dt){
       sandGrains.splice(i,1);
     }
   }
-  if(!desert||VW>1700) return;
+  if(!desert||perfEffectiveVw()>1700) return;
   const target=Math.round(8+Math.pow(p,1.1)*48);
   sandSpawnT-=dt;
   if(sandGrains.length<target&&sandSpawnT<=0){
@@ -225,7 +225,7 @@ function drawSandGrain(g){
 function drawSandDriftStreaks(ox,oy){
   if(!onDesertSand(focusX,focusY)) return;
   const p=sandWindPower();
-  if(p<0.2||VW>1700) return;
+  if(p<0.2||perfEffectiveVw()>1700) return;
   const wd=sandWindDir(), t=performance.now()*0.001;
   const i0=Math.floor((ox-NODE_VAR*2)/GAP)-1, i1=Math.floor((ox+VW+NODE_VAR*2)/GAP)+2;
   const j0=Math.floor((oy-NODE_VAR*2)/GAP)-1, j1=Math.floor((oy+VH+NODE_VAR*2)/GAP)+2;
@@ -258,7 +258,7 @@ function drawSandDriftStreaks(ox,oy){
 }
 
 function drawSandGrains(ox,oy){
-  if(!sandGrains.length||VW>1700) return;
+  if(!sandGrains.length||perfEffectiveVw()>1700) return;
   for(const g of sandGrains){
     if(g.x<ox-20||g.x>ox+VW+20||g.y<oy-20||g.y>oy+VH+20) continue;
     drawSandGrain(g);

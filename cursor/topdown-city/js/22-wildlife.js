@@ -15,7 +15,6 @@ const DEER_VARIANTS=["buck_light","doe_light","buck_dark","doe_dark"];
 const WOLF_VARIANTS=["gray","dark","timber"];
 const BOAR_VARIANTS=["brown","dark","spotted"];
 
-const BEAR_ASSET_V=11, WILD_ASSET_V=1;
 const BEAR_SPRITE={ready:false,meta:null,img:{}};
 const WILD_SPRITE={ready:false,meta:null,img:{}};
 
@@ -30,21 +29,21 @@ const CRITTER_DEF={
 };
 
 (function loadBearSprites(){
-  fetch("assets/bears/meta.json?v="+BEAR_ASSET_V).then(r=>r.json()).then(meta=>{
+  fetch("assets/bears/meta.json").then(r=>r.json()).then(meta=>{
     BEAR_SPRITE.meta=meta;
     const kinds=Object.keys(meta.variants||{}); let left=kinds.length||0;
     if(!left){ BEAR_SPRITE.ready=true; return; }
     for(const k of kinds){
       const im=new Image();
       im.onload=im.onerror=()=>{ if(--left<=0) BEAR_SPRITE.ready=true; };
-      im.src="assets/bears/"+meta.variants[k].file+"?v="+BEAR_ASSET_V;
+      im.src="assets/bears/"+meta.variants[k].file;
       BEAR_SPRITE.img[k]=im;
     }
   }).catch(()=>{ BEAR_SPRITE.ready=true; });
 })();
 
 (function loadWildSprites(){
-  fetch("assets/wildlife/meta.json?v="+WILD_ASSET_V).then(r=>r.json()).then(meta=>{
+  fetch("assets/wildlife/meta.json").then(r=>r.json()).then(meta=>{
     WILD_SPRITE.meta=meta;
     const sp=meta.species||{}; const jobs=[];
     for(const kind of Object.keys(sp)){
@@ -57,7 +56,7 @@ const CRITTER_DEF={
     for(const [kind,v,file] of jobs){
       const im=new Image();
       im.onload=im.onerror=()=>{ if(--left<=0) WILD_SPRITE.ready=true; };
-      im.src="assets/wildlife/"+file+"?v="+WILD_ASSET_V;
+      im.src="assets/wildlife/"+file;
       if(!WILD_SPRITE.img[kind]) WILD_SPRITE.img[kind]={};
       WILD_SPRITE.img[kind][v]=im;
     }
@@ -1493,6 +1492,7 @@ function drawBear(b){ drawForestMammal(b); }
 
 function updateWildlife(dt){
   const forest=inForestAt(focusX,focusY);
+  if(!forest && typeof perfWildlifeUpdates==="function" && !perfWildlifeUpdates()) return;
   bearTimer-=dt; deerTimer-=dt; wolfTimer-=dt; boarTimer-=dt;
   for(let i=bears.length-1;i>=0;i--){
     updateBear(bears[i],dt);

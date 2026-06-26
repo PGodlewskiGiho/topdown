@@ -3,6 +3,39 @@
 const cops=[], footcops=[], helis=[];
 let heat=0, stars=0, bustTimer=0, prevStars=0, respawnCd=0, dispatchBoost=0, gunfireCd=0;
 
+const POLICE_FLEET={
+  patrol:[
+    {brand:"Skoda",carName:"Octavia",type:"sedan",era:"modern",W:40,L:88,color:"#e8ecf2",accent:"#1e4f9c",marking:"patrol"},
+    {brand:"Volkswagen",carName:"Passat",type:"sedan",era:"modern",W:41,L:90,color:"#dfe4ea",accent:"#244a8a",marking:"patrol"},
+    {brand:"Toyota",carName:"Corolla",type:"sedan",era:"modern",W:39,L:87,color:"#eef1f6",accent:"#1a3d7a",marking:"patrol"},
+  ],
+  moto:[
+    {brand:"Yamaha",carName:"FJR Patrol",kind:"moto",W:17,L:44,color:"#f0f2f6",accent:"#1e4f9c",marking:"patrol"},
+    {brand:"BMW",carName:"R1250 RT",kind:"moto",W:17,L:45,color:"#e4e8ee",accent:"#244a8a",marking:"patrol"},
+  ],
+  swat:[
+    {brand:"Mercedes",carName:"Sprinter SWAT",type:"estate",era:"modern",W:50,L:104,color:"#1c2430",accent:"#c0392b",marking:"swat"},
+    {brand:"Ford",carName:"Transit SWAT",type:"suv",era:"modern",W:52,L:100,color:"#222830",accent:"#a82820",marking:"swat"},
+  ],
+  apc:[
+    {brand:"Wojsko",carName:"Rosomak",type:"suv",era:"modern",W:56,L:114,color:"#4a5538",accent:"#7a8a50",marking:"apc"},
+  ],
+};
+
+function applyPoliceModel(c, unit){
+  let pool;
+  if(unit==="apc") pool=POLICE_FLEET.apc;
+  else if(unit==="swat") pool=POLICE_FLEET.swat;
+  else if(c.kind==="moto") pool=POLICE_FLEET.moto;
+  else pool=POLICE_FLEET.patrol;
+  const m=pool[(rng()*pool.length)|0];
+  c.brand=m.brand; c.carName=m.carName; c.type=m.type||"sedan"; c.era=m.era||"modern";
+  c.accent=m.accent; c.W=m.W; c.L=m.L; c.color=m.color; c.marking=m.marking||unit;
+  if(m.kind) c.kind=m.kind;
+  c.R=vehicleHitRadius(c.W,c.L,c.kind||"car");
+  c.police=true;
+}
+
 /* pursuit / search — stars drop only after hiding out of sight */
 let lkX=0, lkY=0, lkAge=0, escapeProg=0, playerSpotted=false, wantedPhase="clear", lkValid=false;
 const ESCAPE_SEC=[0, 7, 11, 16, 21, 28];
@@ -155,17 +188,19 @@ function spawnCop(unit){
   unit=unit||"patrol";
   const p=spawnOffscreen();
   const c={x:p.x,y:p.y,a:0,vx:0,vy:0,flash:0,hp:180,fireCd:rand(0.5,1.4),deployed:0,unit,
-           brand:"BMW",carName:"Policja",type:"sedan",era:"modern",accent:"#3a6ea5",color:"#26324c",
            police:true,kind:"car",W:40,L:88,R:vehicleHitRadius(40,88,"car")};
   if(unit==="patrol" && rng()<0.35){
-    c.kind="moto"; c.W=17; c.L=44; c.R=vehicleHitRadius(c.W,c.L,"moto"); c.hp=84; c.rider=true;
+    c.kind="moto"; c.hp=84; c.rider=true;
     c.riderShirt="#26324c"; c.riderSkin=pick(SKIN); c.riderHelmet=true;
+    applyPoliceModel(c, "patrol");
   } else if(unit==="swat"){
-    c.kind="car"; c.W=48; c.L=102; c.R=vehicleHitRadius(c.W,c.L,"car"); c.hp=260; c.color="#1a2430";
-    c.carName="SWAT"; c.accent="#c0392b"; c.brand="Mercedes";
+    c.hp=260;
+    applyPoliceModel(c, "swat");
   } else if(unit==="apc"){
-    c.kind="car"; c.W=54; c.L=112; c.R=vehicleHitRadius(c.W,c.L,"car"); c.hp=420; c.color="#3d4a32";
-    c.carName="BWP"; c.accent="#7a8a50"; c.brand="Wojsko"; c.unit="apc";
+    c.hp=420; c.unit="apc";
+    applyPoliceModel(c, "apc");
+  } else {
+    applyPoliceModel(c, "patrol");
   }
   return c;
 }
@@ -335,15 +370,17 @@ function busted(){ playerDeath("busted"); }
 
 function spawnFootCop(x,y,type){
   type=type||"police";
-  const copModel=type||"officer";
-  const base={x,y,a:rng()*6.283,r:8.5,speed:rand(84,112),fireCd:rand(0.3,0.9),type,model:copModel,
-    skin:pick(SKIN),pants:"#1a2430",shirtStyle:"jacket",hair:pick(HAIR),hairStyle:"short"};
+  const base={x,y,a:rng()*6.283,r:8.5,speed:rand(84,112),fireCd:rand(0.3,0.9),type,
+    skin:pick(SKIN),hair:pick(HAIR),hairStyle:"short",pantsId:"jeans_dark"};
   if(type==="swat"){
-    Object.assign(base,{hp:44,speed:rand(92,118),shirt:"#2a3540",pants:"#151c28",hat:"helmet",hatColor:"#2a3340",dmg:9,range:340});
+    Object.assign(base,{hp:44,speed:rand(92,118),shirt:"#2a3540",pants:"#151c28",shirtId:"grey",
+      body:"hardy",build:"hardy",hat:"helmet",hatColor:"#2a3340",dmg:9,range:340});
   } else if(type==="soldier"){
-    Object.assign(base,{hp:36,speed:rand(88,104),shirt:"#4a5a38",pants:"#3a4530",hat:"helmet",hatColor:"#4a5538",dmg:11,range:360});
+    Object.assign(base,{hp:36,speed:rand(88,104),shirt:"#4a5a38",pants:"#3a4530",shirtId:"brown",
+      body:"hardy",build:"hardy",hat:"helmet",hatColor:"#4a5538",dmg:11,range:360});
   } else {
-    Object.assign(base,{hp:22,shirt:"#26324c",hat:"cap",hatColor:"#1a2236",dmg:6,range:320});
+    Object.assign(base,{hp:22,shirt:"#26324c",pants:"#1a2430",shirtId:"blue",
+      body:"male",hat:"cap",hatColor:"#1a2236",dmg:6,range:320});
   }
   footcops.push(base);
 }
@@ -448,34 +485,70 @@ function showBigMsg(t){ const el=document.getElementById("bigmsg"); el.textConte
 
 function drawCop(c){
   if(c.kind==="moto"||c.kind==="bike") drawBike(c); else drawVehicle(c, c.color);
-  ctx.save(); ctx.translate(c.x,c.y); ctx.rotate(c.a);
-  const on=c.flash<1;
-  if(c.unit==="apc"){ ctx.fillStyle=on?"#a8c060":"#607040"; ctx.fillRect(-5,-10,10,6); ctx.fillStyle=on?"#607040":"#a8c060"; ctx.fillRect(-5,4,10,6); }
-  else if(c.kind==="moto"){ ctx.fillStyle=on?"#ff3b3b":"#3b6bff"; ctx.fillRect(-c.L*0.5,-3,3,2.6); ctx.fillStyle=on?"#3b6bff":"#ff3b3b"; ctx.fillRect(-c.L*0.5,0.4,3,2.6); }
-  else { ctx.fillStyle=on?"#ff3b3b":"#3b6bff"; ctx.fillRect(-4,-8,8,5); ctx.fillStyle=on?"#3b6bff":"#ff3b3b"; ctx.fillRect(-4,3,8,5); }
-  ctx.restore();
+  if(c.kind==="moto"){
+    ctx.save(); ctx.translate(c.x,c.y); ctx.rotate(c.a);
+    const on=c.flash<1;
+    ctx.fillStyle="#1a2030"; ctx.fillRect(-c.L*0.48,-4,5,3.2);
+    ctx.fillStyle=on?"#ff3b3b":"#3b6bff"; ctx.fillRect(-c.L*0.47,-3.6,2.2,2.4);
+    ctx.fillStyle=on?"#3b6bff":"#ff3b3b"; ctx.fillRect(-c.L*0.47,-0.8,2.2,2.4);
+    ctx.restore();
+  }
 }
 
 function drawHeli(h){
-  ctx.fillStyle="rgba(0,0,0,.18)"; ctx.beginPath(); ctx.ellipse(h.x+10,h.y+16,36,13,0,0,7); ctx.fill();
+  const rt=performance.now()/35, tr=performance.now()/22;
+  ctx.fillStyle="rgba(0,0,0,.2)"; ctx.beginPath(); ctx.ellipse(h.x+8,h.y+18,42,14,0,0,7); ctx.fill();
   ctx.save(); ctx.translate(h.x,h.y); ctx.rotate(h.a);
-  ctx.fillStyle="#2a3548"; ctx.fillRect(-30,-7,60,14);
-  ctx.fillStyle="#3a4658"; ctx.fillRect(-10,-28,20,22);
-  ctx.fillStyle=h.unit==="heli"?"#c0392b":"#3a6ea5"; ctx.fillRect(-14,-4,28,8);
-  const rt=performance.now()/35;
-  ctx.strokeStyle="rgba(230,240,255,.5)"; ctx.lineWidth=2.2;
-  ctx.beginPath(); ctx.moveTo(Math.cos(rt)*40,Math.sin(rt)*40); ctx.lineTo(-Math.cos(rt)*40,-Math.sin(rt)*40); ctx.stroke();
+  ctx.fillStyle="#2a3548"; ctx.fillRect(-34,-8,68,16);
+  ctx.fillStyle="#3a4658"; ctx.fillRect(28,-6,14,12);
+  ctx.fillStyle="#1e2838"; ctx.fillRect(-38,-5,8,10);
+  ctx.fillStyle="#3a4658"; ctx.fillRect(-12,-30,24,24);
+  ctx.fillStyle="#c0392b"; ctx.fillRect(-16,-5,32,10);
+  ctx.fillStyle="#e8ecf2"; ctx.font="bold 6px monospace"; ctx.textAlign="center";
+  ctx.fillText("POLICJA",0,-1);
+  ctx.strokeStyle="#1a2030"; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(-18,8); ctx.lineTo(-24,16); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(18,8); ctx.lineTo(24,16); ctx.stroke();
+  ctx.strokeStyle="rgba(230,240,255,.55)"; ctx.lineWidth=2.4;
+  ctx.beginPath(); ctx.moveTo(Math.cos(rt)*44,Math.sin(rt)*44); ctx.lineTo(-Math.cos(rt)*44,-Math.sin(rt)*44); ctx.stroke();
+  ctx.strokeStyle="rgba(200,210,220,.45)"; ctx.lineWidth=1.4;
+  const tx=34+Math.cos(tr)*8, ty=Math.sin(tr)*8;
+  ctx.beginPath(); ctx.moveTo(34,0); ctx.lineTo(tx,ty); ctx.stroke();
+  if(h.flash<1){
+    ctx.fillStyle="rgba(255,60,60,0.75)"; ctx.beginPath(); ctx.arc(-10,-28,2.2,0,7); ctx.fill();
+    ctx.fillStyle="rgba(70,110,255,0.75)"; ctx.beginPath(); ctx.arc(10,-28,2.2,0,7); ctx.fill();
+  }
   ctx.restore();
   if(gameHour<6.2||gameHour>19.3) return;
-  const g=ctx.createRadialGradient(h.x,h.y,0,h.x,h.y+40,120);
-  g.addColorStop(0,"rgba(255,240,180,.08)"); g.addColorStop(1,"rgba(255,240,180,0)");
-  ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(h.x,h.y); ctx.lineTo(h.x-55,h.y+95); ctx.lineTo(h.x+55,h.y+95); ctx.closePath(); ctx.fill();
+  const g=ctx.createRadialGradient(h.x,h.y,0,h.x,h.y+40,130);
+  g.addColorStop(0,"rgba(255,240,180,.09)"); g.addColorStop(1,"rgba(255,240,180,0)");
+  ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(h.x,h.y); ctx.lineTo(h.x-60,h.y+100); ctx.lineTo(h.x+60,h.y+100); ctx.closePath(); ctx.fill();
+}
+
+function drawFootCopGear(fc){
+  ctx.save(); ctx.translate(fc.x,fc.y);
+  if(fc.type==="police"){
+    ctx.fillStyle=fc.hatColor||"#1a2236";
+    ctx.fillRect(-5.5,-14.5,11,3.2);
+    ctx.fillStyle="#d4af37";
+    ctx.beginPath(); ctx.arc(3.5,-10,1.6,0,7); ctx.fill();
+  } else if(fc.type==="swat"||fc.type==="soldier"){
+    ctx.fillStyle=fc.hatColor||"#2a3340";
+    ctx.beginPath(); ctx.arc(0,-11.5,6,Math.PI,0); ctx.fill();
+    ctx.fillStyle="rgba(0,0,0,0.25)"; ctx.fillRect(-6,-11.5,12,2);
+    if(fc.type==="swat"){
+      ctx.fillStyle="#c0392b"; ctx.font="bold 4px monospace"; ctx.textAlign="center";
+      ctx.fillText("S",0,-9);
+    }
+  }
+  ctx.restore();
 }
 
 function drawFootCops(ox,oy){
   for(const fc of footcops){
     if(fc.x<ox-30||fc.x>ox+VW+30||fc.y<oy-30||fc.y>oy+VH+30) continue;
     drawPerson(fc, fc.shirt, false);
+    drawFootCopGear(fc);
   }
 }
 

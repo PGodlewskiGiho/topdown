@@ -100,6 +100,102 @@ function partWear(v,id){
   return clamp(pt.wear+(1-pt.hp/pt.maxHp)*0.35,0,1);
 }
 
+function isCarKindVehicle(v){
+  const k=v&&(v.kind||"car");
+  return k!=="moto"&&k!=="bike";
+}
+
+function ensureVehicleDoors(v){
+  if(!v) return;
+  if(v._doorL==null) v._doorL=0;
+  if(v._doorR==null) v._doorR=0;
+}
+
+function pedEntrySideForVehicle(v, px, py){
+  const c=Math.cos(v.a||0), s=Math.sin(v.a||0);
+  const dx=(px!=null?px:ped.x)-v.x, dy=(py!=null?py:ped.y)-v.y;
+  const lx=dx*c+dy*s;
+  return lx<0?"left":"right";
+}
+
+function setVehicleDoorOpen(v, side, open){
+  if(!v||!isCarKindVehicle(v)) return;
+  ensureVehicleDoors(v);
+  if(side==="left") v._doorTargetL=open?1:0;
+  else v._doorTargetR=open?1:0;
+}
+
+function tickVehicleDoorAnim(v, dt){
+  if(!v||!isCarKindVehicle(v)) return;
+  ensureVehicleDoors(v);
+  const sp=6.8*dt;
+  if(v._doorTargetL!=null){
+    const d=v._doorTargetL-v._doorL;
+    if(Math.abs(d)<0.015) v._doorL=v._doorTargetL;
+    else v._doorL+=d*Math.min(1,sp*8);
+  }
+  if(v._doorTargetR!=null){
+    const d=v._doorTargetR-v._doorR;
+    if(Math.abs(d)<0.015) v._doorR=v._doorTargetR;
+    else v._doorR+=d*Math.min(1,sp*8);
+  }
+}
+
+let vehicleEntryPending=null;
+
+function vehicleEntryBusy(){ return !!vehicleEntryPending; }
+
+function doorOpenAmount(v, side){
+  if(!v) return 0;
+  return side==="left"?(v._doorL||0):(v._doorR||0);
+}
+
+function finishVehicleEntry(){
+  const pe=vehicleEntryPending;
+  if(!pe) return;
+  vehicleEntryPending=null;
+  const side=pe.side;
+  const fn=pe.finish;
+  if(typeof fn==="function") fn();
+  if(pe.veh&&pe.veh!==car) setVehicleDoorOpen(pe.veh, side, false);
+  if(pe.veh) delete pe.veh._entryLock;
+  if(car&&isCarKindVehicle(car)){
+    ensureVehicleDoors(car);
+    if(side==="left"){ car._doorL=Math.max(car._doorL||0,0.92); car._doorTargetL=0; }
+    else { car._doorR=Math.max(car._doorR||0,0.92); car._doorTargetR=0; }
+  }
+}
+
+function startVehicleEntry(opts){
+  if(vehicleEntryPending||!opts||!opts.vehicle) return false;
+  const v=opts.vehicle;
+  if(!isCarKindVehicle(v)){
+    if(typeof opts.finish==="function") opts.finish();
+    return true;
+  }
+  const side=pedEntrySideForVehicle(v);
+  vehicleEntryPending={veh:v, lot:opts.lot||null, side, t:0, finish:opts.finish};
+  v._entryLock=true;
+  v.vx=0; v.vy=0;
+  setVehicleDoorOpen(v, side, true);
+  return true;
+}
+
+function updateVehicleEntry(dt){
+  if(vehicleEntryPending){
+    const pe=vehicleEntryPending;
+    pe.t+=dt;
+    tickVehicleDoorAnim(pe.veh, dt);
+    const open=doorOpenAmount(pe.veh, pe.side);
+    if((open>0.82&&pe.t>0.22)||pe.t>0.95) finishVehicleEntry();
+    return;
+  }
+  tickVehicleDoorAnim(car, dt);
+  if(typeof traffic!=="undefined"){
+    for(const c of traffic) tickVehicleDoorAnim(c, dt);
+  }
+}
+
 function pickPartFromHit(v,hx,hy){
   if(!v||v.kind!=="car") return null;
   initVehicleParts(v);
@@ -338,5 +434,8 @@ initTuningKeys();
 Game.register({
   id:"vehicle-system",
   order:39,
-  update:updateTuningShop,
+  update(dt, paused){
+    if(!paused) updateVehicleEntry(dt);
+    updateTuningShop();
+  },
 });

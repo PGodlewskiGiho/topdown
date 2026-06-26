@@ -3,8 +3,24 @@
 // Car local space: nose points +x (east). We rotate so "up" in the SVG
 // design maps to forward. In SVG the car pointed UP (-y = front); here we
 // build everything with front = -y then rotate by v.a + PI/2 so forward=+x.
+function resolveVehicleKind(v){
+  if(v.kind==="moto"||v.kind==="bike") return v.kind;
+  const W=v.W||0, L=v.L||0;
+  if(W<=18&&L<=48) return L>=38?"moto":"bike";
+  return v.kind||"car";
+}
 function drawVehicle(v,color){
-  if(v.kind==="moto"||v.kind==="bike"){ drawBike(v); return; }
+  const kind=resolveVehicleKind(v);
+  if(kind==="moto"||kind==="bike"){
+    if(v.kind!==kind) v.kind=kind;
+    drawBike(v); return;
+  }
+  if(typeof perfVehicleLodDist==="function"){
+    const lodD=perfVehicleLodDist();
+    if(lodD<1e8 && Math.hypot(v.x-cam.x,v.y-cam.y)>lodD){
+      drawVehicleSimple(v,color); return;
+    }
+  }
   ctx.save();
   ctx.translate(v.x, v.y);
   if(v.sinking!==undefined){
@@ -43,6 +59,33 @@ function _bodyPathC(P, L, W, era){
     ctx.bezierCurveTo(hw,-hl*(1-P.frontRound), hw*P.noseW,-hl, 0,-hl);
   }
   ctx.closePath();
+}
+
+function drawVehicleDoors(v, color, dark, mid, hw, hl, L, W, pOk){
+  if(!v||v.kind==="moto"||v.kind==="bike") return;
+  const openL=v._doorL||0, openR=v._doorR||0;
+  if(openL<0.02&&openR<0.02) return;
+  const drawSide=(side, open, partId)=>{
+    if(open<0.02||!pOk(partId)) return;
+    const sign=side==="left"?-1:1;
+    const dw=W*0.34, dh=L*0.19;
+    const cx=sign*hw*0.70, cy=-hl*0.04;
+    const hingeX=sign*hw*0.86, hingeY=cy-dh*0.12;
+    ctx.save();
+    ctx.translate(hingeX, hingeY);
+    ctx.rotate(-sign*open*0.82);
+    ctx.translate(-hingeX, -hingeY);
+    ctx.fillStyle=shade(color,-12);
+    rrect(cx-dw/2, cy-dh/2, dw, dh, 1.4); ctx.fill();
+    ctx.strokeStyle=dark; ctx.lineWidth=0.85; ctx.strokeRect(cx-dw/2, cy-dh/2, dw, dh);
+    ctx.fillStyle="rgba(130,168,190,0.5)";
+    ctx.fillRect(cx-sign*dw*0.12, cy-dh*0.28, dw*0.32, dh*0.32);
+    ctx.fillStyle=mid;
+    ctx.fillRect(hingeX-sign*1.2, hingeY-1.5, 2.4, dh*0.22);
+    ctx.restore();
+  };
+  drawSide("left", openL, "doorFL");
+  drawSide("right", openR, "doorFR");
 }
 
 function carBodyDesign(v, color){
@@ -98,6 +141,8 @@ function carBodyDesign(v, color){
   _bodyPathC(P,L,W,era); ctx.fillStyle=grad; ctx.fill();
   // outline
   _bodyPathC(P,L,W,era); ctx.strokeStyle="rgba(0,0,0,0.45)"; ctx.lineWidth=1.2; ctx.stroke();
+
+  drawVehicleDoors(v, color, dark, mid, hw, hl, L, W, pOk);
 
   // character lines
   ctx.strokeStyle=dark; ctx.globalAlpha=0.4; ctx.lineWidth=0.8;
@@ -265,6 +310,7 @@ function carBodyDesign(v, color){
     }
     if(dg>0.6){ ctx.strokeStyle="rgba(0,0,0,0.35)"; ctx.lineWidth=2.5; ctx.setLineDash([3,3]); _bodyPathC(P,L,W,era); ctx.stroke(); ctx.setLineDash([]); }
   }
+  if(v.police) drawPoliceMarkings(v, L, W, accent);
   // smoke / fire (unrotate so it rises straight up on screen)
   if(v.maxHp && dZone>0.55){
     ctx.rotate(-(v.a+Math.PI/2));
@@ -274,6 +320,57 @@ function carBodyDesign(v, color){
     if(dZone>0.80){ for(let i=0;i<6;i++){ const fx=(Math.random()-0.5)*W*0.45, fy=(Math.random()-0.5)*L*0.4;
       ctx.fillStyle=Math.random()<0.55?"#ff6a18":"#ffd23b"; ctx.beginPath(); ctx.arc(fx,fy,1.4+Math.random()*3.2,0,7); ctx.fill(); } }
   }
+}
+
+function drawPoliceMarkings(v, L, W, accent){
+  const hl=L/2, hw=W/2, mk=v.marking||v.unit||"patrol";
+  ctx.save();
+  if(mk==="apc"){
+    ctx.fillStyle="rgba(55,65,42,0.5)";
+    ctx.fillRect(-hw*0.38,-hl*0.18,hw*0.76,hl*0.36);
+    ctx.fillStyle="#8a9870";
+    ctx.fillRect(-1.5,-hl*0.3,3,hl*0.6);
+    ctx.strokeStyle="rgba(0,0,0,0.35)"; ctx.lineWidth=0.8;
+    ctx.strokeRect(-hw*0.38,-hl*0.18,hw*0.76,hl*0.36);
+    drawPoliceLightbar(v, L, W, mk);
+    ctx.restore();
+    return;
+  }
+  const stripeH=L*0.13, stripeY=-hl*0.04;
+  ctx.fillStyle="rgba(245,248,252,0.94)";
+  ctx.fillRect(-hw*0.9, stripeY-stripeH*0.5, hw*1.8, stripeH);
+  ctx.fillStyle=accent||"#1e4f9c";
+  ctx.fillRect(-hw*0.9, stripeY+stripeH*0.28, hw*1.8, stripeH*0.2);
+  ctx.fillStyle=mk==="swat"?"#c0392b":"#1a3060";
+  ctx.font="bold "+Math.max(4.5,L*0.052)+"px monospace";
+  ctx.textAlign="center";
+  ctx.textBaseline="middle";
+  ctx.fillText(mk==="swat"?"SWAT":"POLICJA", 0, stripeY+stripeH*0.08);
+  if(mk==="patrol"){
+    const ry=-hl*0.4, rw=hw*0.78, rh=L*0.075;
+    ctx.fillStyle="rgba(30,79,156,0.32)";
+    ctx.fillRect(-rw*0.5, ry-rh*0.5, rw, rh);
+    ctx.fillStyle="rgba(255,255,255,0.55)";
+    for(let i=0;i<5;i++) if(i%2===0) ctx.fillRect(-rw*0.48+i*rw*0.2, ry-rh*0.45, rw*0.1, rh*0.9);
+  }
+  drawPoliceLightbar(v, L, W, mk);
+  ctx.restore();
+}
+
+function drawPoliceLightbar(v, L, W, mk){
+  const on=(v.flash!=null?v.flash:0)<1;
+  const hl=L/2;
+  if(mk==="apc"){
+    ctx.fillStyle="#1a2030"; ctx.fillRect(-6,-hl*0.28,12,7);
+    ctx.fillStyle=on?"#a8c060":"#506838"; ctx.fillRect(-5,-hl*0.26,5,5);
+    ctx.fillStyle=on?"#506838":"#a8c060"; ctx.fillRect(0,-hl*0.26,5,5);
+    return;
+  }
+  const bw=Math.min(W*0.62,24), bh=5.5, by=-hl*0.86;
+  ctx.fillStyle="#141a28"; ctx.fillRect(-bw*0.5,by,bw,bh);
+  ctx.fillStyle=on?"#ff3b3b":"#3b6bff"; ctx.fillRect(-bw*0.5+1,by+1,bw*0.5-2,bh-2);
+  ctx.fillStyle=on?"#3b6bff":"#ff3b3b"; ctx.fillRect(1,by+1,bw*0.5-2,bh-2);
+  ctx.fillStyle="rgba(255,255,255,0.35)"; ctx.fillRect(-bw*0.08,by+1.2,bw*0.16,bh-2.4);
 }
 
 // continuous greenhouse canopy path (front=up). topInset/botInset are
@@ -302,28 +399,42 @@ function drawSpeech(p){
 }
 function entitySpriteDir(p){
   if(typeof LivingSprite==="undefined") return "S";
-  let dx=0, dy=0;
+  const opts={};
   const isPlayer=typeof ped!=="undefined"&&p===ped&&typeof mode!=="undefined"&&mode==="foot";
-  if(isPlayer&&typeof keys!=="undefined"){
-    dx=(keys["d"]||keys["arrowright"]?1:0)-(keys["a"]||keys["arrowleft"]?1:0);
-    dy=(keys["s"]||keys["arrowdown"]?1:0)-(keys["w"]||keys["arrowup"]?1:0);
-  }
-  if(!dx&&!dy){ dx=p.vx||0; dy=p.vy||0; }
-  if(Math.hypot(dx,dy)>0.001){
-    const dir=LivingSprite.dirNameFromDelta(dx,dy);
-    if(dir){ p.a=Math.atan2(dy,dx); return dir; }
-  }
-  return LivingSprite.dirNameFromAngle(p.a!=null?p.a:Math.PI/2);
+  if(isPlayer&&typeof keys!=="undefined") opts.keys=keys;
+  if((p._attackT>0||p.state==="dying")&&typeof p.a==="number"&&isFinite(p.a))
+    return LivingSprite.dirNameFromAngle(p.a);
+  return LivingSprite.spriteDir(p, opts);
 }
 
 function drawPerson(p,color,down,targetCtx){
+  const c=targetCtx||ctx;
+  const isDown=down||p.state==="down"||p.state==="dying";
+  if(typeof perfPedLodDist==="function" && typeof perfPedKeepGta2==="function" && !perfPedKeepGta2(p)){
+    const lodD=perfPedLodDist();
+    if(lodD<1e8 && Math.hypot(p.x-cam.x,p.y-cam.y)>lodD && typeof drawPersonSimple==="function"){
+      drawPersonSimple(p,color,isDown,c); return;
+    }
+  }
   if(typeof PeopleSprites!=="undefined"&&PeopleSprites.meta){
     const dir=entitySpriteDir(p);
     p._spriteDir=dir;
-    p._faceDir=dir;
-    PeopleSprites.draw(targetCtx||ctx,p,color,down,dir);
+    PeopleSprites.draw(c,p,color,isDown,dir);
     return;
   }
+  const sc=((p.r||9)/9)*2.05;
+  const shirt=p.shirt||color||"#3a6ea5";
+  c.save();
+  c.translate(p.x,p.y);
+  if(typeof PeopleSprites!=="undefined"&&PeopleSprites.drawShadow) PeopleSprites.drawShadow(c, sc, {down:isDown});
+  else { c.fillStyle="rgba(0,0,0,.22)"; c.beginPath(); c.ellipse(sc*0.4, 3.3*sc, 7.8*sc, 2.7*sc, 0, 0, Math.PI*2); c.fill(); }
+  c.fillStyle=shirt;
+  c.fillRect(-5*sc,-8*sc,10*sc,14*sc);
+  c.fillStyle=p.skin||"#e8b888";
+  c.beginPath();
+  c.arc(0,-10*sc,4*sc,0,Math.PI*2);
+  c.fill();
+  c.restore();
 }
 
 function vignette(){
@@ -358,9 +469,12 @@ function buildingOccludesActor(b){
   // player first (most important)
   if(mode==="foot"){ if(test(ped.x,ped.y)) return true; }
   else if(!car.dead){ if(test(car.x,car.y)) return true; }
+  if(typeof perfLightOcclusion==="function" && perfLightOcclusion()) return false;
+  const skipPeds=typeof perfSkipPedOcclusion==="function" && perfSkipPedOcclusion();
   // traffic & cops near this building
   for(const c of traffic){ if(Math.abs(c.x-x)>w+260||Math.abs(c.y-y)>h+260) continue; if(test(c.x,c.y)) return true; }
   for(const c of cops){ if(Math.abs(c.x-x)>w+260||Math.abs(c.y-y)>h+260) continue; if(test(c.x,c.y)) return true; }
+  if(skipPeds) return false;
   for(const p of peds){ if(Math.abs(p.x-x)>w+260||Math.abs(p.y-y)>h+260) continue; if(test(p.x,p.y)) return true; }
   return false;
 }
@@ -386,6 +500,7 @@ function treeOccludesActor(t){
   else if(!car.dead){ if(Math.abs(car.x-x)<mx&&Math.abs(car.y-y)<mx&&covered(car.x, car.y)) return true; }
   for(const c of traffic){ if(Math.abs(c.x-x)>mx||Math.abs(c.y-y)>mx) continue; if(covered(c.x,c.y)) return true; }
   for(const c of cops){ if(Math.abs(c.x-x)>mx||Math.abs(c.y-y)>mx) continue; if(covered(c.x,c.y)) return true; }
+  if(typeof perfSkipPedOcclusion==="function" && perfSkipPedOcclusion()) return false;
   for(const p of peds){ if(Math.abs(p.x-x)>mx||Math.abs(p.y-y)>mx) continue; if(covered(p.x, p.y)) return true; }
   return false;
 }
@@ -1270,46 +1385,74 @@ function forestGrassMeta(key){
   if(v) return v;
   return FOREST_GRASS.meta?.variants?.clump_med||{width:52,height:56,anchorX:26,anchorY:55};
 }
+// Lighter than treeWindAt: same wind field, ~4–6× smaller amplitude.
+function grassWindAt(x,y,s){
+  const ph=((x*0.031+y*0.019)%6.283), ph2=ph*1.618+s*0.07;
+  const local=typeof windFieldAt==="function"?windFieldAt(x,y):null;
+  const gust=(typeof windGust!=="undefined"?windGust:0)*0.4;
+  const strength=local?local.power*0.85:((typeof windAmp!=="undefined"?windAmp:0.12)*0.75+gust*0.18);
+  const h=s*3.2;
+  const amp=h*strength*0.24;
+  const wt=typeof windT!=="undefined"?windT:0;
+  const wa=local?local.angle:wt*0.72+ph*0.1;
+  const wx=Math.cos(wa+Math.sin(wt*1.55+ph)*0.3)*amp+Math.sin(wt*2.4+ph2)*amp*0.16;
+  const wy=Math.sin(wa+Math.sin(wt*1.08+ph)*0.18)*amp*0.22+Math.sin(wt*1.15+ph*0.65)*amp*0.05;
+  return [wx,wy];
+}
 function drawForestGrassClump(x,y,s,v){
   const m=forestGrassMeta(v), img=FOREST_GRASS.img[v]||FOREST_GRASS.img.clump_med;
   if(!img||!img.complete||!img.naturalWidth) return false;
   const sc=s*2.05/(m.height||56), W=(m.width||52)*sc, H=(m.height||56)*sc;
   const ax=(m.anchorX??((m.width||52)*0.5))*sc, ay=(m.anchorY??((m.height||56)-1))*sc;
+  const [gwx,gwy]=grassWindAt(x,y,s);
   const sm=ctx.imageSmoothingEnabled;
   ctx.imageSmoothingEnabled=true;
   try{ ctx.imageSmoothingQuality="high"; }catch(e){}
-  ctx.drawImage(img,x-ax,y-ay,W,H);
+  ctx.save();
+  ctx.translate(x+gwx, y+gwy*0.28);
+  ctx.rotate(gwx*0.014);
+  ctx.drawImage(img,-ax,-ay,W,H);
+  ctx.restore();
   ctx.imageSmoothingEnabled=sm;
   return true;
+}
+function drawGrassClumpSprite(x,y,s,v){ return drawForestGrassClump(x,y,s,v); }
+window.drawGrassClumpSprite=drawGrassClumpSprite;
+function grassVariantsForDraw(L){
+  if(L.biome==="forest") return FOREST_GRASS._forest||(FOREST_GRASS._forest=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"]);
+  if(L.cemetery) return FOREST_GRASS._park||(FOREST_GRASS._park=["clump_med","clump_large","clump_mossy","clump_wispy","patch_moss"]);
+  if(L.zone==="suburb") return FOREST_GRASS._lawn||(FOREST_GRASS._lawn=["clump_small","clump_med","clump_wispy","clump_dense"]);
+  return FOREST_GRASS._lawn||(FOREST_GRASS._lawn=["clump_small","clump_med","clump_wispy","clump_dense"]);
 }
 const GRASS_TONE=["rgba(26,56,20,.96)","rgba(46,92,36,.96)","rgba(80,146,58,.95)","rgba(120,184,86,.95)"];
 function drawClump(x,y,s){
   const h=(n)=>{ const v=Math.sin(x*12.9898+y*78.233+n*37.17)*43758.5453; return v-(v|0); };
-  const n=5+((h(0)*3)|0);                                            // 5-7 blades per clump
-  ctx.fillStyle="rgba(18,38,14,.38)"; ctx.fillRect(x-s*0.5, y-1.6, s, 2.6);   // grounded base
+  const [gwx,gwy]=grassWindAt(x,y,s);
+  const n=5+((h(0)*3)|0);
+  ctx.fillStyle="rgba(18,38,14,.38)"; ctx.fillRect(x-s*0.5+gwx*0.2, y-1.6+gwy*0.15, s, 2.6);
   for(let k=0;k<n;k++){
-    const dx=(h(k+1)-0.5)*s*1.15, bl=s*(0.72+h(k+9)*0.7), lean=(h(k+5)-0.5)*s*0.75;
-    const wd=0.9+h(k+3)*0.7, bx=x+dx;
+    const dx=(h(k+1)-0.5)*s*1.15, bl=s*(0.72+h(k+9)*0.7), lean=(h(k+5)-0.5)*s*0.75+gwx*(0.42+k*0.04);
+    const wd=0.9+h(k+3)*0.7, bx=x+dx+gwx*0.35;
     ctx.fillStyle=GRASS_TONE[Math.min(3,(h(k+7)*4)|0)];
-    ctx.beginPath(); ctx.moveTo(bx-wd,y); ctx.lineTo(bx+wd,y); ctx.lineTo(bx+lean,y-bl); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(bx-wd,y); ctx.lineTo(bx+wd,y); ctx.lineTo(bx+lean,y-bl+gwy*0.12); ctx.closePath(); ctx.fill();
   }
 }
 function drawGrassDetail(L){
-  if(VW>2200) return;                                            // grass invisible when far out: skip entirely
+  if(perfEffectiveVw()>2400) return;
   const cl=cam.x-VW/2-20, cr=cam.x+VW/2+20, ct=cam.y-VH/2-20, cb=cam.y+VH/2+20;
-  const useForest=L.biome==="forest"&&FOREST_GRASS.ready;
-  const fKeys=useForest?(FOREST_GRASS._keys||(FOREST_GRASS._keys=Object.keys(FOREST_GRASS.meta?.variants||{}))):null;
+  const usePng=FOREST_GRASS.ready;
+  const lotVars=grassVariantsForDraw(L);
   for(const t of L.tufts){
     if(t.x<cl||t.x>cr||t.y<ct||t.y>cb) continue;
-    if(useForest){
-      const vk=t.v||fKeys[(((t.x*73856093)^(t.y*19349663))>>>0)%fKeys.length];
+    if(usePng){
+      const vk=t.v||lotVars[(((t.x*73856093)^(t.y*19349663))>>>0)%lotVars.length];
       if(!drawForestGrassClump(t.x,t.y,t.s,vk)) drawClump(t.x,t.y,t.s);
     } else drawClump(t.x,t.y,t.s);
   }
   for(const f of L.flowers){ ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(f.x,f.y,1.7,0,7); ctx.fill(); ctx.fillStyle="rgba(255,255,255,.5)"; ctx.fillRect(f.x-0.4,f.y-0.4,0.9,0.9); }
 }
 function drawForestFloor(L){
-  if(!L.forestFloor||!L.forestFloor.length||VW>1700) return;
+  if(!L.forestFloor||!L.forestFloor.length||perfEffectiveVw()>1700) return;
   const cl=cam.x-VW/2-24, cr=cam.x+VW/2+24, ct=cam.y-VH/2-24, cb=cam.y+VH/2+24;
   for(const d of L.forestFloor){
     if(d.x<cl||d.x>cr||d.y<ct||d.y>cb) continue;
@@ -1383,7 +1526,7 @@ function drawDesertFloraItem(d){
   drawDesertFloraCanvas(d);
 }
 function drawDesertFloor(L){
-  if(!L.desertFloor||!L.desertFloor.length||VW>1700) return;
+  if(!L.desertFloor||!L.desertFloor.length||perfEffectiveVw()>1700) return;
   const cl=cam.x-VW/2-24, cr=cam.x+VW/2+24, ct=cam.y-VH/2-24, cb=cam.y+VH/2+24;
   for(const d of L.desertFloor){
     if(d.x<cl||d.x>cr||d.y<ct||d.y>cb) continue;
@@ -1421,6 +1564,21 @@ function drawForestRock(x,y,s,v,moss){
 
 function drawForestFloraItem(d){
   const s=d.s, r=d.rot||0, x=d.x, y=d.y;
+  if(FOREST_GRASS.ready){
+    let vk=null, sc=s;
+    switch(d.kind){
+      case "needle": vk="clump_needle"; sc=s*1.2; break;
+      case "fern": vk="clump_fern"; sc=s*1.05; break;
+      case "moss": vk="patch_moss"; sc=s*0.9; break;
+      case "sprout": vk="clump_small"; sc=s*1.25; break;
+      case "blade":
+      case "clover":
+        vk=["clump_med","clump_shade","clump_wispy","clump_mossy","clump_dense","clump_pine"][(((x*73856093)^(y*19349663))>>>0)%6];
+        sc=s*1.12;
+        break;
+    }
+    if(vk){ drawForestGrassClump(x,y,sc,vk); return; }
+  }
   ctx.save(); ctx.translate(x,y); ctx.rotate(r);
   switch(d.kind){
     case "leaf": {
@@ -1538,8 +1696,10 @@ function drawForestFloraItem(d){
       ctx.fillStyle="rgba(52,78,44,0.28)"; ctx.beginPath(); ctx.ellipse(-s*0.1,-s*0.08,s*0.35,s*0.18,r*0.2,0,7); ctx.fill();
       break;
     }
-    default: { // blade
-      ctx.strokeStyle="#2a5828"; ctx.lineWidth=1.1; for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(k*2,s*0.15); ctx.quadraticCurveTo(k*2.5,-s*0.35,k*1.2,-s*0.75); ctx.stroke(); }
+    default: { // blade — procedural fallback gdy PNG jeszcze się ładuje
+      const [gwx,gwy]=grassWindAt(x,y,s);
+      ctx.strokeStyle="#2a5828"; ctx.lineWidth=1.1;
+      for(let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(k*2+gwx*0.2,s*0.15); ctx.quadraticCurveTo(k*2.5+gwx*0.35,-s*0.35,k*1.2+gwx*0.5,-s*0.75+gwy*0.1); ctx.stroke(); }
     }
   }
   ctx.restore();
@@ -1682,6 +1842,7 @@ function forEachVisibleTree(ox,oy,fn){
   for(const p of trees) fn(p);
 }
 function updateTreeGhostAlpha(p){
+  if(typeof perfSkipTreeGhost==="function" && perfSkipTreeGhost()){ p._tga=1; return 1; }
   const want=treeOccludesActor(p) ? 0.34 : 1;
   if(p._tga===undefined) p._tga=1;
   p._tga+=(want-p._tga)*0.18;
@@ -1693,7 +1854,12 @@ function drawTreeGhosted(p, fn){
   else fn(p);
 }
 function drawCanopies(ox,oy){
-  const lod=VW>1500;
+  const simple=typeof perfSimpleTrees==="function" && perfSimpleTrees();
+  const lod=simple || perfEffectiveVw()>1500;
+  if(simple){
+    forEachVisibleTree(ox,oy, p=>drawTreeCanopySimple(p));
+    return;
+  }
   forEachVisibleTree(ox,oy, p=>drawTreeGhosted(p, tp=>drawTreeCanopy(tp.x,tp.y,tp,lod)));
 }
 // ALTTP-style forest canopy shade: dark pool on the ground under the elevated crown mass.
@@ -1768,18 +1934,17 @@ function treeScreenBox(t){
 }
 function treeVisible(p,cl,cr,ct,cb){ const b=treeScreenBox(p); return b.maxX>=cl&&b.minX<=cr&&b.maxY>=ct&&b.minY<=cb; }
 // ── PNG tree sprites (Pillow-generated, assets/trees/*.png) ──────────────
-const TREE_ASSET_V=2;
 const TREE_SPRITE={ready:false,meta:null,img:{}};
 window.TREE_SPRITE=TREE_SPRITE;
 (function loadTreeSprites(){
-  fetch("assets/trees/meta.json?v="+TREE_ASSET_V).then(r=>r.json()).then(meta=>{
+  fetch("assets/trees/meta.json").then(r=>r.json()).then(meta=>{
     TREE_SPRITE.meta=meta;
     const kinds=Object.keys(meta.kinds); let left=kinds.length||0;
     if(!left){ TREE_SPRITE.ready=true; return; }
     for(const k of kinds){
       const im=new Image();
       im.onload=im.onerror=()=>{ if(--left<=0) TREE_SPRITE.ready=true; };
-      im.src="assets/trees/"+meta.kinds[k].file+"?v="+TREE_ASSET_V;
+      im.src="assets/trees/"+meta.kinds[k].file;
       TREE_SPRITE.img[k]=im;
     }
   }).catch(()=>{});
@@ -2007,7 +2172,7 @@ function drawCityTreeFinish(t,ax,ay,R,pal){
   ctx.beginPath(); ctx.ellipse(ax-R*0.22,ay-R*0.28,R*0.22,R*0.14,0,0,7); ctx.fill();
 }
 function drawProps(L){
-  const cl=cam.x-VW/2-34, cr=cam.x+VW/2+34, ct=cam.y-VH/2-34, cb=cam.y+VH/2+34, lod=VW>1500;
+  const cl=cam.x-VW/2-34, cr=cam.x+VW/2+34, ct=cam.y-VH/2-34, cb=cam.y+VH/2+34, lod=perfEffectiveVw()>1500;
   for(const p of L.props){
     if(p.x<cl||p.x>cr||p.y<ct||p.y>cb) continue;                 // off-screen prop: skip
     if(p.t==="cactus"){ drawCactus(p);
@@ -2027,7 +2192,9 @@ function drawProps(L){
 // — whose ground pass never calls drawProps — still render their pole, and trunks never hide
 // behind a neighbouring building. Canopies are drawn later still, over actors.
 function drawTrunks(ox,oy){
+  const simple=typeof perfSimpleTrees==="function" && perfSimpleTrees();
   forEachVisibleTree(ox,oy, p=>{
+    if(simple){ drawTreeTrunkSimple(p); return; }
     updateTreeGhostAlpha(p);
     drawTreeGhosted(p, drawTreeTrunk);
   });
@@ -2066,11 +2233,16 @@ function drawGraves(L){
 function drawFences(L){
   if(!L.fences||!L.fences.length) return;
   for(const f of L.fences){
+    if(f.broken) continue;
+    ensureFence(f);
+    const wear=f.maxHp?clamp(1-f.hp/f.maxHp,0,1):0;
     const dx=f.x2-f.x1, dy=f.y2-f.y1, len=Math.hypot(dx,dy)||1, ux=dx/len, uy=dy/len;
-    ctx.strokeStyle="#8c8268"; ctx.lineWidth=1.3;
+    ctx.strokeStyle=wear>0.45?"#7a7060":"#8c8268"; ctx.lineWidth=1.3;
     ctx.beginPath(); ctx.moveTo(f.x1,f.y1-3); ctx.lineTo(f.x2,f.y2-3); ctx.stroke();
-    ctx.fillStyle="#a59a7e";
-    for(let d=0; d<=len; d+=6){ ctx.fillRect(f.x1+ux*d-0.7, f.y1+uy*d-6, 1.5, 6); }
+    ctx.fillStyle=wear>0.45?"#8f8570":"#a59a7e";
+    const step=wear>0.35?8:6;
+    for(let d=0; d<=len; d+=step){ if(wear>0.2&&hsh(Math.floor(f.x1+d),Math.floor(f.y1),601)<wear*0.55) continue;
+      ctx.fillRect(f.x1+ux*d-0.7, f.y1+uy*d-6, 1.5, 6); }
   }
 }
 function drawSignalHead(hx,hy,st,fallen){

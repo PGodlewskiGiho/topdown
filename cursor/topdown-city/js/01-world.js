@@ -539,14 +539,21 @@ function roundaboutIslandR(i,j){
   return Math.max(6,R-rw*0.42);
 }
 function roundaboutObstacleR(i,j){
+  if(!isRoundabout(i,j)) return 0;
   const t=roundaboutType(i,j);
-  if(roundaboutPassable(t)) return 0;
   const Rin=roundaboutIslandR(i,j);
+  if(roundaboutPassable(t)) return Rin;
   if(t==="fountain") return Rin*0.62;
   if(t==="statue") return Rin*0.24;
   if(t==="planter") return Rin*0.50;
   if(t==="tree") return Rin*0.22;
   return Rin*0.45;
+}
+function roundaboutRingR(i,j){ return roundaboutR(i,j)+9; }
+function shouldUseRoundaboutRing(x,y,i,j){
+  if(!isRoundabout(i,j)) return false;
+  const A=node(i,j);
+  return Math.hypot(x-A[0],y-A[1]) < roundaboutRingR(i,j)+10;
 }
 function rbFillGrass(ax,ay,Rin){
   ctx.fillStyle="#3a6534"; ctx.beginPath(); ctx.arc(ax,ay,Rin,0,7); ctx.fill();
@@ -557,12 +564,21 @@ function drawRoundaboutIsland(ax,ay,Rin,i,j,rbType){
   const seed=hsh(i,j,93);
   if(rbType==="grass"||rbType==="meadow"){
     rbFillGrass(ax,ay,Rin);
-    const n=rbType==="meadow"?6:4;
-    for(let k=0;k<n;k++){
-      const ang=seed*6.283+k*2.09, rad=Rin*(0.18+(hsh(i,j,940+k)*0.48));
-      const fx=ax+Math.cos(ang)*rad, fy=ay+Math.sin(ang)*rad*0.88, sz=1.2+hsh(i,j,950+k)*1.8;
-      ctx.fillStyle=rbType==="meadow"?(k%3?"#c8d858":"#e8b848"):"#8ec868";
-      ctx.beginPath(); ctx.arc(fx,fy,sz,0,7); ctx.fill();
+    const n=rbType==="meadow"?10:7;
+    const rbVars=rbType==="meadow"?PARK_GRASS_VARIANTS:LAWN_GRASS_VARIANTS;
+    if(typeof drawGrassClumpSprite==="function"&&typeof FOREST_GRASS!=="undefined"&&FOREST_GRASS.ready){
+      for(let k=0;k<n;k++){
+        const ang=seed*6.283+k*2.09, rad=Rin*(0.14+(hsh(i,j,940+k)*0.52));
+        const fx=ax+Math.cos(ang)*rad, fy=ay+Math.sin(ang)*rad*0.88;
+        drawGrassClumpSprite(fx,fy,5+hsh(i,j,950+k)*5, rbVars[hsh(i,j,960+k)%rbVars.length]);
+      }
+    } else {
+      for(let k=0;k<(rbType==="meadow"?6:4);k++){
+        const ang=seed*6.283+k*2.09, rad=Rin*(0.18+(hsh(i,j,940+k)*0.48));
+        const fx=ax+Math.cos(ang)*rad, fy=ay+Math.sin(ang)*rad*0.88, sz=1.2+hsh(i,j,950+k)*1.8;
+        ctx.fillStyle=rbType==="meadow"?(k%3?"#c8d858":"#e8b848"):"#8ec868";
+        ctx.beginPath(); ctx.arc(fx,fy,sz,0,7); ctx.fill();
+      }
     }
     if(rbType==="meadow") for(let k=0;k<3;k++){ const ang=k*2.09+seed, rad=Rin*0.32;
       ctx.fillStyle="#2a5028"; ctx.beginPath(); ctx.arc(ax+Math.cos(ang)*rad,ay+Math.sin(ang)*rad*0.9,2,0,7); ctx.fill(); }
@@ -676,22 +692,25 @@ function drawRoads(ox,oy){
     for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge||e.klass==="dirt"||e.klass==="rural"||e.klass==="trail") continue;
       strokeEdge(i,j,di,dj, e.width+7, "#878d96"); } }
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
-    for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge||e.klass==="trail") continue;
+    for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj);
+      if(!e.exists||e.bridge||e.klass==="dirt"||e.klass==="rural"||e.klass==="trail") continue;
       strokeEdge(i,j,di,dj); } }
-  const _at=getTex("asphalt"), _dt=getTex("dirt");
-  if(_at||_dt){ for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj); if(!e.exists||e.bridge||e.klass==="trail") continue;
-    const tp=(e.klass==="dirt"||e.klass==="rural"||e.klass==="trail")?_dt:_at; if(tp){ ctx.strokeStyle=tp; ctx.lineWidth=e.width;
-      const A=node(i,j), B=node(i+di,j+dj), C=e.cp;
-      ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.quadraticCurveTo(C[0],C[1],B[0],B[1]); ctx.stroke(); } } } }
-  drawForestTrails(ox,oy);
+  const _at=getTex("asphalt");
+  if(_at){ for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){ for(const[di,dj]of[[1,0],[0,1]]){ const e=getEdge(i,j,di,dj);
+    if(!e.exists||e.bridge||e.klass==="dirt"||e.klass==="rural"||e.klass==="trail") continue;
+    ctx.strokeStyle=_at; ctx.lineWidth=e.width;
+    const A=node(i,j), B=node(i+di,j+dj), C=e.cp;
+    ctx.beginPath(); ctx.moveTo(A[0],A[1]); ctx.quadraticCurveTo(C[0],C[1],B[0],B[1]); ctx.stroke(); } } }
+  if(typeof drawFieldRoads==="function") drawFieldRoads(ox,oy);
+  else if(typeof drawForestTrails==="function") drawForestTrails(ox,oy);
   if(typeof drawForestBridges==="function") drawForestBridges(ox,oy);
   // intersections (roundabouts get a ring + island)
   for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
     const mw=nodeMaxWidth(i,j); if(!mw) continue; const A=node(i,j);
     if(isRoundabout(i,j)){
       drawRoundabout(i,j,A,mw);
-    } else if(forestTrailNode(i,j)){
-      /* organic trail junction drawn in drawForestTrails */
+    } else if(typeof fieldRoadNode==="function" ? fieldRoadNode(i,j) : forestTrailNode(i,j)){
+      /* organic field-road junction drawn in drawFieldRoads */
     } else {
       const jr=junctionRadius(i,j,mw);
       const js=junctionStyle(i,j);
@@ -1512,7 +1531,7 @@ function addGardens(lot, r){
     if(b.type!=="house" || b.church || r()>0.62) continue;              // gardens around most (not all) houses (never churches)
     const cx=b.x+b.w/2, cy=b.y+b.h/2, hr=Math.max(b.w,b.h)*0.5, reach=24+r()*34;
     for(let k=0;k<8+(r()*8|0);k++){ const a=r()*6.283, d=hr+4+r()*reach;   // ring of lush grass clumps
-      const x=cx+Math.cos(a)*d, y=cy+Math.sin(a)*d*0.9; if(free(x,y,3)) lot.tufts.push({x,y,s:6+r()*5}); }
+      const x=cx+Math.cos(a)*d, y=cy+Math.sin(a)*d*0.9; if(free(x,y,3)) lot.tufts.push({x,y,s:6+r()*5,v:pickGrassVariant(LAWN_GRASS_VARIANTS,r)}); }
     const pc=1+(r()*3|0); for(let q=0;q<pc;q++){ const ca=r()*6.283, cd=hr+10+r()*reach*0.8;   // flower beds
       const fx=cx+Math.cos(ca)*cd, fy=cy+Math.sin(ca)*cd*0.9, col=["#e8d24a","#e07a9a","#c95ad8","#f0f0f0","#e88a3a","#6aa3e0"][(r()*6)|0];
       for(let k=0;k<5+(r()*7|0);k++){ const x=fx+(r()-0.5)*18, y=fy+(r()-0.5)*14; if(free(x,y,2)) lot.flowers.push({x,y,c:col}); } }
@@ -1676,7 +1695,84 @@ function inPlaza(x,y){
     const A=node(i,j), R=plazaR(i,j); if((x-A[0])**2+(y-A[1])**2<R*R) return true; }
   return false;
 }
-/* ===== fences (block pedestrians) ===== */
+/* ===== fences (block pedestrians, destructible) ===== */
+function ensureFence(f){
+  if(f.maxHp) return f;
+  const len=Math.hypot(f.x2-f.x1,f.y2-f.y1)||1;
+  f.maxHp=f.hp=Math.max(26, Math.min(68, len*0.82));
+  return f;
+}
+function closestFencePoint(f,x,y){
+  const dx=f.x2-f.x1, dy=f.y2-f.y1, L2=dx*dx+dy*dy||1;
+  let t=((x-f.x1)*dx+(y-f.y1)*dy)/L2; t=t<0?0:t>1?1:t;
+  const px=f.x1+dx*t, py=f.y1+dy*t;
+  return {x:px,y:py,t,d:Math.hypot(x-px,y-py)};
+}
+function spawnFenceBreak(x,y,f){
+  if(typeof spawnSparks==="function") spawnSparks(x,y,5+(Math.random()*4|0),0,0);
+  if(typeof debris==="undefined") return;
+  const dx=f.x2-f.x1, dy=f.y2-f.y1, len=Math.hypot(dx,dy)||1, ux=dx/len, uy=dy/len;
+  const n=2+(Math.random()*3|0);
+  for(let k=0;k<n;k++){
+    const t=0.12+Math.random()*0.76;
+    const px=f.x1+ux*len*t, py=f.y1+uy*len*t;
+    const a=Math.atan2(uy,ux)+(Math.random()-0.5)*1.4, sp=rand(36,118);
+    debris.push({x:px,y:py,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-rand(18,48),a:rng()*6.283,va:(rng()-0.5)*14,t:0,life:rand(1.6,3.1),kind:"fence",w:2+Math.random()*2.2,h:6+Math.random()*5,col:"#a59a7e"});
+  }
+}
+function damageFenceAt(L,f,amt,hx,hy){
+  if(!f||f.broken) return false;
+  ensureFence(f);
+  f.hp-=amt;
+  if(f.hp<=0){
+    f.broken=true; f.hp=0;
+    const cp=closestFencePoint(f,hx,hy);
+    spawnFenceBreak(cp.x,cp.y,f);
+    if(typeof playThud==="function") playThud(0.28+Math.min(0.35,amt*0.004));
+    return true;
+  }
+  return false;
+}
+function damageFencesInRadius(x,y,R,dmg){
+  const ci=Math.floor((x-ROAD)/GAP), cj=Math.floor((y-ROAD)/GAP);
+  for(let i=ci-2;i<=ci+2;i++) for(let j=cj-2;j<=cj+2;j++){
+    const L=getLot(i,j); if(!L.fences||!L.fences.length) continue;
+    for(const f of L.fences){
+      if(f.broken) continue;
+      const cp=closestFencePoint(f,x,y);
+      if(!cp||cp.d>R) continue;
+      damageFenceAt(L,f,dmg*(1-cp.d/R),cp.x,cp.y);
+    }
+  }
+}
+function bulletHitsFence(x,y,dmg){
+  const ci=Math.floor((x-ROAD)/GAP), cj=Math.floor((y-ROAD)/GAP);
+  for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){
+    const L=getLot(i,j); if(!L.fences||!L.fences.length) continue;
+    for(const f of L.fences){
+      if(f.broken) continue;
+      const cp=closestFencePoint(f,x,y);
+      if(cp&&cp.d<5.5){ damageFenceAt(L,f,dmg,cp.x,cp.y); return true; }
+    }
+  }
+  return false;
+}
+function meleeHitsFences(x,y,ang,range,dmg){
+  const ca=Math.cos(ang), sa=Math.sin(ang);
+  const ci=Math.floor((x-ROAD)/GAP), cj=Math.floor((y-ROAD)/GAP);
+  let hit=false;
+  for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){
+    const L=getLot(i,j); if(!L.fences||!L.fences.length) continue;
+    for(const f of L.fences){
+      if(f.broken) continue;
+      const cp=closestFencePoint(f,x,y);
+      if(!cp||cp.d>range+5) continue;
+      const dx=cp.x-x, dy=cp.y-y;
+      if(dx*ca+dy*sa>0 && Math.hypot(dx,dy)<range){ damageFenceAt(L,f,dmg*1.15,cp.x,cp.y); hit=true; }
+    }
+  }
+  return hit;
+}
 function segPush(e,eR,x1,y1,x2,y2){
   const dx=x2-x1, dy=y2-y1, L2=dx*dx+dy*dy||1;
   let t=((e.x-x1)*dx+(e.y-y1)*dy)/L2; t=t<0?0:t>1?1:t;
@@ -1687,7 +1783,19 @@ function segPush(e,eR,x1,y1,x2,y2){
 function collideFences(e){
   const eR=(e.R!==undefined?e.R:e.r)+1, ci=Math.floor((e.x-ROAD)/GAP), cj=Math.floor((e.y-ROAD)/GAP);
   for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){ const L=getLot(i,j); if(!L.fences||!L.fences.length) continue;
-    for(const f of L.fences) segPush(e,eR,f.x1,f.y1,f.x2,f.y2); }
+    for(const f of L.fences){
+      if(f.broken) continue;
+      const dx=f.x2-f.x1, dy=f.y2-f.y1, L2=dx*dx+dy*dy||1;
+      let t=((e.x-f.x1)*dx+(e.y-f.y1)*dy)/L2; t=t<0?0:t>1?1:t;
+      const px=f.x1+dx*t, py=f.y1+dy*t, ox=e.x-px, oy=e.y-py, d=Math.hypot(ox,oy)||0.001;
+      if(d>=eR) continue;
+      const nx=ox/d, ny=oy/d, push=eR-d; e.x+=nx*push; e.y+=ny*push;
+      if(e.vx!==undefined){
+        const into=collideDampenNormal(e, nx, ny, 0.08);
+        if(into<-38) damageFenceAt(L,f,(-into-38)*0.24,px,py);
+      }
+    }
+  }
 }
 function collideGraves(e){
   const eR=e.R!==undefined?e.R:e.r, ci=Math.floor((e.x-ROAD)/GAP), cj=Math.floor((e.y-ROAD)/GAP);
@@ -1712,8 +1820,17 @@ function collideGraves(e){
 function pedEnterPlaza(p){ const A=node(p.pb[0],p.pb[1]);
   p.plaza={i:p.pb[0],j:p.pb[1],cx:A[0],cy:A[1],r:Math.max(30,plazaR(p.pb[0],p.pb[1])-16)};
   p.onGraph=false; p.plazaT=rand(5,12); p.repick=0; p._wait=false; p.cross=0; }
-const LOT_CACHE_VER=39;
+const LOT_CACHE_VER=40;
 const FOREST_GRASS_VARIANTS=["clump_small","clump_med","clump_large","clump_dense","clump_tall","clump_wispy","clump_pine","clump_shade","clump_mossy","clump_dry","patch_moss","clump_fern","clump_needle"];
+const LAWN_GRASS_VARIANTS=["clump_small","clump_med","clump_wispy","clump_dense"];
+const PARK_GRASS_VARIANTS=["clump_med","clump_large","clump_mossy","clump_wispy","patch_moss"];
+function grassVariantsForLot(lot,biome){
+  if(biome==="forest") return FOREST_GRASS_VARIANTS;
+  if(lot.cemetery) return PARK_GRASS_VARIANTS;
+  if(lot.zone==="suburb") return LAWN_GRASS_VARIANTS;
+  return LAWN_GRASS_VARIANTS;
+}
+function pickGrassVariant(vars,r){ return vars[(r()*vars.length)|0]; }
 const DESERT_FLOOR_VARIANTS=["ripple_light","ripple_dark","dune_crest","cracked_earth","salt_patch","pebble_cluster","sage_bush","dry_grass"];
 const DESERT_FLORA=["sage","tumbleweed","driftwood","bone","pebble","crack","salt_crust"];
 
@@ -2014,7 +2131,7 @@ function getLot(i,j){
     for(let k=0;k<6;k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:18+r()*42, ph:r()*6.28});
   } else if(lot.mountain){
     for(let k=0;k<10;k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1.4+r()*3});
-  } else if((lot.empty||lot.zone==="suburb") && !lot.salon && !lot.gunshop && !lot.water && !lot.farm){
+  } else if((lot.empty||lot.zone==="suburb"||lot.cemetery) && !lot.salon && !lot.gunshop && !lot.water && !lot.farm){
     if(biome==="desert"){
       for(let k=0;k<14+(r()*10|0);k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1+r()*2.8});
       for(let k=0;k<8+(r()*7|0);k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:38+r()*72, a:(r()-0.5)*1.2});
@@ -2023,10 +2140,18 @@ function getLot(i,j){
       for(let k=0;k<9;k++) lot.pebbles.push({x:left+r()*lw, y:top+r()*lh, s:1+r()*2.4});
       for(let k=0;k<5;k++) lot.ripples.push({x:left+r()*lw, y:top+r()*lh, w:34+r()*64, a:(r()-0.5)*1.2});
     } else {
-      const dense=biome==="forest"; const nt=dense?(118+(r()*82|0)):(5+(r()*5|0));
+      const dense=biome==="forest";
+      const gvars=grassVariantsForLot(lot,biome);
+      let nt;
+      if(dense) nt=118+(r()*82|0);
+      else if(lot.cemetery) nt=42+(r()*34|0);
+      else if(lot.zone==="suburb") nt=30+(r()*24|0);
+      else if(biome==="city") nt=14+(r()*16|0);
+      else nt=20+(r()*18|0);
       for(let k=0;k<nt;k++){
-        const x=left+r()*lw, y=top+r()*lh, s=dense?(6+r()*12):(5+r()*4);
-        lot.tufts.push(dense?{x,y,s,v:FOREST_GRASS_VARIANTS[(r()*FOREST_GRASS_VARIANTS.length)|0]}:{x,y,s});
+        const x=left+r()*lw, y=top+r()*lh;
+        const s=dense?(6+r()*12):(lot.zone==="suburb"?5.5+r()*5:5+r()*4.5);
+        lot.tufts.push({x,y,s,v:pickGrassVariant(gvars,r)});
       }
       if(dense||lot.zone==="forest"){
         genForestFloor(lot,r,left,top,lw,lh,i,j);

@@ -26,10 +26,30 @@ jobs:
         with:
           ref: main
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: cursor/topdown-city/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generate GTA2 pedestrian assets
+        run: |
+          curl -fsSL -o /tmp/bil.sty "https://maseuko.pl/soft/styjs/bil.sty"
+          cd cursor/topdown-city
+          npm ci
+          pip install pillow
+          npm run gen:gta2
+
       - name: Prepare site artifact
         run: |
           SITE=cursor/topdown-city
-          echo "{\"build\":\"2026062701\",\"people\":9,\"gta2\":true,\"sprites\":\"relative\",\"source\":\"main\"}" > "$SITE/version.json"
+          echo "{\"build\":\"2026062747\",\"people\":10,\"style\":\"gta2\",\"sprites\":\"relative\",\"source\":\"main\"}" > "$SITE/version.json"
           touch "$SITE/.nojekyll"
 
       - name: Upload site artifact

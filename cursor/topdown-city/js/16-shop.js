@@ -3,7 +3,7 @@
 let nearPad=null;
 const promptEl=document.getElementById("prompt");
 // keys that define a car's visual identity (shared by buy/save/load)
-const CAR_VIS_KEYS=["type","era","brand","accent","color","power","topSpeed","W","L"];
+const CAR_VIS_KEYS=["kind","type","era","brand","accent","color","power","topSpeed","W","L"];
 function buyCar(model, chosenColor){
   if(money<model.price){ showBigMsg("ZA MAŁO KASY"); return; }
   money-=model.price;

@@ -1,0 +1,9 @@
+Top-down pedestrian sprites derived from:
+
+  "8-Directional Character Template" by 14Hertz
+  https://opengameart.org/content/8-directional-character-template
+
+Credit appreciated but not required per author notice on OpenGameArt.
+
+Sheet layout (each row = one facing, 32x32 frames):
+  row 0 South, 1 SW, 2 West, 3 NW, 4 North, 5 NE, 6 East, 7 SE

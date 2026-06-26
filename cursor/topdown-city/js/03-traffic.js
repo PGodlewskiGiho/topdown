@@ -96,41 +96,58 @@ function spawnPed(){
       const pos=pedPos(p); p.x=pos[0]; p.y=pos[1];
       Object.assign(look, rollNpcAppearance(p.x,p.y,{armed}));
       applyNpcLook(p, look);
+      if(typeof PeopleSprites!=="undefined"&&PeopleSprites.warmPed) PeopleSprites.warmPed(p, 4);
       return p; } }
   let x,y,t=0;
   do{ x=fx+rand(-200,200); y=fy+rand(-200,200); t++; }while((inBuilding(x,y,11)||inWater(x,y))&&t<24);
   p.x=x; p.y=y; p.tx=x; p.ty=y;
   Object.assign(look, rollNpcAppearance(x,y,{armed}));
   applyNpcLook(p, look);
+  if(typeof PeopleSprites!=="undefined"&&PeopleSprites.warmPed) PeopleSprites.warmPed(p, 4);
   return p;
 }
 function trafficCap(){
   const ci=Math.round(focusX/GAP), cj=Math.round(focusY/GAP);
-  if(biomeOf(ci,cj)!=="city") return 34;
-  const z=cityZone(ci,cj);
-  if(z==="downtown") return 78;
-  if(z==="midrise") return 58;
-  return 38;
+  let cap;
+  if(biomeOf(ci,cj)!=="city") cap=34;
+  else {
+    const z=cityZone(ci,cj);
+    if(z==="downtown") cap=78;
+    else if(z==="midrise") cap=58;
+    else cap=38;
+  }
+  return Math.max(12, Math.round(cap*(typeof perfEntityScale==="function"?perfEntityScale():1)));
 }
 function pedCap(){
   const ci=Math.round(focusX/GAP), cj=Math.round(focusY/GAP);
-  if(biomeOf(ci,cj)!=="city") return 42;
-  const z=cityZone(ci,cj);
-  if(z==="downtown") return 88;
-  if(z==="midrise") return 68;
-  return 46;
+  let cap;
+  if(biomeOf(ci,cj)!=="city") cap=42;
+  else {
+    const z=cityZone(ci,cj);
+    if(z==="downtown") cap=88;
+    else if(z==="midrise") cap=68;
+    else cap=46;
+  }
+  return Math.max(14, Math.round(cap*(typeof perfEntityScale==="function"?perfEntityScale():1)));
+}
+function trimLivingWorldToCaps(){
+  const tc=trafficCap(), pc=pedCap();
+  while(traffic.length>tc) traffic.pop();
+  while(peds.length>pc) peds.pop();
 }
 function maintainTraffic(){
   const cap=trafficCap();
+  while(traffic.length>cap) traffic.pop();
   while(traffic.length<cap) traffic.push(spawnTrafficCar());
 }
 function maintainPeds(){
   const cap=pedCap();
+  while(peds.length>cap) peds.pop();
   while(peds.length<cap) peds.push(spawnPed());
 }
 const awayFromCam=(x,y)=>Math.hypot(x-cam.x,y-cam.y) > 720;
 function respawnTraffic(c){ let n; for(let k=0;k<24;k++){ n=spawnTrafficCar(); if(awayFromCam(n.x,n.y)) break; } Object.assign(c,n); }
-function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); delete p._faceDir; delete p._lastSpriteDir; delete p._gta2Outfit; }
+function respawnPed(p){ let n; for(let k=0;k<24;k++){ n=spawnPed(); if(awayFromCam(n.x,n.y)) break; } Object.assign(p,n); delete p._faceDir; delete p._lastSpriteDir; delete p._gta2Outfit; delete p._psLayerCache; delete p._psWalkReq; delete p._psWarmSig; delete p._psClipReq; delete p._psCombatSig; delete p.ring; }
 
 function isAhead(c,dx,dy,ox,oy,dist,lat){
   const rx=ox-c.x, ry=oy-c.y, fwd=rx*dx+ry*dy, side=Math.abs(rx*(-dy)+ry*dx);
@@ -138,7 +155,10 @@ function isAhead(c,dx,dy,ox,oy,dist,lat){
 }
 function obstacleAhead(c,dx,dy){
   if(isAhead(c,dx,dy,car.x,car.y,72,24)) return true;
-  for(const o of traffic){ if(o===c||o.state!=="drive") continue; if(isAhead(c,dx,dy,o.x,o.y,64,22)) return true; }
+  const scanR=typeof perfTrafficScanDist==="function"?perfTrafficScanDist():1e9;
+  for(const o of traffic){ if(o===c||o.state!=="drive") continue;
+    if(scanR<1e8 && Math.hypot(o.x-c.x,o.y-c.y)>scanR) continue;
+    if(isAhead(c,dx,dy,o.x,o.y,64,22)) return true; }
   return false;
 }
 function obstacleDistAhead(c,dx,dy){
@@ -148,7 +168,10 @@ function obstacleDistAhead(c,dx,dy){
     if(fwd>0 && fwd<dist && side<lat) best=Math.min(best, fwd);
   };
   scan(car.x,car.y,72,24);
-  for(const o of traffic){ if(o===c||o.state!=="drive") continue; scan(o.x,o.y,64,22); }
+  const scanR=typeof perfTrafficScanDist==="function"?perfTrafficScanDist():1e9;
+  for(const o of traffic){ if(o===c||o.state!=="drive") continue;
+    if(scanR<1e8 && Math.hypot(o.x-c.x,o.y-c.y)>scanR) continue;
+    scan(o.x,o.y,64,22); }
   return best;
 }
 function pickAlternateLane(c, width){
@@ -233,16 +256,152 @@ function pickExit(ai,aj,bi,bj){                 // next node at B, no U-turn unl
   }
   return ns[(rng()*ns.length)|0];
 }
-function enterRoundabout(c){
-  const ctr=node(c.bi,c.bj), R=roundaboutR(c.bi,c.bj), A=node(c.ai,c.aj);
-  const ex=pickExit(c.ai,c.aj,c.bi,c.bj);
-  const g=edgeGeom(c.bi,c.bj,ex[0],ex[1]);                              // find (bisection) where the exit edge crosses the ring radius -> exit point lies exactly ON the edge
+
+/* ===== GPS navigation — same lane geometry as traffic AI ===== */
+function navEdgeDrivable(e){
+  return e.exists && e.klass!=="trail" && e.klass!=="dirt";
+}
+function navDriveLaneOffset(width){
+  return trafficLaneOffset(width, 0);
+}
+function navPosOnEdge(ai,aj,bi,bj,t, taper){
+  const g=edgeGeom(ai,aj,bi,bj);
+  const p=bez(g.p0,g.cp,g.p1,t);
+  const tn=bezTan(g.p0,g.cp,g.p1,t), tl=Math.hypot(tn[0],tn[1])||1;
+  const fx=tn[0]/tl, fy=tn[1]/tl;
+  const off=navDriveLaneOffset(g.e.width)*(taper==null?1:taper);
+  return [p[0]-fy*off, p[1]+fx*off];
+}
+function navRoundaboutEdgeT(ri,rj,bi,bj){
+  const g=edgeGeom(ri,rj,bi,bj);
+  const ctr=node(ri,rj), R=roundaboutR(ri,rj);
+  const RR=(R+9)*(R+9);
+  let lo=0, hi=0.55;
+  for(let s=0;s<22;s++){
+    const mt=(lo+hi)*0.5, pp=bez(g.p0,g.cp,g.p1,mt);
+    if((pp[0]-ctr[0])**2+(pp[1]-ctr[1])**2<RR) lo=mt; else hi=mt;
+  }
+  return Math.min(0.52, (lo+hi)*0.5);
+}
+function navRoundaboutArc(ri,rj, fromNode, toNode){
+  const ctr=node(ri,rj), R=roundaboutR(ri,rj)+9;
+  const angIn=Math.atan2(node(fromNode[0],fromNode[1])[1]-ctr[1], node(fromNode[0],fromNode[1])[0]-ctr[0]);
+  const angOut=Math.atan2(node(toNode[0],toNode[1])[1]-ctr[1], node(toNode[0],toNode[1])[0]-ctr[0]);
+  let da=angOut-angIn;
+  while(da<=-Math.PI) da+=Math.PI*2;
+  while(da>Math.PI) da-=Math.PI*2;
+  const steps=Math.max(5, Math.ceil(Math.abs(da)/(Math.PI/9)));
+  const pts=[];
+  for(let s=1;s<steps;s++){
+    const ang=angIn+da*s/steps;
+    pts.push([ctr[0]+Math.cos(ang)*R, ctr[1]+Math.sin(ang)*R]);
+  }
+  return pts;
+}
+function navAppendEdgeSamples(pts, ai,aj,bi,bj, t0, t1){
+  const g=edgeGeom(ai,aj,bi,bj);
+  const steps=Math.max(4, Math.ceil((t1-t0)*((g.e.len||GAP)/16)));
+  const skipFirst=pts.length>0;
+  for(let s=0;s<=steps;s++){
+    const t=t0+(t1-t0)*s/steps;
+    const taper=Math.min(t/0.12, (1-t)/0.12, 1);
+    if(skipFirst&&s===0) continue;
+    pts.push(navPosOnEdge(ai,aj,bi,bj,t,taper));
+  }
+}
+function pickNavExit(fromAi,fromAj,bi,bj, goalI, goalJ){
+  const ns=neighbors(bi,bj).filter(n=>!(n[0]===fromAi&&n[1]===fromAj));
+  if(!ns.length) return [fromAi,fromAj];
+  const eIn=getEdge(fromAi,fromAj,bi-fromAi,bj-fromAj);
+  if(eIn.hwy){
+    const ci=bi+(bi-fromAi), cj=bj+(bj-fromAj);
+    for(const n of ns) if(n[0]===ci&&n[1]===cj){
+      const e2=getEdge(bi,bj,n[0]-bi,n[1]-bj);
+      if(navEdgeDrivable(e2)&&e2.hwy) return n;
+    }
+  }
+  const inDi=bi-fromAi, inDj=bj-fromAj;
+  let best=null, bestScore=-1e18;
+  for(const n of ns){
+    const di=n[0]-bi, dj=n[1]-bj;
+    const e=getEdge(bi,bj,di,dj);
+    if(!navEdgeDrivable(e)) continue;
+    let score=-Math.hypot(nX(n[0],n[1])-nX(goalI,goalJ), nY(n[0],n[1])-nY(goalI,goalJ));
+    if(di===inDi&&dj===inDj) score+=50;
+    else if(di===-inDi&&dj===-inDj) score-=80;
+    if(e.hwy) score+=35;
+    else if(e.klass==="blvd"||e.klass==="art") score+=14;
+    else if(e.klass==="rural") score-=18;
+    if(score>bestScore){ bestScore=score; best=n; }
+  }
+  return best||ns.find(n=>navEdgeDrivable(getEdge(bi,bj,n[0]-bi,n[1]-bj)))||ns[0];
+}
+function navPathNodesToWorld(nodes){
+  if(!nodes||!nodes.length) return [];
+  if(nodes.length===1) return [[nX(nodes[0][0],nodes[0][1]), nY(nodes[0][0],nodes[0][1])]];
+  const pts=[];
+  for(let k=0;k<nodes.length-1;k++){
+    const a=nodes[k], b=nodes[k+1];
+    const di=b[0]-a[0], dj=b[1]-a[1];
+    if(Math.abs(di)+Math.abs(dj)!==1||!navEdgeDrivable(getEdge(a[0],a[1],di,dj))) continue;
+    if(k+2<nodes.length && isRoundabout(b[0],b[1])){
+      const c=nodes[k+2];
+      const di2=c[0]-b[0], dj2=c[1]-b[1];
+      if(Math.abs(di2)+Math.abs(dj2)===1&&navEdgeDrivable(getEdge(b[0],b[1],di2,dj2))){
+        navAppendEdgeSamples(pts, a[0],a[1],b[0],b[1], 0, 0.94);
+        for(const p of navRoundaboutArc(b[0],b[1],a,c)) pts.push(p);
+        const tOut=navRoundaboutEdgeT(b[0],b[1],c[0],c[1]);
+        navAppendEdgeSamples(pts, b[0],b[1],c[0],c[1], tOut, 0.98);
+        k++;
+        continue;
+      }
+    }
+    navAppendEdgeSamples(pts, a[0],a[1],b[0],b[1], 0, 1);
+  }
+  return pts;
+}
+function enterRoundabout(c, ri, rj, fromAi, fromAj, forceEx){
+  ri=ri!=null?ri:c.bi; rj=rj!=null?rj:c.bj;
+  fromAi=fromAi!=null?fromAi:c.ai; fromAj=fromAj!=null?fromAj:c.aj;
+  const ctr=node(ri,rj), R=roundaboutR(ri,rj);
+  const ex=forceEx||pickExit(fromAi,fromAj,ri,rj);
+  const g=edgeGeom(ri,rj,ex[0],ex[1]);
   const RR=(R+9)*(R+9); let lo=0, hi=0.55;
   for(let s=0;s<22;s++){ const mt=(lo+hi)*0.5, pp=bez(g.p0,g.cp,g.p1,mt); if((pp[0]-ctr[0])*(pp[0]-ctr[0])+(pp[1]-ctr[1])*(pp[1]-ctr[1])<RR) lo=mt; else hi=mt; }
   const et=(lo+hi)*0.5, cx=bez(g.p0,g.cp,g.p1,et);
-  const curAng=Math.atan2(c.y-ctr[1],c.x-ctr[0]);                       // enter ring at the car's current angle (no jump)
-  c.ring={ ci:c.bi, cj:c.bj, R, ang:isFinite(curAng)?curAng:Math.atan2(A[1]-ctr[1],A[0]-ctr[0]),
+  const curAng=Math.atan2(c.y-ctr[1],c.x-ctr[0]);
+  c.ring={ ci:ri, cj:rj, R, ang:isFinite(curAng)?curAng:Math.atan2(ctr[1]-node(fromAi,fromAj)[1],ctr[0]-node(fromAi,fromAj)[0]),
            exitAng:Math.atan2(cx[1]-ctr[1],cx[0]-ctr[0]), exT:Math.min(0.5,et), ex, dir:1 };
+}
+function enterPedRoundabout(p, ri, rj, fromAi, fromAj, forceEx){
+  ri=ri!=null?ri:p.pb[0]; rj=rj!=null?rj:p.pb[1];
+  fromAi=fromAi!=null?fromAi:p.pa[0]; fromAj=fromAj!=null?fromAj:p.pa[1];
+  const ctr=node(ri,rj), R=roundaboutR(ri,rj);
+  const ex=forceEx||pickExit(fromAi,fromAj,ri,rj);
+  const g=edgeGeom(ri,rj,ex[0],ex[1]);
+  const RR=(R+9)*(R+9); let lo=0, hi=0.55;
+  for(let s=0;s<22;s++){ const mt=(lo+hi)*0.5, pp=bez(g.p0,g.cp,g.p1,mt); if((pp[0]-ctr[0])*(pp[0]-ctr[0])+(pp[1]-ctr[1])*(pp[1]-ctr[1])<RR) lo=mt; else hi=mt; }
+  const et=(lo+hi)*0.5, cx=bez(g.p0,g.cp,g.p1,et);
+  const curAng=Math.atan2(p.y-ctr[1],p.x-ctr[0]);
+  const sw=nodeMaxWidth(ri,rj)*0.5+12;
+  p.ring={ ci:ri, cj:rj, R, sw, ang:isFinite(curAng)?curAng:0,
+           exitAng:Math.atan2(cx[1]-ctr[1],cx[0]-ctr[0]), exT:Math.min(0.5,et), ex, dir:p.pside>=0?1:-1 };
+  p.cross=0; p._wait=false;
+}
+function updatePedRoundabout(p,dt){
+  const r=p.ring, ctr=node(r.ci,r.cj);
+  const step=p.speed*dt/Math.max(20,r.R);
+  r.ang+=r.dir*step;
+  const rad=r.R+(r.sw||14)*0.35;
+  p.x=ctr[0]+Math.cos(r.ang)*rad;
+  p.y=ctr[1]+Math.sin(r.ang)*rad;
+  if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,-Math.sin(r.ang)*r.dir,Math.cos(r.ang)*r.dir);
+  else p.a=Math.atan2(Math.cos(r.ang)*r.dir,-Math.sin(r.ang)*r.dir);
+  let d=r.exitAng-r.ang; while(d<0)d+=Math.PI*2; while(d>=Math.PI*2)d-=Math.PI*2;
+  if(d<step*1.5){
+    p.pa=[r.ci,r.cj]; p.pb=r.ex; p.pt=r.exT!=null?r.exT:0.1;
+    p.ring=null; pedPickSide(p); pedSyncPos(p);
+  }
 }
 function updateRoundabout(c,dt){
   const r=c.ring, ctr=node(r.ci,r.cj);
@@ -314,7 +473,8 @@ function pedStartCross(p){ const g=edgeGeom(p.pa[0],p.pa[1],p.pb[0],p.pb[1]);
 function pedDecide(p){
   if(typeof isMarketNode==="function"&&isMarketNode(p.pb[0],p.pb[1])&&rng()<0.78){ pedEnterRynek(p); return; }
   if(isPlaza(p.pb[0],p.pb[1]) && rng()<0.7){ pedEnterPlaza(p); return; }
-  if(!isRoundabout(p.pb[0],p.pb[1]) && rng()<0.42){                                   // cross to the opposite sidewalk at this crosswalk
+  if(isRoundabout(p.pb[0],p.pb[1])){ enterPedRoundabout(p); return; }
+  if(rng()<0.42){                                   // cross to the opposite sidewalk at this crosswalk
     p.waitAxis=(p.pb[1]===p.pa[1])?0:1; p._wait=true; p.waitT=0;
     p.pt=clamp(1-(nodeMaxWidth(p.pb[0],p.pb[1])*0.52+8)/Math.max(40,edgeGeom(p.pa[0],p.pa[1],p.pb[0],p.pb[1]).e.len),0.55,0.96);
     pedSyncPos(p);
@@ -323,6 +483,7 @@ function pedDecide(p){
   pedPickTurn(p);
 }
 function pedWalkGraph(p,dt){
+  if(p.ring){ updatePedRoundabout(p,dt); return; }
   if(p.cross){
     p.crossProg += dt*p.speed/Math.max(28,p.crossW);
     if(p.crossProg>=1){ p.pside=-p.pside; p.cross=0; pedSyncPos(p); return; }
@@ -343,6 +504,9 @@ function pedWalkGraph(p,dt){
     return;
   }
   const B=pedBasis(p);
+  if(isRoundabout(p.pb[0],p.pb[1]) && shouldUseRoundaboutRing(p.x,p.y,p.pb[0],p.pb[1])){
+    enterPedRoundabout(p); return;
+  }
   p.pt += dt*p.speed/Math.max(24,B.g.e.len);
   if(p.pt>=1){ p.pt=1; pedDecide(p); pedSyncPos(p); return; }
   const pos=pedPos(p,B); p.x=pos[0]; p.y=pos[1];
@@ -350,10 +514,15 @@ function pedWalkGraph(p,dt){
   else p.a=Math.atan2(B.fy,B.fx);
 }
 function updateTrafficCar(c,dt){
+  if(c._entryLock){ c.vx=0; c.vy=0; return; }
+  if(typeof perfShouldUpdateEntity==="function" && !perfShouldUpdateEntity(c.x,c.y)) return;
   if(c.maxHp && !c.dead && c.hp>0 && c.hp<c.maxHp*0.08) damageCar(c, 1.4*dt, c.x, c.y, "burn");   // burning -> burns down
   if(c.state==="loose"){ updateLooseCar(c,dt); return; }
   if(c.ring){ updateRoundabout(c,dt); }
   else {
+    if(isRoundabout(c.ai,c.aj) && shouldUseRoundaboutRing(c.x,c.y,c.ai,c.aj)){
+      enterRoundabout(c, c.ai, c.aj, c.bi, c.bj, [c.bi,c.bj]); return;
+    }
     const g=edgeGeom(c.ai,c.aj,c.bi,c.bj);
     const tn=bezTan(g.p0,g.cp,g.p1,c.t), tl=Math.hypot(tn[0],tn[1])||1, fx=tn[0]/tl, fy=tn[1]/tl;
     const edgeKey=c.ai+","+c.aj+","+c.bi+","+c.bj;
@@ -395,7 +564,7 @@ function updateTrafficCar(c,dt){
         if(seg<1e-6){ c.t=nt; continue; } if(seg<=budget){ budget-=seg; c.t=nt; pp=np; } else { c.t+=0.025*(budget/seg); budget=0; } } }
     if(redLight && c.t>stopT){ c.t=stopT; c.speed=0; targetSpeed=0; }
     const rbN=isRoundabout(c.bi,c.bj);
-    if(rbN && (c.t>=1 || Math.hypot(c.x-node(c.bi,c.bj)[0],c.y-node(c.bi,c.bj)[1]) < roundaboutR(c.bi,c.bj)+12)){
+    if(rbN && (c.t>=1 || shouldUseRoundaboutRing(c.x,c.y,c.bi,c.bj))){
       enterRoundabout(c);
     } else if(c.t>=1){
       const nb=pickExit(c.ai,c.aj,c.bi,c.bj); c.ai=c.bi; c.aj=c.bj; c.bi=nb[0]; c.bj=nb[1]; c.t=0;
@@ -458,7 +627,22 @@ function updateLeaving(dt){
 }
 function drawLeaving(ox,oy){ for(const cpc of leaving){ if(cpc.x<ox-50||cpc.x>ox+VW+50||cpc.y<oy-50||cpc.y>oy+VH+50) continue; drawVehicle(cpc,cpc.color); } }
 function updateNpcPed(p,dt){
+  if(typeof perfShouldUpdateEntity==="function" && !perfShouldUpdateEntity(p.x,p.y) && p.state!=="down" && p.state!=="dying") return;
   const _wx=p.x, _wy=p.y; try{
+  if(typeof LivingSprite!=="undefined") LivingSprite.tickAttackClip(p, dt);
+  if(p.state==="dying"){
+    p._dieT=(p._dieT||0)+dt;
+    p.x+=p.vx*dt; p.y+=p.vy*dt;
+    const f=1-Math.min(0.9,2.0*dt); p.vx*=f; p.vy*=f;
+    const dieDur=typeof LivingSprite!=="undefined"
+      ?LivingSprite.clipDuration("die", typeof PeopleSprites!=="undefined"?PeopleSprites.meta:null)
+      :0.7;
+    if(p._dieT>=dieDur){
+      p.state="down"; p.downT=0;
+      if(typeof enterPedRagdoll==="function") enterPedRagdoll(p, p.vx*2, p.vy*2);
+    }
+    return;
+  }
   if(p.state==="down"){
     if(typeof updatePedRagdoll==="function") updatePedRagdoll(p,dt);
     else { p.x+=p.vx*dt; p.y+=p.vy*dt; const f=1-Math.min(0.9,2.2*dt); p.vx*=f; p.vy*=f; }
@@ -467,6 +651,10 @@ function updateNpcPed(p,dt){
   if(Math.hypot(p.x-focusX,p.y-focusY)>1900){ respawnPed(p); return; }   // recycle distant peds
   if(p.bloodPulse>0) p.bloodPulse=Math.max(0,p.bloodPulse-dt*2.2);
   if(p.hostile){                                                          // armed & provoked -> shoots back
+    if(!p._combatWarm&&typeof PeopleSprites!=="undefined"&&PeopleSprites.ensureClipForPed){
+      PeopleSprites.ensureClipForPed(p,"shoot");
+      p._combatWarm=true;
+    }
     const tgx=mode==="car"?car.x:ped.x, tgy=mode==="car"?car.y:ped.y;
     const dxp=tgx-p.x, dyp=tgy-p.y, dd=Math.hypot(dxp,dyp)||1;
     if(typeof LivingSprite!=="undefined") LivingSprite.setFacingFromDelta(p,dxp,dyp);
@@ -474,7 +662,17 @@ function updateNpcPed(p,dt){
     const mv = dd>170?1 : (dd<95?-0.7:0);
     p.x += dxp/dd*p.speed*1.5*mv*dt; p.y += dyp/dd*p.speed*1.5*mv*dt;
     p.fireCd-=dt;
-    if(p.fireCd<=0 && dd<360 && p.weapon!=null){ const w=WEAPONS[p.weapon], ang=p.a+(Math.random()-0.5)*0.2; fireWeapon(w,p.x,p.y,ang,"enemy"); p.fireCd=w.cd*rand(2.4,3.8); }
+    if(p.fireCd<=0 && dd<360 && p.weapon!=null){
+      const w=WEAPONS[p.weapon], ang=p.a+(Math.random()-0.5)*0.2;
+      fireWeapon(w,p.x,p.y,ang,"enemy");
+      p.fireCd=w.cd*rand(2.4,3.8);
+      if(typeof LivingSprite!=="undefined"){
+        const pmeta=typeof PeopleSprites!=="undefined"?PeopleSprites.meta:null;
+        LivingSprite.startAttackClip(p, "shoot", pmeta);
+        if(typeof PeopleSprites!=="undefined"&&PeopleSprites.beginPedCombat)
+          PeopleSprites.beginPedCombat(p, "shoot");
+      }
+    }
     { const ci=Math.floor((p.x-ROAD)/GAP), cj=Math.floor((p.y-ROAD)/GAP);
       for(let i=ci-1;i<=ci+1;i++) for(let j=cj-1;j<=cj+1;j++){ const L=getLot(i,j); for(const b of L.buildings){
         const cx=clamp(p.x,b.x,b.x+b.w), cy=clamp(p.y,b.y,b.y+b.h), ex=p.x-cx, ey=p.y-cy, dd2=Math.hypot(ex,ey);

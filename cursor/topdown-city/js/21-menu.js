@@ -1,7 +1,7 @@
 /* TOPDOWN CITY — 21-menu.js */
 /* ---------- start menu (new game / load + roguelike death respawn) ---------- */
 let gamePhase="menu";                                        // "menu" | "newgame" | "playing" | "dead" | "respawn" | "charcreate"
-const menuState={biome:"city", variant:0, preview:null};
+const menuState={biome:"city", variant:0, preview:null, newWorld:true, preparedSeed:null};
 let respawnMode=false, respawnAnchor={x:0,y:0}, lastDeathReason="";
 const BIOMES_UI=[
   {id:"city", label:"Miasto"},
@@ -29,6 +29,57 @@ function setCharPanelMode(respawn){
   if(h2) h2.textContent=respawn?"Nowa postać":"Stwórz postać";
   if(next) next.textContent=respawn?"Odrodź się →":"Dalej — wybór świata →";
   if(back) back.textContent=respawn?"← Wróć":"← Wróć";
+}
+function formatWorldSeed(s){
+  return (s>>>0).toString(16).toUpperCase().padStart(8,"0");
+}
+function wantsNewWorld(){
+  const chk=document.getElementById("chk-new-world");
+  return chk ? chk.checked : menuState.newWorld;
+}
+function refreshWorldPreview(){
+  const el=document.getElementById("world-seed-preview");
+  const btn=document.getElementById("btn-reroll-world");
+  const seed=typeof getWorldSeed==="function"?getWorldSeed():null;
+  if(el){
+    if(seed==null) el.textContent="Seed niedostępny";
+    else if(wantsNewWorld()) el.textContent="Nowy świat · seed "+formatWorldSeed(seed);
+    else el.textContent="Obecny świat · seed "+formatWorldSeed(seed);
+  }
+  if(btn) btn.disabled=!wantsNewWorld();
+}
+function applyNewWorldChoice(force){
+  if(!wantsNewWorld() && !force){ refreshWorldPreview(); return; }
+  const cur=typeof getWorldSeed==="function"?getWorldSeed():null;
+  if(!force && wantsNewWorld() && menuState.preparedSeed!=null && menuState.preparedSeed===cur){
+    refreshWorldPreview();
+    return;
+  }
+  if(typeof generateNewWorld==="function"){
+    generateNewWorld();
+    menuState.preparedSeed=typeof getWorldSeed==="function"?getWorldSeed():null;
+    if(typeof clearLivingWorld==="function") clearLivingWorld();
+    getLot(1,2); getLot(2,1);
+  }
+  refreshWorldPreview();
+  refreshSpawnPreview();
+}
+function initNewWorldControls(){
+  const chk=document.getElementById("chk-new-world");
+  const reroll=document.getElementById("btn-reroll-world");
+  if(chk){
+    chk.checked=menuState.newWorld!==false;
+    chk.addEventListener("change", ()=>{
+      menuState.newWorld=chk.checked;
+      if(chk.checked) applyNewWorldChoice(true);
+    else{ menuState.preparedSeed=null; refreshWorldPreview(); }
+    });
+  }
+  reroll?.addEventListener("click", ()=>{
+    if(!wantsNewWorld()) return;
+    applyNewWorldChoice(true);
+    renderSpawnChoices();
+  });
 }
 function refreshSpawnPreview(){
   try{
@@ -68,10 +119,11 @@ function showMenuPanel(id){
   hideMenuPanels();
   const panelId=id==="main"?"menu-main":id==="char"?"menu-char":id==="new"?"menu-new":"menu-death";
   document.getElementById(panelId)?.classList.remove("hidden");
-  if(id==="new" && !respawnMode && typeof generateNewWorld==="function"){
-    generateNewWorld();
-    if(typeof clearLivingWorld==="function") clearLivingWorld();
-    getLot(1,2); getLot(2,1);
+  if(id==="new" && !respawnMode){
+    const chk=document.getElementById("chk-new-world");
+    if(chk) chk.checked=menuState.newWorld!==false;
+    if(wantsNewWorld()) applyNewWorldChoice(false);
+    else refreshWorldPreview();
   }
   if(id==="main"){ gamePhase="menu"; respawnMode=false; }
   else if(id==="char") gamePhase=respawnMode?"respawn":"charcreate";
@@ -161,7 +213,7 @@ function startLoadedGame(){
 function startNewGame(){
   respawnMode=false;
   setCharPanelMode(false);
-  if(typeof generateNewWorld==="function" && gamePhase!=="newgame") generateNewWorld();
+  menuState.newWorld=wantsNewWorld();
   if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
   resetNewGameState();
   const sp=getSpawnPoint(menuState.biome, menuState.variant);
@@ -210,6 +262,8 @@ function initStartMenu(){
   if(hint) hint.textContent=saved?"Zapis w przeglądarce (localStorage)":"Brak zapisu — tylko nowa gra";
   btnNew?.addEventListener("click", ()=>{
     respawnMode=false;
+    menuState.newWorld=true;
+    menuState.preparedSeed=null;
     setCharPanelMode(false);
     if(typeof openCharacterCreator==="function") openCharacterCreator();
     else { showMenuPanel("new"); renderSpawnChoices(); }
@@ -239,7 +293,8 @@ function initStartMenu(){
     }
   }
   initDeathRespawn();
-  refreshSpawnPreview();
+  initNewWorldControls();
+  refreshWorldPreview();
   if(typeof initCharacterCreator==="function") initCharacterCreator();
   if(typeof applyCharacterToPed==="function") applyCharacterToPed(playerCharacter);
 }

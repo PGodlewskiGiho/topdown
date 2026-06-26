@@ -12,6 +12,7 @@ const SHIRT_HEX={
   "#6a7080":"grey","#5a5e66":"grey","#384858":"grey",
   "#4f7d4a":"brown","#7a5fa0":"pink","#2f8a7a":"grey","#2a5848":"grey",
   "#6a3848":"brown","#5a5088":"grey","#286848":"brown",
+  "#26324c":"blue","#1e3a6a":"blue","#2a3540":"grey","#4a5a38":"brown",
 };
 
 const PANTS_HEX={
@@ -87,10 +88,11 @@ function bodyType(p){
 function applyGta2Ids(p){
   const body=bodyType(p);
   p.body=body;
-  p.shirtId=shirtIdFromHex(p.shirt||p.color);
+  if(!p.shirtId) p.shirtId=shirtIdFromHex(p.shirt||p.color);
   p.skinId=skinIdFromHex(p.skin);
   p.hairId=(p.hairStyle==="bald"||p.hair==null)?null:hairIdFromHex(p.hair);
-  if(!p.pantsId) p.pantsId=pantsIdFromHex(p.pants);
+  if(p.shorts) p.pantsId="shorts_blue";
+  else if(!p.pantsId) p.pantsId=pantsIdFromHex(p.pants);
   p.build=buildForBody(body, p.build);
   delete p._gta2Outfit;
   return p;

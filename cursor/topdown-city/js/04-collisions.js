@@ -97,12 +97,14 @@ function carVsTraffic(){
 function carVsPeds(){
   const psp=Math.hypot(car.vx,car.vy);
   for(const p of peds){
-    if(p.state==="down") continue;
+    if(p.state==="down"||p.state==="dying") continue;
     const R=car.R+p.r, dx=p.x-car.x, dy=p.y-car.y, d=Math.hypot(dx,dy);
     if(d>=R) continue;
     const nx=d>0.001?dx/d:Math.cos(car.a), ny=d>0.001?dy/d:Math.sin(car.a);
-    if(psp>40){ p.state="down"; p.vx=nx*(psp*0.7+60)+car.vx*0.4; p.vy=ny*(psp*0.7+60)+car.vy*0.4; p.downT=0;
-      if(typeof enterPedRagdoll==="function") enterPedRagdoll(p, p.vx, p.vy);
+    if(psp>40){
+      p.state="dying"; p._dieT=0;
+      p.vx=nx*(psp*0.7+60)+car.vx*0.4; p.vy=ny*(psp*0.7+60)+car.vy*0.4;
+      if(typeof PeopleSprites!=="undefined"&&PeopleSprites.ensureClipForPed) PeopleSprites.ensureClipForPed(p,"die");
       addHeat(0.7);
       stainCharacter(p,1.2);
       const kx=nx*(psp*0.7+60)+car.vx*0.4, ky=ny*(psp*0.7+60)+car.vy*0.4;
@@ -121,7 +123,7 @@ function pedVsTraffic(){           // player on foot pushed out of cars
 }
 function pedVsNpcs(){              // player gently shoves NPCs aside
   for(const p of peds){
-    if(p.state==="down") continue;
+    if(p.state==="down"||p.state==="dying") continue;
     const R=ped.r+p.r, dx=p.x-ped.x, dy=p.y-ped.y, d=Math.hypot(dx,dy);
     if(d>=R||d<0.0001) continue;
     p.x+=dx/d*(R-d); p.y+=dy/d*(R-d);

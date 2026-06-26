@@ -1,18 +1,41 @@
 #!/usr/bin/env node
-/** Export 16 pedestrian frames + palette-index grids (16×22) for layer masks. */
+/** Export all GTA2 ped animation frames for one body type (from gta2_ped_anim_map.json). */
 import fs from 'fs';
 import path from 'path';
+import { pathToFileURL, fileURLToPath } from 'url';
 import { createCanvas, ImageData } from 'canvas';
-import { STY } from '/tmp/gta2-sty-viewer/js/sty.js';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const styViewer =
+  process.env.GTA2_STY_VIEWER || path.join(here, 'vendor', 'gta2-sty-viewer-js');
+const { STY } = await import(pathToFileURL(path.join(styViewer, 'js/sty.js')).href);
 
 global.ImageData = ImageData;
 
-const [styPath, outDir, remapIdStr] = process.argv.slice(2);
+const mapPath = path.join(here, 'gta2_ped_anim_map.json');
+const animMap = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+
+const [styPath, outDir, remapIdStr, bodyType = 'male'] = process.argv.slice(2);
 const remapId = parseInt(remapIdStr || '27', 10);
-const CANVAS_W = 22;
-const CANVAS_H = 22;
-const ANCHOR_X = 11;
-const ANCHOR_Y = 21;
+const body = animMap.body_types[bodyType] || animMap.body_types.male;
+const baseId = body.base_id;
+
+const SLOTS = [];
+for (const [clipId, clip] of Object.entries(animMap.clips)) {
+  for (let f = 0; f < clip.count; f++) {
+    SLOTS.push({
+      clip: clipId,
+      frame: f,
+      folder: `${clipId}${f}`,
+      ped_sprite: baseId + clip.offset + f,
+    });
+  }
+}
+
+const CANVAS_W = 48;
+const CANVAS_H = 48;
+const ANCHOR_X = 24;
+const ANCHOR_Y = 47;
 
 const buf = fs.readFileSync(styPath);
 const sty = new STY(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
@@ -25,9 +48,14 @@ if (!pal) {
 
 fs.mkdirSync(outDir, { recursive: true });
 
-for (let i = 0; i < 16; i++) {
-  const s = peds[i];
-  if (!s) continue;
+for (let i = 0; i < SLOTS.length; i++) {
+  const slot = SLOTS[i];
+  const pedIdx = slot.ped_sprite;
+  const s = peds[pedIdx];
+  if (!s) {
+    console.error('missing ped sprite', pedIdx, slot, 'body', bodyType);
+    process.exit(1);
+  }
   const bmp = s.bitmap;
   const w = bmp.width;
   const h = bmp.height;
@@ -52,7 +80,7 @@ for (let i = 0; i < 16; i++) {
     }
   }
   ctx.putImageData(norm, 0, 0);
-  fs.writeFileSync(path.join(outDir, `frame_${String(i).padStart(2, '0')}.png`), c.toBuffer('image/png'));
+  fs.writeFileSync(path.join(outDir, `frame_${String(i).padStart(3, '0')}.png`), c.toBuffer('image/png'));
 
   const indices = Array.from({ length: CANVAS_H }, () => Array(CANVAS_W).fill(0));
   for (let y = 0; y < h; y++) {
@@ -69,8 +97,25 @@ for (let i = 0; i < 16; i++) {
     }
   }
   fs.writeFileSync(
-    path.join(outDir, `frame_${String(i).padStart(2, '0')}.idx.json`),
-    JSON.stringify({ w: CANVAS_W, h: CANVAS_H, indices })
+    path.join(outDir, `frame_${String(i).padStart(3, '0')}.idx.json`),
+    JSON.stringify({
+      w: CANVAS_W,
+      h: CANVAS_H,
+      indices,
+      slot_index: i,
+      clip: slot.clip,
+      clip_frame: slot.frame,
+      folder: slot.folder,
+      ped_sprite: pedIdx,
+      body_type: bodyType,
+      base_id: baseId,
+    })
   );
 }
-console.log('ok', outDir, remapId);
+
+fs.writeFileSync(
+  path.join(outDir, 'slots.json'),
+  JSON.stringify({ remap: remapId, body_type: bodyType, base_id: baseId, slots: SLOTS }, null, 2)
+);
+
+console.log('ok', outDir, remapId, bodyType, 'slots', SLOTS.length, 'peds', SLOTS.map((s) => s.ped_sprite).join(','));

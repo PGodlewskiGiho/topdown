@@ -1,0 +1,57 @@
+{
+  "source": "bil.sty",
+  "remap": 27,
+  "note": "Male pedestrian (graphic_type 0). Assign each ped index to a game direction.",
+  "game_directions": [
+    "E",
+    "SE",
+    "S",
+    "SW",
+    "W",
+    "NW",
+    "N",
+    "NE"
+  ],
+  "sprites": [
+    {
+      "slot": 0,
+      "ped_index": 18,
+      "file": "direction-picker/ped_18.png"
+    },
+    {
+      "slot": 1,
+      "ped_index": 19,
+      "file": "direction-picker/ped_19.png"
+    },
+    {
+      "slot": 2,
+      "ped_index": 20,
+      "file": "direction-picker/ped_20.png"
+    },
+    {
+      "slot": 3,
+      "ped_index": 21,
+      "file": "direction-picker/ped_21.png"
+    },
+    {
+      "slot": 4,
+      "ped_index": 22,
+      "file": "direction-picker/ped_22.png"
+    },
+    {
+      "slot": 5,
+      "ped_index": 23,
+      "file": "direction-picker/ped_23.png"
+    },
+    {
+      "slot": 6,
+      "ped_index": 24,
+      "file": "direction-picker/ped_24.png"
+    },
+    {
+      "slot": 7,
+      "ped_index": 25,
+      "file": "direction-picker/ped_25.png"
+    }
+  ]
+}

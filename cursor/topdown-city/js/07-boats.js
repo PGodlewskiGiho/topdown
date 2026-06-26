@@ -211,6 +211,9 @@ function drawDebris(ox,oy){ for(const d of debris){ if(d.x<ox-30||d.x>ox+VW+30||
   } else if(d.kind==="glass"){
     ctx.fillStyle="rgba(195,220,235,.75)"; rrFill(-4,-3,8,6,1.2);
     ctx.strokeStyle="rgba(255,255,255,.5)"; ctx.lineWidth=0.8; ctx.strokeRect(-4,-3,8,6);
+  } else if(d.kind==="fence"){
+    ctx.fillStyle=d.col||"#a59a7e"; ctx.fillRect(-(d.w||2.5)/2,-(d.h||7)/2,d.w||2.5,d.h||7);
+    ctx.strokeStyle="rgba(52,44,34,0.45)"; ctx.lineWidth=0.5; ctx.strokeRect(-(d.w||2.5)/2,-(d.h||7)/2,d.w||2.5,d.h||7);
   } else {
     ctx.fillStyle="#22252a"; ctx.beginPath(); ctx.arc(0,0,5,0,7); ctx.fill();
     ctx.fillStyle="#9fd0ec"; rrFill(1,-2.4,4,4.8,1.4);

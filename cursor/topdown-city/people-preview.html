@@ -19,7 +19,7 @@
 <h1>GTA2 — ciała: męskie · żeńskie · krzepkie</h1>
 <p>Każda karta = 16 klatek (8 kierunków × 2). W grze waga (<code>build</code>) skaluje sylwetkę w runtime.</p>
 <div class="grid" id="grid"></div>
-<p style="margin-top:24px"><a href="assets/people/gta2/previews/combinations_sheet.png">combinations_sheet.png</a></p>
+<p style="margin-top:24px"><a href="assets/people/topdown/previews/male_blue_jeans.png">male_blue_jeans.png (8 kierunków)</a></p>
 <script>
 const combos=[
   {id:"male_blue_jeans", label:"Męska · niebieska koszula · jeans"},
@@ -30,10 +30,10 @@ const combos=[
   {id:"hardy_red_jeans", label:"Krzepka · czerwona koszula · jeans"},
 ];
 const grid=document.getElementById("grid");
-const base="assets/people/gta2/previews/";
+const base="assets/people/topdown/previews/";
 for(const c of combos){
   const fig=document.createElement("figure");
-  fig.innerHTML=`<img src="${base}${c.id}.png?v=4" alt=""><figcaption>${c.label}</figcaption>`;
+  fig.innerHTML=`<img src="${base}${c.id}.png" alt=""><figcaption>${c.label}</figcaption>`;
   grid.appendChild(fig);
 }
 </script>
