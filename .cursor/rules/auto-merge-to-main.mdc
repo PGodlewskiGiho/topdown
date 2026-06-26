@@ -1,0 +1,21 @@
+---
+description: Cloud Agent must merge completed work to main without waiting for the user
+alwaysApply: true
+---
+
+# Auto-merge to main
+
+When you finish a task that produces code changes for this repo:
+
+1. **Merge yourself** — do not tell the user to merge the PR manually. Merge to `main` as soon as the work is committed, pushed, and ready.
+2. **Workflow**
+   - Commit and push the feature branch.
+   - Open or update the PR targeting `main` (draft is OK initially).
+   - Mark the PR ready if it is still a draft.
+   - Run `gh pr merge <number> --merge` (or merge locally and push `main` if GitHub reports conflicts).
+   - If merge conflicts exist: merge `origin/main` into the feature branch, resolve, push, then merge the PR.
+3. **After merge** — `main` deploys to GitHub Pages via `.github/workflows/deploy-pages.yml`. Mention deploy is in progress; user may hard-refresh (`Ctrl+Shift+R`) after ~1–2 minutes.
+4. **Do not** leave completed fixes only on a feature branch when `main` is the shipping branch.
+5. **Exceptions** — only skip auto-merge if the user explicitly says not to merge, or the change is experimental and they asked for a review-only PR.
+
+This project ships from `main` → https://pgodlewskiGiho.github.io/topdown/
