@@ -206,8 +206,9 @@ function warmPed(p, priority){
   const sig=outfitKey(o)+"|"+dir;
   if(p._psWarmSig===sig) return;
   p._psWarmSig=sig;
-  prefetchClipDir(o, "walk", dir, pri);
-  prefetchOutfit(o, "idle0", dir, false, pri-1);
+  prefetchOutfit(o, "walk0", dir, true, pri);
+  prefetchOutfit(o, "walk1", dir, false, pri);
+  prefetchOutfit(o, "idle0", dir, false, pri);
 }
 
 function warmVisiblePeds(){
@@ -458,31 +459,7 @@ function ensureWalkPrefetch(p, o, wf, dir){
   const key=wf+"|"+dir;
   if(p._psWalkReq===key) return;
   p._psWalkReq=key;
-  const m=wf.match(/^([a-z]+)(\d+)$/);
-  const clipId=m?m[1]:"walk";
-  prefetchOutfit(o, wf, dir, false, 8);
-  const spec=clipSpec(clipId);
-  const count=spec.count||1;
-  const fi=m?parseInt(m[2],10):0;
-  for(let i=0;i<count;i++){
-    if(i===fi) continue;
-    prefetchOutfit(o, clipId+i, dir, false, 5);
-  }
-}
-
-function queuePoseLayers(o, wf, dir, priority){
-  for(const path of layerPaths(o, wf, dir)) queueImg(path, null, priority);
-}
-
-/** Draw only when every layer shares the same (wf, dir) — avoids Frankenstein composites. */
-function drawAtomicPose(c, o, wf, dir, ax, ay, sx, sy, bm){
-  if(!allLayersReady(o, wf, dir)) return false;
-  const bakedIm=getBaked(o, wf, dir);
-  if(bakedIm){
-    c.drawImage(bakedIm, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
-    return true;
-  }
-  return drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm);
+  prefetchOutfit(o, wf, dir, true, 6);
 }
 
 function drawLayers(c, o, wf, dir, ax, ay, sx, sy, bm){
@@ -619,39 +596,33 @@ function drawComposite(c, p, down, forcedDir){
 
   if(p._animClip==="die"||p._animClip==="down"||p.state==="dying"||down)
     ensureClipForPed(p, p._animClip|| (p.state==="dying"?"die":"down"));
-  else if(p._animClip&&p._animClip!=="walk"&&p._animClip!=="idle"&&p._animClip!=="run")
+  else if(p._animClip&&p._animClip!=="walk"&&p._animClip!=="idle")
     ensureClipForPed(p, p._animClip);
   else ensureWalkPrefetch(p, o, wfRaw, dir);
 
+  if(!p._psLayerCache) p._psLayerCache={};
   const loadPri=p===global.ped?12:(p.state==="dying"||down?11:7);
   const uid=pedUid(p);
 
   const isDown=down||p.state==="dying";
   drawPedShadowBlob(c, sc, {down:isDown});
 
-  if(!allLayersReady(o, wfRaw, dir)) queuePoseLayers(o, wfRaw, dir, loadPri);
-
-  let drew=false;
-  if(drawAtomicPose(c, o, wfRaw, dir, ax, ay, sx, sy, bm)){
+  const smart=drawLayersSmart(c, o, wfRaw, dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri);
+  let drew=smart.complete||smart.drew>0;
+  if(smart.complete){
     const bakedIm=tryBake(o, wfRaw, dir);
     if(bakedIm) lastHold[uid]={wf:wfRaw, dir, canvas:bakedIm};
-    drew=true;
-  }else{
-    const pose=resolveAnimPose(o, wfRaw, dir);
-    if(pose.wf!==wfRaw||pose.dir!==dir){
-      if(!allLayersReady(o, pose.wf, pose.dir)) queuePoseLayers(o, pose.wf, pose.dir, loadPri);
-      if(drawAtomicPose(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm)){
-        const bakedIm=getBaked(o, pose.wf, pose.dir);
-        if(bakedIm) lastHold[uid]={wf:pose.wf, dir:pose.dir, canvas:bakedIm};
-        drew=true;
-      }
-    }
   }
   if(!drew){
     const hold=lastHold[uid];
     if(hold&&hold.canvas){
       c.drawImage(hold.canvas, -ax*bm.sx, -ay*bm.sy, 22*sx, 22*sy);
+      drew=true;
     }
+  }
+  if(!drew){
+    const pose=resolveAnimPose(o, wfRaw, dir);
+    if(drawLayersSmart(c, o, pose.wf, pose.dir, ax, ay, sx, sy, bm, p._psLayerCache, loadPri).drew>0) drew=true;
   }
 
   if(p.hostile){
