@@ -505,8 +505,8 @@ function resolveSpriteDir(p, forcedDir){
 }
 
 function spriteSize(){
-  const w=meta&&meta.size?meta.size[0]:36;
-  const h=meta&&meta.size?meta.size[1]:36;
+  const w=meta&&meta.size?meta.size[0]:48;
+  const h=meta&&meta.size?meta.size[1]:48;
   return {w, h};
 }
 
@@ -591,8 +591,8 @@ function drawComposite(c, p, down, forcedDir){
   const sc=rad*2.05;
   const sx=sc*bm.sx, sy=sc*bm.sy;
   const {w:sprW, h:sprH}=spriteSize();
-  const ax=(meta.anchor||[18,35])[0]*sc;
-  const ay=(meta.anchor||[18,35])[1]*sc;
+  const ax=(meta.anchor||[24,47])[0]*sc;
+  const ay=(meta.anchor||[24,47])[1]*sc;
   c.imageSmoothingEnabled=false;
 
   const wfRaw=(LS&&LS.walkFrameName)?LS.walkFrameName(p,down,meta):"walk0";

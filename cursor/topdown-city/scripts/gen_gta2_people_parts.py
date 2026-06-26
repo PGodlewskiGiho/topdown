@@ -15,8 +15,8 @@ PARTS = os.path.join(ROOT, "parts", "bodies")
 PREVIEWS = os.path.join(ROOT, "previews")
 SCRIPTS = os.path.dirname(__file__)
 STY = os.environ.get("GTA2_STY", "/tmp/bil.sty")
-CANVAS = (36, 36)
-ANCHOR = (18, 35)
+CANVAS = (48, 48)
+ANCHOR = (24, 47)
 BODY_TYPES = ("male", "female", "hardy")
 
 # gta2_re: animation_frame 0-7 = walk cycle; facing = sprite rotation (baked to 8 dirs at export).
@@ -165,23 +165,53 @@ def save_part(body: str, part: str, variant: str, walk: str, direction: str, lay
     layer.save(path, "PNG")
 
 
-def rotate_layer(im: Image.Image, direction: str) -> Image.Image:
-    """Bake GTA2 sprite rotation: all layers share foot anchor pivot (11, 21)."""
-    if direction not in DIR_NAMES:
-        return im.copy()
+def frame_pivot(im: Image.Image) -> tuple[int, int]:
+    """Bottom-center of opaque pixels — shared rotation pivot for all layers in one frame."""
+    pts = [(x, y) for y in range(im.height) for x in range(im.width) if im.getpixel((x, y))[3] > 0]
+    if not pts:
+        return ANCHOR
+    maxy = max(y for _, y in pts)
+    row = [x for x, y in pts if y == maxy]
+    return (sum(row) // len(row), maxy)
+
+
+def _rotate_on_pad(im: Image.Image, direction: str, pivot: tuple[int, int]):
     idx = DIR_NAMES.index(direction)
     target_rad = idx * (math.pi / 4)
     pil_deg = -math.degrees(target_rad + _anim["rotation_offset_rad"])
-
-    px, py = ANCHOR
-    pad = 64
-    big = Image.new("RGBA", (pad, pad), (0, 0, 0, 0))
+    px, py = pivot
+    pad = max(128, max(CANVAS) * 3)
     bcx, bcy = pad // 2, pad // 2
-    big.paste(im, (int(bcx - px), int(bcy - py)), im)
+    big = Image.new("RGBA", (pad, pad), (0, 0, 0, 0))
+    big.paste(im, (bcx - px, bcy - py), im)
     rotated = big.rotate(pil_deg, resample=Image.NEAREST, center=(bcx, bcy))
+    return rotated, pad
 
+
+def paste_offset_for_frame(full_im: Image.Image, direction: str, pivot: tuple[int, int]) -> tuple[int, int]:
+    """Align rotated frame by bbox foot — same offset for every layer in this pose."""
+    rotated, _pad = _rotate_on_pad(full_im, direction, pivot)
+    pts = [(x, y) for y in range(rotated.height) for x in range(rotated.width) if rotated.getpixel((x, y))[3] > 0]
+    if not pts:
+        return (0, 0)
+    minx, maxx = min(x for x, _ in pts), max(x for x, _ in pts)
+    maxy = max(y for _, y in pts)
+    foot_x = (minx + maxx) // 2
+    foot_y = maxy
+    return (ANCHOR[0] - foot_x, ANCHOR[1] - foot_y)
+
+
+def rotate_layer(im: Image.Image, direction: str, pivot: tuple[int, int] | None = None,
+                 paste_xy: tuple[int, int] | None = None) -> Image.Image:
+    """Bake GTA2 rotation — shared pivot + shared paste offset keeps layers aligned."""
+    if direction not in DIR_NAMES:
+        return im.copy()
+    pivot = pivot or ANCHOR
+    rotated, _pad = _rotate_on_pad(im, direction, pivot)
+    if paste_xy is None:
+        paste_xy = paste_offset_for_frame(im, direction, pivot)
     out = Image.new("RGBA", CANVAS, (0, 0, 0, 0))
-    out.paste(rotated, (ANCHOR[0] - bcx, ANCHOR[1] - bcy), rotated)
+    out.paste(rotated, paste_xy, rotated)
     return out
 
 
@@ -208,24 +238,26 @@ def extract_all(masks: dict, frame_cache: dict[int, dict[int, Image.Image]]):
     for slot_i, slot in enumerate(EXPORT_SLOTS):
         folder = slot["folder"]
         m = masks[slot_i]
+        pivot = frame_pivot(frame_cache[BASE_REMAP][slot_i])
         for direction in DIR_NAMES:
+            paste_xy = paste_offset_for_frame(frame_cache[BASE_REMAP][slot_i], direction, pivot)
             for shirt_id, rid in SHIRT_REMAP.items():
                 src = frame_cache[rid][slot_i]
-                torso = rotate_layer(apply_mask(src, m["torso"]), direction)
-                arms = rotate_layer(apply_mask(src, m["arms"]), direction)
+                torso = rotate_layer(apply_mask(src, m["torso"]), direction, pivot, paste_xy)
+                arms = rotate_layer(apply_mask(src, m["arms"]), direction, pivot, paste_xy)
                 save_part("male", "torsos", shirt_id, folder, direction, torso)
                 save_part("male", "arms", shirt_id, folder, direction, arms)
 
             for pants_id, rid in PANTS_REMAP.items():
                 src = frame_cache[rid][slot_i]
-                pants = rotate_layer(apply_mask(src, m["pants"]), direction)
-                shoes = rotate_layer(apply_mask(src, m["shoes"]), direction)
+                pants = rotate_layer(apply_mask(src, m["pants"]), direction, pivot, paste_xy)
+                shoes = rotate_layer(apply_mask(src, m["shoes"]), direction, pivot, paste_xy)
                 save_part("male", "pants", pants_id, folder, direction, pants)
                 save_part("male", "shoes", pants_id, folder, direction, shoes)
 
             src27 = frame_cache[BASE_REMAP][slot_i]
-            skin = rotate_layer(apply_mask(src27, m["skin"]), direction)
-            hair = rotate_layer(apply_mask(src27, m["hair"]), direction)
+            skin = rotate_layer(apply_mask(src27, m["skin"]), direction, pivot, paste_xy)
+            hair = rotate_layer(apply_mask(src27, m["hair"]), direction, pivot, paste_xy)
             save_part("male", "skins", "medium", folder, direction, skin)
             save_part("male", "hairs", "brown", folder, direction, hair)
             done += 1
@@ -369,7 +401,7 @@ def write_meta():
         {"id": "skirt_navy", "gender": "female"},
     ]
     meta = {
-        "version": 5,
+        "version": 6,
         "style": "gta2",
         "size": list(CANVAS),
         "anchor": list(ANCHOR),
