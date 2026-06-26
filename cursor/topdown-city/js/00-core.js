@@ -86,3 +86,35 @@ const pick=arr=>arr[(rng()*arr.length)|0];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const randInt=(a,b)=>a+Math.floor(rng()*(b-a+1));
 
+/** Load PNG sprites from meta.json; always settles pack.ready (timeout + per-image fallback). */
+function bootSpritePack(pack, metaUrl, buildJobs, timeoutMs){
+  timeoutMs=timeoutMs!=null?timeoutMs:14000;
+  let settled=false;
+  const finish=()=>{ if(settled) return; settled=true; pack.ready=true; };
+  setTimeout(finish, timeoutMs);
+  fetch(metaUrl).then(r=>{
+    if(!r.ok) throw new Error("meta:"+r.status);
+    return r.json();
+  }).then(meta=>{
+    pack.meta=meta;
+    const jobs=buildJobs(meta)||[];
+    let left=jobs.length;
+    if(!left){ finish(); return; }
+    const imgMs=Math.max(4000, timeoutMs-800);
+    for(const job of jobs){
+      let done=false;
+      const bump=()=>{
+        if(done) return;
+        done=true;
+        if(--left<=0) finish();
+      };
+      const im=new Image();
+      im.onload=im.onerror=bump;
+      setTimeout(bump, imgMs);
+      im.src=job.src;
+      job.apply(pack, im);
+    }
+  }).catch(finish);
+}
+window.bootSpritePack=bootSpritePack;
+

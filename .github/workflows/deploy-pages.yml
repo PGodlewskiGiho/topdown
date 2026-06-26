@@ -54,7 +54,8 @@ jobs:
       - name: Prepare site artifact
         run: |
           SITE=cursor/topdown-city
-          echo "{\"build\":\"2026062751\",\"people\":10,\"style\":\"gta2\",\"sprites\":\"relative\",\"source\":\"main\"}" > "$SITE/version.json"
+          BUILD=$(date -u +%Y%m%d%H)
+          echo "{\"build\":\"$BUILD\",\"people\":10,\"style\":\"gta2\",\"sprites\":\"relative\",\"source\":\"main\"}" > "$SITE/version.json"
           touch "$SITE/.nojekyll"
 
       - name: Upload site artifact

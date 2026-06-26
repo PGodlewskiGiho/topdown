@@ -1369,19 +1369,12 @@ function drawWater(L){
 // ── PNG forest grass (Pillow-generated, assets/grass-forest/*.png) ───────
 const FOREST_GRASS={ready:false,meta:null,img:{}};
 window.FOREST_GRASS=FOREST_GRASS;
-(function loadForestGrassSprites(){
-  fetch("assets/grass-forest/meta.json").then(r=>r.json()).then(meta=>{
-    FOREST_GRASS.meta=meta;
-    const keys=Object.keys(meta.variants||{}); let left=keys.length||0;
-    if(!left){ FOREST_GRASS.ready=true; return; }
-    for(const k of keys){
-      const im=new Image();
-      im.onload=im.onerror=()=>{ if(--left<=0) FOREST_GRASS.ready=true; };
-      im.src="assets/grass-forest/"+meta.variants[k].file;
-      FOREST_GRASS.img[k]=im;
-    }
-  }).catch(()=>{ FOREST_GRASS.ready=true; });
-})();
+bootSpritePack(FOREST_GRASS, "assets/grass-forest/meta.json", meta=>
+  Object.keys(meta.variants||{}).map(k=>({
+    src:"assets/grass-forest/"+meta.variants[k].file,
+    apply(pack, im){ pack.img[k]=im; },
+  }))
+);
 function forestGrassMeta(key){
   const v=FOREST_GRASS.meta?.variants?.[key];
   if(v) return v;
@@ -1465,19 +1458,12 @@ function drawForestFloor(L){
 // ── PNG desert floor (assets/sand-desert/*.png) ───────────────────────────
 const DESERT_FLOOR={ready:false,meta:null,img:{}};
 window.DESERT_FLOOR=DESERT_FLOOR;
-(function loadDesertFloorSprites(){
-  fetch("assets/sand-desert/meta.json").then(r=>r.json()).then(meta=>{
-    DESERT_FLOOR.meta=meta;
-    const keys=Object.keys(meta.variants||{}); let left=keys.length||0;
-    if(!left){ DESERT_FLOOR.ready=true; return; }
-    for(const k of keys){
-      const im=new Image();
-      im.onload=im.onerror=()=>{ if(--left<=0) DESERT_FLOOR.ready=true; };
-      im.src="assets/sand-desert/"+meta.variants[k].file;
-      DESERT_FLOOR.img[k]=im;
-    }
-  }).catch(()=>{ DESERT_FLOOR.ready=true; });
-})();
+bootSpritePack(DESERT_FLOOR, "assets/sand-desert/meta.json", meta=>
+  Object.keys(meta.variants||{}).map(k=>({
+    src:"assets/sand-desert/"+meta.variants[k].file,
+    apply(pack, im){ pack.img[k]=im; },
+  }))
+);
 function desertFloorMeta(key){
   const v=DESERT_FLOOR.meta?.variants?.[key];
   if(v) return v;
@@ -1954,17 +1940,12 @@ function treeAssetRoot(){
 }
 (function loadTreeSprites(){
   const root=treeAssetRoot();
-  fetch(root+"assets/trees/meta.json").then(r=>r.json()).then(meta=>{
-    TREE_SPRITE.meta=meta;
-    const kinds=Object.keys(meta.kinds); let left=kinds.length||0;
-    if(!left){ TREE_SPRITE.ready=true; return; }
-    for(const k of kinds){
-      const im=new Image();
-      im.onload=im.onerror=()=>{ if(--left<=0) TREE_SPRITE.ready=true; };
-      im.src=root+"assets/trees/"+meta.kinds[k].file;
-      TREE_SPRITE.img[k]=im;
-    }
-  }).catch(()=>{ TREE_SPRITE.ready=true; });
+  bootSpritePack(TREE_SPRITE, root+"assets/trees/meta.json", meta=>
+    Object.keys(meta.kinds||{}).map(k=>({
+      src:root+"assets/trees/"+meta.kinds[k].file,
+      apply(pack, im){ pack.img[k]=im; },
+    }))
+  );
 })();
 function treeKindMeta(kind){
   const g=TREE_SPRITE.meta||{};
